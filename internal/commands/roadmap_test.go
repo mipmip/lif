@@ -11,6 +11,32 @@ import (
 	"github.com/xRiErOS/beans/pkg/config"
 )
 
+// epicGroupsOf extracts the epic-slot groups from a mixed container list, in
+// order, for tests written against milestoneGroup/unscheduledGroup's former
+// dedicated Epics field (beans-swy1).
+func epicGroupsOf(containers []roadmapContainer) []epicGroup {
+	var out []epicGroup
+	for _, c := range containers {
+		if c.Epic != nil {
+			out = append(out, *c.Epic)
+		}
+	}
+	return out
+}
+
+// featureGroupsOf extracts the feature-slot groups from a mixed container
+// list, in order, for tests written against milestoneGroup/unscheduledGroup's
+// former dedicated Features field (beans-swy1).
+func featureGroupsOf(containers []roadmapContainer) []featureGroup {
+	var out []featureGroup
+	for _, c := range containers {
+		if c.Feature != nil {
+			out = append(out, *c.Feature)
+		}
+	}
+	return out
+}
+
 func TestBuildRoadmap(t *testing.T) {
 	// Save and restore global cfg
 	oldCfg := cfg
@@ -118,7 +144,7 @@ func TestBuildRoadmap(t *testing.T) {
 			gotUnscheduledEpics := 0
 			gotUnscheduledOther := 0
 			if result.Unscheduled != nil {
-				gotUnscheduledEpics = len(result.Unscheduled.Epics)
+				gotUnscheduledEpics = len(epicGroupsOf(result.Unscheduled.Containers))
 				gotUnscheduledOther = len(result.Unscheduled.Other)
 			}
 			if gotUnscheduledEpics != tt.wantUnscheduledEpics {
@@ -416,7 +442,7 @@ func TestBuildMilestoneGroupResolvesFeatureNesting(t *testing.T) {
 	if len(result.Milestones) != 1 {
 		t.Fatalf("got %d milestones, want 1", len(result.Milestones))
 	}
-	epics := result.Milestones[0].Epics
+	epics := epicGroupsOf(result.Milestones[0].Containers)
 	if len(epics) != 1 {
 		t.Fatalf("got %d epics, want 1", len(epics))
 	}
@@ -450,10 +476,11 @@ func TestUnscheduledFeatureResolvesNesting(t *testing.T) {
 	if result.Unscheduled == nil {
 		t.Fatal("expected Unscheduled to be non-nil")
 	}
-	if len(result.Unscheduled.Features) != 1 {
-		t.Fatalf("got %d unscheduled features, want 1", len(result.Unscheduled.Features))
+	unscheduledFeatures := featureGroupsOf(result.Unscheduled.Containers)
+	if len(unscheduledFeatures) != 1 {
+		t.Fatalf("got %d unscheduled features, want 1", len(unscheduledFeatures))
 	}
-	fg := result.Unscheduled.Features[0]
+	fg := unscheduledFeatures[0]
 	if fg.Feature.ID != "f1" {
 		t.Errorf("feature group is for %s, want f1", fg.Feature.ID)
 	}
@@ -480,10 +507,11 @@ func TestUnscheduledEpicWithFeatureNesting(t *testing.T) {
 
 	result := buildRoadmap(beans, false, nil, nil)
 
-	if len(result.Unscheduled.Epics) != 1 {
-		t.Fatalf("got %d unscheduled epics, want 1", len(result.Unscheduled.Epics))
+	unscheduledEpics := epicGroupsOf(result.Unscheduled.Containers)
+	if len(unscheduledEpics) != 1 {
+		t.Fatalf("got %d unscheduled epics, want 1", len(unscheduledEpics))
 	}
-	eg := result.Unscheduled.Epics[0]
+	eg := unscheduledEpics[0]
 	if len(eg.Features) != 1 || eg.Features[0].Feature.ID != "f1" {
 		t.Fatalf("eg.Features = %+v, want feature f1", eg.Features)
 	}
@@ -509,10 +537,11 @@ func TestUnscheduledNestedFeatureNotDoubleRendered(t *testing.T) {
 
 	result := buildRoadmap(beans, false, nil, nil)
 
-	if len(result.Unscheduled.Features) != 1 {
-		t.Fatalf("got %d unscheduled features, want 1 (f1 only, f2 must not double-render)", len(result.Unscheduled.Features))
+	unscheduledFeatures := featureGroupsOf(result.Unscheduled.Containers)
+	if len(unscheduledFeatures) != 1 {
+		t.Fatalf("got %d unscheduled features, want 1 (f1 only, f2 must not double-render)", len(unscheduledFeatures))
 	}
-	fg := result.Unscheduled.Features[0]
+	fg := unscheduledFeatures[0]
 	if fg.Feature.ID != "f1" {
 		t.Errorf("unscheduled feature is %s, want f1", fg.Feature.ID)
 	}
@@ -541,8 +570,8 @@ func TestOrphanChildlessFeatureAppearsAsFlatLeaf(t *testing.T) {
 	if result.Unscheduled == nil {
 		t.Fatal("expected Unscheduled to be non-nil")
 	}
-	if len(result.Unscheduled.Features) != 0 {
-		t.Errorf("got %d unscheduled featureGroups, want 0 (childless feature must not become a container)", len(result.Unscheduled.Features))
+	if unscheduledFeatures := featureGroupsOf(result.Unscheduled.Containers); len(unscheduledFeatures) != 0 {
+		t.Errorf("got %d unscheduled featureGroups, want 0 (childless feature must not become a container)", len(unscheduledFeatures))
 	}
 	if len(result.Unscheduled.Other) != 1 || result.Unscheduled.Other[0].ID != "f1" {
 		t.Errorf("Unscheduled.Other = %v, want [f1]", result.Unscheduled.Other)
@@ -568,7 +597,7 @@ func TestChildlessFeatureUnderEpicAppearsInEpicItems(t *testing.T) {
 	if len(result.Milestones) != 1 {
 		t.Fatalf("got %d milestones, want 1", len(result.Milestones))
 	}
-	epics := result.Milestones[0].Epics
+	epics := epicGroupsOf(result.Milestones[0].Containers)
 	if len(epics) != 1 {
 		t.Fatalf("got %d epics, want 1", len(epics))
 	}
@@ -600,8 +629,8 @@ func TestChildlessFeatureDirectUnderMilestoneAppearsInOther(t *testing.T) {
 		t.Fatalf("got %d milestones, want 1", len(result.Milestones))
 	}
 	ms := result.Milestones[0]
-	if len(ms.Features) != 0 {
-		t.Errorf("got %d milestone feature groups, want 0", len(ms.Features))
+	if msFeatures := featureGroupsOf(ms.Containers); len(msFeatures) != 0 {
+		t.Errorf("got %d milestone feature groups, want 0", len(msFeatures))
 	}
 	if len(ms.Other) != 1 || ms.Other[0].ID != "f1" {
 		t.Errorf("milestone.Other = %v, want [f1]", ms.Other)
@@ -627,7 +656,7 @@ func TestFeatureWithChildRemainsContainerAlongsideChildlessSibling(t *testing.T)
 
 	result := buildRoadmap(beans, false, nil, nil)
 
-	epic := result.Milestones[0].Epics[0]
+	epic := epicGroupsOf(result.Milestones[0].Containers)[0]
 	if len(epic.Items) != 1 || epic.Items[0].ID != "f1" {
 		t.Errorf("epic.Items = %v, want [f1] (childless feature flattened)", epic.Items)
 	}
@@ -674,14 +703,59 @@ func TestOrphanChildlessEpicAppearsAsFlatLeaf(t *testing.T) {
 	if result.Unscheduled == nil {
 		t.Fatal("expected Unscheduled to be non-nil")
 	}
-	if len(result.Unscheduled.Epics) != 0 {
-		t.Errorf("got %d unscheduled epicGroups, want 0 (childless epic must not become a container)", len(result.Unscheduled.Epics))
+	if unscheduledEpics := epicGroupsOf(result.Unscheduled.Containers); len(unscheduledEpics) != 0 {
+		t.Errorf("got %d unscheduled epicGroups, want 0 (childless epic must not become a container)", len(unscheduledEpics))
 	}
 	if len(result.Unscheduled.Other) != 1 || result.Unscheduled.Other[0].ID != "e1" {
 		t.Errorf("Unscheduled.Other = %v, want [e1]", result.Unscheduled.Other)
 	}
 }
 
+// TestRoadmapInterleavesEpicAndFeatureContainersByOrder is the case
+// beans-swy1 fixes: before the unified Containers list, a milestone's epic-
+// and feature-typed children rendered in two rank-segregated blocks, so a
+// feature's manual order could never move it ahead of an epic under the
+// same parent. With one order-comparable Containers slot, a feature with a
+// lower order renders before an epic with a higher order.
+func TestRoadmapInterleavesEpicAndFeatureContainersByOrder(t *testing.T) {
+	oldCfg := cfg
+	defer func() { cfg = oldCfg }()
+	cfg = config.Default()
+
+	beans := []*bean.Bean{
+		{ID: "beans-m1", Type: "milestone", Title: "v1.0", Status: "todo"},
+		{ID: "beans-e1", Type: "epic", Title: "Cross-cutting alignment", Status: "todo", Parent: "beans-m1", Order: "2"},
+		{ID: "beans-et1", Type: "task", Title: "Epic task", Status: "todo", Parent: "beans-e1"},
+		{ID: "beans-f1", Type: "feature", Title: "Customer-facing feature", Status: "todo", Parent: "beans-m1", Order: "1"},
+		{ID: "beans-ft1", Type: "task", Title: "Feature task", Status: "todo", Parent: "beans-f1"},
+	}
+
+	data := buildRoadmap(beans, false, nil, nil)
+
+	if len(data.Milestones) != 1 {
+		t.Fatalf("got %d milestone groups, want 1", len(data.Milestones))
+	}
+	containers := data.Milestones[0].Containers
+	if len(containers) != 2 {
+		t.Fatalf("got %d containers, want 2", len(containers))
+	}
+	if containers[0].Feature == nil || containers[0].Feature.Feature.ID != "beans-f1" {
+		t.Fatalf("containers[0] = %+v, want feature beans-f1 (lower order)", containers[0])
+	}
+	if containers[1].Epic == nil || containers[1].Epic.Epic.ID != "beans-e1" {
+		t.Fatalf("containers[1] = %+v, want epic beans-e1 (higher order)", containers[1])
+	}
+
+	got := renderRoadmapMarkdown(data, false, "", false)
+	f1Pos := strings.Index(got, "(beans-f1)")
+	e1Pos := strings.Index(got, "(beans-e1)")
+	if f1Pos == -1 || e1Pos == -1 {
+		t.Fatalf("expected both beans-f1 and beans-e1 to render, got %q", got)
+	}
+	if f1Pos > e1Pos {
+		t.Errorf("beans-f1 (order 1) rendered after beans-e1 (order 2): f1 at %d, e1 at %d\n%s", f1Pos, e1Pos, got)
+	}
+}
 
 // --- T5: roadmapOutput TTY switch -------------------------------------------
 //
@@ -698,8 +772,8 @@ func roadmapOutputFixture() *roadmapData {
 		Milestones: []milestoneGroup{
 			{
 				Milestone: m,
-				Epics: []epicGroup{
-					{Epic: e, Items: []*bean.Bean{t1}},
+				Containers: []roadmapContainer{
+					{Epic: &epicGroup{Epic: e, Items: []*bean.Bean{t1}}},
 				},
 			},
 		},
@@ -725,8 +799,8 @@ func TestRoadmapRowsNestItemsUnderTheirEpic(t *testing.T) {
 		Milestones: []milestoneGroup{
 			{
 				Milestone: m,
-				Epics: []epicGroup{
-					{Epic: e, Features: []featureGroup{{Feature: f, Items: []*bean.Bean{task}}}},
+				Containers: []roadmapContainer{
+					{Epic: &epicGroup{Epic: e, Features: []featureGroup{{Feature: f, Items: []*bean.Bean{task}}}}},
 				},
 			},
 		},
@@ -947,7 +1021,7 @@ func TestBuildScopedRoadmapMilestoneRootWithNoVisibleChildren(t *testing.T) {
 	if result.Milestones[0].Milestone.ID != "m1" {
 		t.Errorf("got milestone %s, want m1", result.Milestones[0].Milestone.ID)
 	}
-	if len(result.Milestones[0].Epics) != 0 || len(result.Milestones[0].Features) != 0 || len(result.Milestones[0].Other) != 0 {
+	if len(result.Milestones[0].Containers) != 0 || len(result.Milestones[0].Other) != 0 {
 		t.Errorf("expected empty milestone group, got %+v", result.Milestones[0])
 	}
 }
@@ -1164,14 +1238,15 @@ func TestRoadmapPlacesAConfiguredRank2TypeInTheEpicSlot(t *testing.T) {
 		t.Fatalf("got %d milestone groups, want 1", len(data.Milestones))
 	}
 	group := data.Milestones[0]
-	if len(group.Epics) != 1 {
-		t.Fatalf("got %d rank-2 groups, want 1 — a configured rank-2 type belongs in the epic slot", len(group.Epics))
+	groupEpics := epicGroupsOf(group.Containers)
+	if len(groupEpics) != 1 {
+		t.Fatalf("got %d rank-2 groups, want 1 — a configured rank-2 type belongs in the epic slot", len(groupEpics))
 	}
-	if group.Epics[0].Epic.ID != "p1" {
-		t.Errorf("rank-2 slot holds %q, want \"p1\"", group.Epics[0].Epic.ID)
+	if groupEpics[0].Epic.ID != "p1" {
+		t.Errorf("rank-2 slot holds %q, want \"p1\"", groupEpics[0].Epic.ID)
 	}
-	if len(group.Epics[0].Items) != 1 {
-		t.Errorf("got %d leaves under the package, want 1", len(group.Epics[0].Items))
+	if len(groupEpics[0].Items) != 1 {
+		t.Errorf("got %d leaves under the package, want 1", len(groupEpics[0].Items))
 	}
 }
 
@@ -1260,12 +1335,12 @@ func TestHiddenContainerHidesEveryRankBeneathIt(t *testing.T) {
 	data := buildRoadmap(beans, false, nil, nil)
 
 	if data.Unscheduled != nil {
-		for _, eg := range data.Unscheduled.Epics {
+		for _, eg := range epicGroupsOf(data.Unscheduled.Containers) {
 			if eg.Epic.ID == "e1" {
 				t.Fatal("a rank-2 container nested under a hidden rank-1 container must not resurface as unscheduled")
 			}
 		}
-		for _, fg := range data.Unscheduled.Features {
+		for _, fg := range featureGroupsOf(data.Unscheduled.Containers) {
 			if fg.Feature.ID == "f1" || fg.Feature.ID == "f2" {
 				t.Fatalf("a rank-3 container under a hidden rank-1 container must not resurface as unscheduled, got %q", fg.Feature.ID)
 			}
@@ -1310,7 +1385,7 @@ func TestHiddenContainerNestedUnderVisibleParentVanishesEntirely(t *testing.T) {
 		t.Fatalf("the visible milestone must still render, got %+v", data.Milestones)
 	}
 	group := data.Milestones[0]
-	for _, eg := range group.Epics {
+	for _, eg := range epicGroupsOf(group.Containers) {
 		if eg.Epic.ID == "b1" {
 			t.Fatal("a hidden rank-2 container under a visible milestone must not render as one of its Epics")
 		}
@@ -1375,7 +1450,7 @@ func TestScopedRoadmapHidingRespectsScopeBoundary(t *testing.T) {
 			t.Fatalf("expected the named root m1 to render, got %+v", data.Milestones)
 		}
 		group := data.Milestones[0]
-		for _, eg := range group.Epics {
+		for _, eg := range epicGroupsOf(group.Containers) {
 			if eg.Epic.ID == "b1" {
 				t.Fatal("a hidden rank-2 container below the scoped root must not render as one of its Epics")
 			}
@@ -1409,11 +1484,12 @@ func TestScopedRoadmapHidingRespectsScopeBoundary(t *testing.T) {
 			t.Fatalf("a scoped hidden rank-1 root must still render as its own container, got %+v", data.Milestones)
 		}
 		group := data.Milestones[0]
-		if len(group.Epics) != 1 || group.Epics[0].Epic.ID != "e2" {
-			t.Fatalf("a scoped hidden rank-1 root must render its own visible child, got %+v", group.Epics)
+		milestoneEpics := epicGroupsOf(group.Containers)
+		if len(milestoneEpics) != 1 || milestoneEpics[0].Epic.ID != "e2" {
+			t.Fatalf("a scoped hidden rank-1 root must render its own visible child, got %+v", milestoneEpics)
 		}
 		found := false
-		for _, item := range group.Epics[0].Items {
+		for _, item := range milestoneEpics[0].Items {
 			if item.ID == "t2" {
 				found = true
 			}
@@ -1466,10 +1542,11 @@ func TestHiddenRank3ContainerVanishesWithItsLeaf(t *testing.T) {
 		t.Fatalf("got %d milestone groups, want 1", len(data.Milestones))
 	}
 	group := data.Milestones[0]
-	if len(group.Epics) != 1 || group.Epics[0].Epic.ID != "e1" {
-		t.Fatalf("expected epic e1 to still render (it has a visible sibling task), got %+v", group.Epics)
+	milestoneEpics := epicGroupsOf(group.Containers)
+	if len(milestoneEpics) != 1 || milestoneEpics[0].Epic.ID != "e1" {
+		t.Fatalf("expected epic e1 to still render (it has a visible sibling task), got %+v", milestoneEpics)
 	}
-	eg := group.Epics[0]
+	eg := milestoneEpics[0]
 	for _, fg := range eg.Features {
 		if fg.Feature.ID == "d1" {
 			t.Fatal("a hidden rank-3 container must not render as one of its epic's Features")

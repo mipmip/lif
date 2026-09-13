@@ -56,22 +56,29 @@ type rootGroup struct {
 	Feature *featureGroup `json:"feature,omitempty"`
 }
 
+// roadmapContainer holds one order-comparable container child of a milestone
+// or of the unscheduled bucket: exactly one of Epic/Feature is set. The slot
+// exists so an epic and a feature under the same parent sort into one
+// sequence (beans-swy1) instead of two rank-segregated blocks.
+type roadmapContainer struct {
+	Epic    *epicGroup    `json:"epic,omitempty"`
+	Feature *featureGroup `json:"feature,omitempty"`
+}
+
 // unscheduledGroup represents items not assigned to any milestone.
 type unscheduledGroup struct {
-	Epics    []epicGroup    `json:"epics,omitempty"`
-	Features []featureGroup `json:"features,omitempty"`
-	Other    []*bean.Bean   `json:"other,omitempty"`
+	Containers []roadmapContainer `json:"containers,omitempty"`
+	Other      []*bean.Bean       `json:"other,omitempty"`
 }
 
 // milestoneGroup represents a rank-1 container and its contents. The JSON
-// keys are slot names, not type names: a configured rank-2 type appears
-// under "epics" and a rank-3 type under "features", whatever they are
-// called.
+// key is a slot name, not a type name: each entry in "containers" carries
+// either a rank-2 ("epic") or a rank-3 ("feature") group, whatever they are
+// called, sorted together into one sequence (beans-swy1).
 type milestoneGroup struct {
-	Milestone *bean.Bean     `json:"milestone"`
-	Epics     []epicGroup    `json:"epics,omitempty"`
-	Features  []featureGroup `json:"features,omitempty"`
-	Other     []*bean.Bean   `json:"other,omitempty"`
+	Milestone  *bean.Bean         `json:"milestone"`
+	Containers []roadmapContainer `json:"containers,omitempty"`
+	Other      []*bean.Bean       `json:"other,omitempty"`
 }
 
 // epicGroup represents a rank-2 container and its child items. The "epic"
@@ -271,9 +278,9 @@ func roadmapRows(data *roadmapData) []ui.Row {
 	return rows
 }
 
-// appendRoadmapMilestoneGroup appends a milestone (depth 0) followed by its
-// epics, features, and other leaf items (depth 1), in that order -- matching
-// the mg.Epics / mg.Features / mg.Other order roadmap.tmpl renders.
+// appendRoadmapMilestoneGroup appends a milestone, then its container
+// children and other leaf items in mg.Containers / mg.Other order, the
+// order roadmap.tmpl renders.
 func appendRoadmapMilestoneGroup(items *[]ui.FlatItem, mg milestoneGroup) {
 	// Unreachable in production -- every construction site sets Milestone --
 	// but a hand-built roadmapData literal in a test would otherwise panic
@@ -284,15 +291,15 @@ func appendRoadmapMilestoneGroup(items *[]ui.FlatItem, mg milestoneGroup) {
 	}
 	*items = append(*items, ui.FlatItem{Bean: mg.Milestone, Depth: 0, IsLast: true})
 
-	total := len(mg.Epics) + len(mg.Features) + len(mg.Other)
+	total := len(mg.Containers) + len(mg.Other)
 	i := 0
-	for _, eg := range mg.Epics {
+	for _, c := range mg.Containers {
 		i++
-		appendRoadmapEpicGroup(items, eg, 1, i == total)
-	}
-	for _, fg := range mg.Features {
-		i++
-		appendRoadmapFeatureGroup(items, fg, 1, i == total)
+		if c.Epic != nil {
+			appendRoadmapEpicGroup(items, *c.Epic, 1, i == total)
+		} else {
+			appendRoadmapFeatureGroup(items, *c.Feature, 1, i == total)
+		}
 	}
 	for _, leaf := range mg.Other {
 		i++
@@ -300,20 +307,20 @@ func appendRoadmapMilestoneGroup(items *[]ui.FlatItem, mg milestoneGroup) {
 	}
 }
 
-// appendRoadmapUnscheduledGroup appends the unscheduled bucket's epics,
-// features, and other leaf items at depth 0 -- each is its own root, exactly
-// like a milestone-less scoped root, since there is no milestone bean to
-// hang them under.
+// appendRoadmapUnscheduledGroup appends the unscheduled bucket's containers
+// and other leaf items at depth 0 -- each is its own root, exactly like a
+// milestone-less scoped root, since there is no milestone bean to hang them
+// under.
 func appendRoadmapUnscheduledGroup(items *[]ui.FlatItem, ug unscheduledGroup) {
-	total := len(ug.Epics) + len(ug.Features) + len(ug.Other)
+	total := len(ug.Containers) + len(ug.Other)
 	i := 0
-	for _, eg := range ug.Epics {
+	for _, c := range ug.Containers {
 		i++
-		appendRoadmapEpicGroup(items, eg, 0, i == total)
-	}
-	for _, fg := range ug.Features {
-		i++
-		appendRoadmapFeatureGroup(items, fg, 0, i == total)
+		if c.Epic != nil {
+			appendRoadmapEpicGroup(items, *c.Epic, 0, i == total)
+		} else {
+			appendRoadmapFeatureGroup(items, *c.Feature, 0, i == total)
+		}
 	}
 	for _, leaf := range ug.Other {
 		i++
@@ -403,7 +410,7 @@ func buildRoadmap(allBeans []*bean.Bean, includeDone bool, statusFilter, noStatu
 	for _, m := range milestones {
 		group := buildMilestoneGroup(m, children, includeDone, hidden)
 		// Only include milestones that have visible content
-		if len(group.Epics) > 0 || len(group.Features) > 0 || len(group.Other) > 0 {
+		if len(group.Containers) > 0 || len(group.Other) > 0 {
 			milestoneGroups = append(milestoneGroups, group)
 		}
 	}
@@ -425,7 +432,7 @@ func buildRoadmap(allBeans []*bean.Bean, includeDone bool, statusFilter, noStatu
 	}
 
 	// Find unscheduled epics (epics not under a milestone)
-	var unscheduledEpics []epicGroup
+	var unscheduledContainers []roadmapContainer
 	for _, b := range allBeans {
 		if !isRank(b, 2) {
 			continue
@@ -438,16 +445,12 @@ func buildRoadmap(allBeans []*bean.Bean, includeDone bool, statusFilter, noStatu
 		}
 		eg := buildEpicGroup(b, children, includeDone, hidden)
 		if len(eg.Items) > 0 || len(eg.Features) > 0 {
-			unscheduledEpics = append(unscheduledEpics, eg)
+			unscheduledContainers = append(unscheduledContainers, roadmapContainer{Epic: &eg})
 		}
 	}
 
-	// Sort unscheduled epics
-	sortEpicGroups(unscheduledEpics, cfg.StatusNames(), cfg.PriorityNames())
-
 	// Find unscheduled features: feature-typed beans that are not under a
 	// milestone or epic (orphan features, e.g. created without --parent).
-	var unscheduledFeatures []featureGroup
 	for _, b := range allBeans {
 		if !isRank(b, 3) {
 			continue
@@ -471,10 +474,12 @@ func buildRoadmap(allBeans []*bean.Bean, includeDone bool, statusFilter, noStatu
 		}
 		fg := buildFeatureGroup(b, children, includeDone, hidden)
 		if len(fg.Items) > 0 {
-			unscheduledFeatures = append(unscheduledFeatures, fg)
+			unscheduledContainers = append(unscheduledContainers, roadmapContainer{Feature: &fg})
 		}
 	}
-	sortFeatureGroups(unscheduledFeatures, cfg.StatusNames(), cfg.PriorityNames())
+
+	// Sort unscheduled epics and features together
+	sortRoadmapContainers(unscheduledContainers, cfg.StatusNames(), cfg.PriorityNames())
 
 	// Find orphan items (not milestone, not epic, no parent or parent is not milestone/epic)
 	var orphanItems []*bean.Bean
@@ -529,11 +534,10 @@ func buildRoadmap(allBeans []*bean.Bean, includeDone bool, statusFilter, noStatu
 
 	// Build unscheduled group if there's content
 	var unscheduled *unscheduledGroup
-	if len(unscheduledEpics) > 0 || len(unscheduledFeatures) > 0 || len(orphanItems) > 0 {
+	if len(unscheduledContainers) > 0 || len(orphanItems) > 0 {
 		unscheduled = &unscheduledGroup{
-			Epics:    unscheduledEpics,
-			Features: unscheduledFeatures,
-			Other:    orphanItems,
+			Containers: unscheduledContainers,
+			Other:      orphanItems,
 		}
 	}
 
@@ -715,7 +719,7 @@ func buildMilestoneGroup(m *bean.Bean, children map[string][]*bean.Bean, include
 	for _, epic := range epics {
 		eg := buildEpicGroup(epic, children, includeDone, hidden)
 		if len(eg.Items) > 0 || len(eg.Features) > 0 {
-			group.Epics = append(group.Epics, eg)
+			group.Containers = append(group.Containers, roadmapContainer{Epic: &eg})
 		}
 	}
 
@@ -726,7 +730,7 @@ func buildMilestoneGroup(m *bean.Bean, children map[string][]*bean.Bean, include
 	for _, feature := range featureChildren {
 		fg, leaf := classifyFeatureChild(feature, children, includeDone, hidden)
 		if fg != nil {
-			group.Features = append(group.Features, *fg)
+			group.Containers = append(group.Containers, roadmapContainer{Feature: fg})
 		}
 		if leaf != nil {
 			// Childless feature (D01, beans-n8zw): not a container, render
@@ -743,9 +747,8 @@ func buildMilestoneGroup(m *bean.Bean, children map[string][]*bean.Bean, include
 		}
 	}
 
-	// Sort epics and features
-	sortEpicGroups(group.Epics, cfg.StatusNames(), cfg.PriorityNames())
-	sortFeatureGroups(group.Features, cfg.StatusNames(), cfg.PriorityNames())
+	// Sort epics and features together
+	sortRoadmapContainers(group.Containers, cfg.StatusNames(), cfg.PriorityNames())
 
 	// Sort other items
 	bean.SortRoadmapLeaves(filteredOther, cfg.StatusNames(), cfg.PriorityNames(), cfg.TypeNames())
@@ -907,20 +910,32 @@ func containsStatus(statuses []string, status string) bool {
 	return slices.Contains(statuses, status)
 }
 
-// sortEpicGroups sorts epicGroups by their Epic bean, following the same
-// status → dependency → order → priority → created_at chain as
-// bean.SortRoadmapContainers.
-func sortEpicGroups(groups []epicGroup, statusNames, priorityNames []string) {
-	items := make([]*bean.Bean, len(groups))
-	for i, g := range groups {
-		items[i] = g.Epic
+// sortRoadmapContainers sorts mixed epic/feature container slots by their
+// own bean, following the same status → dependency → order → priority →
+// created_at chain as bean.SortRoadmapContainers -- across the epic/feature
+// rank boundary, not within one rank (beans-swy1).
+func sortRoadmapContainers(containers []roadmapContainer, statusNames, priorityNames []string) {
+	items := make([]*bean.Bean, len(containers))
+	for i, c := range containers {
+		items[i] = containerBean(c)
 	}
 	bean.SortRoadmapContainers(items, statusNames, priorityNames)
 	rank := make(map[string]int, len(items))
 	for i, b := range items {
 		rank[b.ID] = i
 	}
-	sort.SliceStable(groups, func(i, j int) bool { return rank[groups[i].Epic.ID] < rank[groups[j].Epic.ID] })
+	sort.SliceStable(containers, func(i, j int) bool {
+		return rank[containerBean(containers[i]).ID] < rank[containerBean(containers[j]).ID]
+	})
+}
+
+// containerBean returns the slot's own bean: the epic for an epic slot, the
+// feature for a feature slot.
+func containerBean(c roadmapContainer) *bean.Bean {
+	if c.Epic != nil {
+		return c.Epic.Epic
+	}
+	return c.Feature.Feature
 }
 
 // sortFeatureGroups sorts featureGroups by their Feature bean, following the
