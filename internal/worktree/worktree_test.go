@@ -19,6 +19,8 @@ func initTestRepo(t *testing.T) (repoDir, beansDir, worktreeRoot string) {
 		{"git", "init", "-b", "main"},
 		{"git", "config", "user.email", "test@test.com"},
 		{"git", "config", "user.name", "Test"},
+		// Repo-local override: a global core.hooksPath must not veto test commits.
+		{"git", "config", "core.hooksPath", "/dev/null"},
 		{"git", "commit", "--allow-empty", "-m", "initial"},
 	}
 
