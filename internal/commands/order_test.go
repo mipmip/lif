@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/xRiErOS/beans/pkg/bean"
@@ -423,30 +424,68 @@ func TestOrderCmdLastOnUnorderedSiblingsProducesDistinctKeys(t *testing.T) {
 	_, children := setupOrderTestUnordered(t, 3)
 	resetOrderFlags(t)
 
-	orderLast = true
+	// --last needs one ordered sibling to anchor on (beans-7zfw), so seed
+	// the first with --first.
+	orderFirst = true
 	if err := orderCmd.RunE(orderCmd, []string{children[0].ID}); err != nil {
-		t.Fatalf("orderCmd.RunE() (1st --last) error = %v", err)
+		t.Fatalf("orderCmd.RunE() (seed --first) error = %v", err)
 	}
 	first, err := core.Get(children[0].ID)
 	if err != nil {
 		t.Fatalf("core.Get() error = %v", err)
 	}
-
 	resetOrderFlags(t)
 	orderLast = true
 	if err := orderCmd.RunE(orderCmd, []string{children[1].ID}); err != nil {
-		t.Fatalf("orderCmd.RunE() (2nd --last) error = %v", err)
+		t.Fatalf("orderCmd.RunE() (1st --last) error = %v", err)
 	}
 	second, err := core.Get(children[1].ID)
 	if err != nil {
 		t.Fatalf("core.Get() error = %v", err)
 	}
-
-	if first.Order == second.Order {
-		t.Fatalf("both --last calls produced the same Order %q — second bean did not sort after the first", first.Order)
+	resetOrderFlags(t)
+	orderLast = true
+	if err := orderCmd.RunE(orderCmd, []string{children[2].ID}); err != nil {
+		t.Fatalf("orderCmd.RunE() (2nd --last) error = %v", err)
 	}
-	if !(second.Order > first.Order) {
-		t.Errorf("second.Order = %q, want strictly after first.Order = %q", second.Order, first.Order)
+	third, err := core.Get(children[2].ID)
+	if err != nil {
+		t.Fatalf("core.Get() error = %v", err)
+	}
+
+	if !(first.Order < second.Order && second.Order < third.Order) {
+		t.Errorf("orders not strictly increasing: %q, %q, %q", first.Order, second.Order, third.Order)
+	}
+}
+
+// beans-7zfw: with siblings but none ordered, --last has no anchor and used
+// to fall back to the first position silently. It must fail and leave the
+// bean untouched.
+func TestOrderCmdLastWithNoOrderedSiblingFails(t *testing.T) {
+	_, children := setupOrderTestUnordered(t, 3)
+	resetOrderFlags(t)
+	orderLast = true
+
+	err := orderCmd.RunE(orderCmd, []string{children[0].ID})
+	if err == nil || !strings.Contains(err.Error(), "--last") {
+		t.Fatalf("error = %v, want --last rejection naming the workaround", err)
+	}
+	got, gerr := core.Get(children[0].ID)
+	if gerr != nil {
+		t.Fatalf("core.Get() error = %v", gerr)
+	}
+	if got.Order != "" {
+		t.Errorf("bean mutated: Order = %q, want empty", got.Order)
+	}
+}
+
+// A bean without siblings has no position to get wrong; --last stays valid.
+func TestOrderCmdLastWithoutSiblingsSucceeds(t *testing.T) {
+	_, children := setupOrderTestUnordered(t, 1)
+	resetOrderFlags(t)
+	orderLast = true
+	if err := orderCmd.RunE(orderCmd, []string{children[0].ID}); err != nil {
+		t.Fatalf("orderCmd.RunE() error = %v", err)
 	}
 }
 
@@ -571,7 +610,7 @@ func TestOrderCmdSucceedsOnBeanLoadedFreshFromDisk(t *testing.T) {
 	t.Cleanup(func() { core, cfg = oldCore, oldCfg })
 
 	resetOrderFlags(t)
-	orderLast = true
+	orderFirst = true
 	if err := orderCmd.RunE(orderCmd, []string{a.ID}); err != nil {
 		t.Fatalf("orderCmd.RunE() error = %v (order should succeed on a freshly loaded bean, not report a false etag mismatch)", err)
 	}
