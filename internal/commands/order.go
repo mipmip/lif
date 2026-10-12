@@ -108,7 +108,11 @@ func computeOrderPlacement(resolver *beangraph.CoreResolver, ctx context.Context
 		return bean.OrderBetween("", siblings[0].Order), nil
 
 	case orderLast:
-		return bean.OrderBetween(lastOrderedSibling(siblings), ""), nil
+		last := lastOrderedSibling(siblings)
+		if last == "" && len(siblings) > 0 {
+			return "", fmt.Errorf("--last needs at least one sibling with an order to anchor on, and none has one yet; order the siblings in the wanted sequence first (e.g. `beans order <id> --first`, then `--after`), then use --last")
+		}
+		return bean.OrderBetween(last, ""), nil
 
 	case orderAfter != "":
 		return orderRelativeTo(resolver, ctx, b, siblings, orderAfter, true)
@@ -197,7 +201,7 @@ func RegisterOrderCmd(root *cobra.Command) {
 		orderCmd.Flags().StringVar(&orderAfter, "after", "", "Place after this sibling bean")
 		orderCmd.Flags().StringVar(&orderBefore, "before", "", "Place before this sibling bean")
 		orderCmd.Flags().BoolVar(&orderFirst, "first", false, "Place before all siblings")
-		orderCmd.Flags().BoolVar(&orderLast, "last", false, "Place after all siblings")
+		orderCmd.Flags().BoolVar(&orderLast, "last", false, "Place after all siblings (needs at least one sibling that already has an order)")
 		orderCmd.Flags().BoolVar(&orderJSON, "json", false, "Output as JSON")
 		orderCmd.MarkFlagsMutuallyExclusive("after", "before", "first", "last")
 	}

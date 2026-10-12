@@ -93,10 +93,14 @@ func emitBatchSuccess(jsonMode bool, done []*bean.Bean, single func(*bean.Bean) 
 
 // emitBatchFailure reports a failure that struck partway through the write
 // loop. The preflight rules out unresolvable IDs and policy violations, so
-// what remains here is an etag conflict or an I/O error — and by then some
-// beans are already written. Unlike delete, which discards that list on its
-// way out, the beans that made it through are named, because an agent's next
-// move depends on knowing which half of the batch happened.
+// what remains here is an I/O error — and by then some beans are already
+// written. No etag conflict can occur: batch verbs deliberately set no
+// IfMatch (an etag belongs to one bean, so `update --if-match` takes one ID;
+// a batch has no per-target etag to pass), and last write wins. Under
+// require_if_match, beancore rejects the batch at the first target, before
+// any write. Unlike delete, which discards the written list on its way out,
+// the beans that made it through are named, because an agent's next move
+// depends on knowing which half of the batch happened.
 func emitBatchFailure(jsonMode bool, done []*bean.Bean, err error) error {
 	if jsonMode {
 		// A bare array cannot carry the failure, so the error case keeps the

@@ -65,6 +65,13 @@ demo-stop SESSION='beans-demo':
 uninstall-wip:
     rm -f "{{bin_dir}}/beans-{{wip_suffix}}" "{{bin_dir}}/beans-serve-{{wip_suffix}}" "{{bin_dir}}/beans-tui-{{wip_suffix}}"
 
+# Paket mit der //go:generate-Zeile für gqlgen (einzige Quelle des Pfads)
+gqlgen_pkg := "./internal/graph"
+
+# Regenerate gqlgen output (internal/graph/generated.go, pkg/beangraph/model/models_gen.go)
+gqlgen:
+    go generate {{gqlgen_pkg}}
+
 # Run the Go test suite, e.g. `just test ./internal/bean/...`
 test ARGS='./...':
     go test -count=1 {{ARGS}}
@@ -118,11 +125,14 @@ release LEVEL='patch': test release-snapshot
             exit 1
             ;;
     esac
+    # Runs for a re-pushed tag name keep the same branch label; remember the
+    # highest existing run ID so only a run created by this push is watched.
+    LAST_ID=$(gh run list -R xRiErOS/beans -w release --branch "$NEW_TAG" -L 20 --json databaseId -q 'map(.databaseId) | max // 0')
     git push {{release_remote}} HEAD
     git push {{release_remote}} "$NEW_TAG"
     RUN_ID=""
     for i in $(seq 1 20); do
-        RUN_ID=$(gh run list -R xRiErOS/beans -w release --branch "$NEW_TAG" -L1 --json databaseId -q '.[0].databaseId' 2>/dev/null || true)
+        RUN_ID=$(gh run list -R xRiErOS/beans -w release --branch "$NEW_TAG" -L 20 --json databaseId -q "map(select(.databaseId > $LAST_ID)) | map(.databaseId) | max // empty" 2>/dev/null || true)
         [ -n "$RUN_ID" ] && break
         sleep 3
     done

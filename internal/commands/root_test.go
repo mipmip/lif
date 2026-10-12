@@ -282,7 +282,7 @@ func TestResolveBeansPathAnchor(t *testing.T) {
 		}
 	})
 
-	t.Run("env var still outranks the anchor", func(t *testing.T) {
+	t.Run("env var wins when no config file was found, even with an anchor set", func(t *testing.T) {
 		t.Setenv("BEANS_PATH", filepath.Join(worktreeRoot, ".beans"))
 
 		cfg := config.Default()
@@ -296,6 +296,27 @@ func TestResolveBeansPathAnchor(t *testing.T) {
 		want := filepath.Join(worktreeRoot, ".beans")
 		if got != want {
 			t.Errorf("expected env var store %q, got %q", want, got)
+		}
+	})
+
+	t.Run("anchor from a found config file outranks the env var", func(t *testing.T) {
+		t.Setenv("BEANS_PATH", t.TempDir())
+
+		if err := os.WriteFile(filepath.Join(worktreeRoot, config.ConfigFileName), []byte("beans:\n  path: .beans\n  anchor: repo-root\n"), 0644); err != nil {
+			t.Fatalf("failed to write config file: %v", err)
+		}
+		cfg, err := config.LoadFromDirectory(worktreeRoot)
+		if err != nil {
+			t.Fatalf("LoadFromDirectory() error = %v", err)
+		}
+
+		got, err := resolveBeansPath("", cfg)
+		if err != nil {
+			t.Fatalf("resolveBeansPath() error = %v", err)
+		}
+		want := filepath.Join(mainRoot, ".beans")
+		if got != want {
+			t.Errorf("expected anchored store %q, got %q", want, got)
 		}
 	})
 
