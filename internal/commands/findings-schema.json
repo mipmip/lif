@@ -186,19 +186,7 @@
             "required": ["blocking"],
             "properties": { "blocking": { "const": true } }
           },
-          "then": {
-            "required": ["criterion"],
-            "properties": {
-              "criterion": {
-                "enum": [
-                  "acceptance-criteria-violation",
-                  "regression",
-                  "security-or-data-integrity-risk",
-                  "demonstrated-stability-risk"
-                ]
-              }
-            }
-          },
+          "then": { "required": ["criterion"] },
           "else": { "not": { "required": ["criterion"] } }
         }
       ]
