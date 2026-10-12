@@ -189,6 +189,16 @@ type Columns struct {
 // width. It starts compact and buys long forms in a fixed order — status,
 // then type, then priority — while the title can afford them.
 func NewColumns(rows []Row, width int, showTags bool, cfg *config.Config) Columns {
+	// Long forms cost what the longest row needs, never a fixed guess.
+	// Floors are the header words, so a table header never overflows.
+	wantType, wantStatus, wantPrio := len("TYPE"), len("STATUS"), 0
+	for _, r := range rows {
+		wantType = max(wantType, DisplayWidth(r.Bean.Type))
+		wantStatus = max(wantStatus, DisplayWidth(r.Bean.Status))
+		if p := (Columns{LongPrio: true}).PrioText(r.Bean); p != "" {
+			wantPrio = max(wantPrio, DisplayWidth(p), len("PRIORITY"))
+		}
+	}
 	c := Columns{Width: width, Gap: 2, Type: 1, Status: 1, Prio: 1}
 
 	maxDepth := 0
@@ -241,11 +251,14 @@ func NewColumns(rows []Row, width int, showTags bool, cfg *config.Config) Column
 		flag  *bool
 		want  int
 	}{
-		{&c.Status, &c.LongStatus, 11},
-		{&c.Type, &c.LongType, 10},
-		{&c.Prio, &c.LongPrio, 8},
+		{&c.Status, &c.LongStatus, wantStatus},
+		{&c.Type, &c.LongType, wantType},
+		{&c.Prio, &c.LongPrio, wantPrio},
 	}
 	for _, u := range upgrades {
+		if u.want == 0 {
+			continue // nothing to show on this axis: keep the 1-cell short form
+		}
 		cost := u.want - *u.field
 		if budget()-cost < minTitleWidth {
 			// The order is fixed: once one upgrade cannot be afforded, a
@@ -330,10 +343,13 @@ func (c *Columns) Rebalance(rows []Row) {
 		c.Title -= give
 		c.Tags += give
 	case c.Tags > neededTags:
-		// Released, not handed to Title — this narrows the rendered row
-		// below the terminal width on purpose. Routing the surplus into
-		// Title instead would reintroduce the exact waste this task
-		// removes: a title column padded past what any title needs.
+		// Released tags width goes to Title, but only up to what the longest
+		// title needs: a title wrapped for lack of room gets it back, a
+		// title column is never padded past any title.
+		give := c.Tags - max(neededTags, DisplayWidth(headerTagsLabel))
+		if need := neededTitle - c.Title; need > 0 {
+			c.Title += min(give, need)
+		}
 		//
 		// Floored at headerTagsLabel's width, not just neededTags: Header()
 		// is computed after Rebalance runs, so if this shrink were left

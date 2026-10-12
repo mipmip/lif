@@ -197,7 +197,7 @@ func TestFixedCostIsPinnedNotJustBalanced(t *testing.T) {
 	rows := testRows(strings.Repeat("x", 200), "short")
 	c := NewColumns(rows, 200, true, config.Default())
 
-	wantIndent, wantGap, wantID, wantType, wantStatus, wantPrio, wantTags := 0, 2, 10, 10, 11, 8, 24
+	wantIndent, wantGap, wantID, wantType, wantStatus, wantPrio, wantTags := 0, 2, 10, 4, 6, 1, 24
 	if c.Indent != wantIndent {
 		t.Errorf("Indent = %d, want %d", c.Indent, wantIndent)
 	}
@@ -213,8 +213,8 @@ func TestFixedCostIsPinnedNotJustBalanced(t *testing.T) {
 	if c.Status != wantStatus || !c.LongStatus {
 		t.Errorf("Status = %d (long=%v), want %d long", c.Status, c.LongStatus, wantStatus)
 	}
-	if c.Prio != wantPrio || !c.LongPrio {
-		t.Errorf("Prio = %d (long=%v), want %d long", c.Prio, c.LongPrio, wantPrio)
+	if c.Prio != wantPrio || c.LongPrio {
+		t.Errorf("Prio = %d (long=%v), want %d short (no row has a priority)", c.Prio, c.LongPrio, wantPrio)
 	}
 	if c.Tags != wantTags {
 		t.Errorf("Tags = %d, want %d", c.Tags, wantTags)
@@ -337,13 +337,13 @@ func TestRebalanceMovesUnusedTitleWidthToTags(t *testing.T) {
 	}
 }
 
-func TestRebalanceDoesNothingWhenATitleClaimsTheWidth(t *testing.T) {
+func TestRebalanceHandsReleasedTagsWidthToAStarvedTitle(t *testing.T) {
 	rows := rowsWithTags(strings.Repeat("x", 300), []string{"tag"})
 	c := NewColumns(rows, 110, true, config.Default())
-	before := c.Title
+	title, tags := c.Title, c.Tags
 	c.Rebalance(rows)
-	if c.Title != before {
-		t.Errorf("title moved from %d to %d though no width was spare", before, c.Title)
+	if c.Title <= title || c.Title+c.Tags != title+tags {
+		t.Errorf("title %d->%d tags %d->%d, want released tags width moved to title", title, c.Title, tags, c.Tags)
 	}
 }
 
@@ -482,7 +482,9 @@ func TestHeaderNamesTheShortForms(t *testing.T) {
 }
 
 func TestHeaderNamesTheLongForms(t *testing.T) {
-	c := NewColumns(testRows("x"), 160, true, config.Default())
+	rows := testRows("x")
+	rows[0].Bean.Priority = "high"
+	c := NewColumns(rows, 160, true, config.Default())
 	got := stripANSI(c.Header())
 	for _, want := range []string{"TYPE", "STATUS", "PRIORITY"} {
 		if !strings.Contains(got, want) {
