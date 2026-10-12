@@ -7,18 +7,13 @@ import (
 	"time"
 )
 
-// testInactivityTimeout is the maximum gap allowed between output chunks
-// while waiting for a marker. It is reset on every chunk received, so slow
-// PTY startup (fork/exec/profile sourcing) does not race a fixed deadline.
-const testInactivityTimeout = 2 * time.Second
-
-// testOverallBudget bounds the total wait regardless of activity, so a
-// session that keeps producing unrelated output cannot hang a test forever.
+// testOverallBudget bounds the total wait. No inactivity timer: the first
+// chunk (echo of the typed line) arrives at once, the marker only after
+// shell evaluation, so a gap timer would race exactly that.
 const testOverallBudget = 20 * time.Second
 
 // waitForMarker collects chunks from output until they contain marker,
-// using an inactivity timeout (reset on every chunk) plus an overall budget
-// instead of one fixed absolute deadline. If done is non-nil and fires
+// bounded only by testOverallBudget. If done is non-nil and fires
 // first, the marker is checked against whatever was collected before
 // failing. Fails the test via t.Fatalf on timeout or premature session end.
 func waitForMarker(t *testing.T, output <-chan []byte, done <-chan struct{}, marker string) []byte {
@@ -26,9 +21,6 @@ func waitForMarker(t *testing.T, output <-chan []byte, done <-chan struct{}, mar
 
 	overall := time.NewTimer(testOverallBudget)
 	defer overall.Stop()
-
-	inactivity := time.NewTimer(testInactivityTimeout)
-	defer inactivity.Stop()
 
 	var collected []byte
 	for {
@@ -38,17 +30,13 @@ func waitForMarker(t *testing.T, output <-chan []byte, done <-chan struct{}, mar
 			if containsSubstring(collected, marker) {
 				return collected
 			}
-			if !inactivity.Stop() {
-				<-inactivity.C
-			}
-			inactivity.Reset(testInactivityTimeout)
+
 		case <-done:
 			if containsSubstring(collected, marker) {
 				return collected
 			}
 			t.Fatalf("session ended without expected output; got: %q", string(collected))
-		case <-inactivity.C:
-			t.Fatalf("timed out waiting for output (inactivity); collected: %q", string(collected))
+
 		case <-overall.C:
 			t.Fatalf("timed out waiting for output (overall budget); collected: %q", string(collected))
 		}
@@ -68,8 +56,8 @@ func TestRingBufferBasic(t *testing.T) {
 func TestRingBufferWrap(t *testing.T) {
 	rb := NewRingBuffer(8)
 
-	rb.Write([]byte("abcdefgh"))  // fills exactly
-	rb.Write([]byte("ij"))        // wraps: should be "cdefghij"
+	rb.Write([]byte("abcdefgh")) // fills exactly
+	rb.Write([]byte("ij"))       // wraps: should be "cdefghij"
 
 	got := string(rb.Bytes())
 	if got != "cdefghij" {
@@ -424,4 +412,3 @@ func TestCreateWithCommandEnvFunc(t *testing.T) {
 
 	waitForMarker(t, output, sess.Done(), "PORT=12345")
 }
-
