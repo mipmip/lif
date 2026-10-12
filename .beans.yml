@@ -31,3 +31,8 @@ agent:
 server:
   # Port for the web UI (used by `beans-serve`)
   port: 8080
+statuses:
+  - name: to-review
+    color: yellow
+    short: R
+    description: Waiting for PO acceptance
