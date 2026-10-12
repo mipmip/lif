@@ -65,6 +65,13 @@ demo-stop SESSION='beans-demo':
 uninstall-wip:
     rm -f "{{bin_dir}}/beans-{{wip_suffix}}" "{{bin_dir}}/beans-serve-{{wip_suffix}}" "{{bin_dir}}/beans-tui-{{wip_suffix}}"
 
+# Paket mit der //go:generate-Zeile für gqlgen (einzige Quelle des Pfads)
+gqlgen_pkg := "./internal/graph"
+
+# Regenerate gqlgen output (internal/graph/generated.go, pkg/beangraph/model/models_gen.go)
+gqlgen:
+    go generate {{gqlgen_pkg}}
+
 # Run the Go test suite, e.g. `just test ./internal/bean/...`
 test ARGS='./...':
     go test -count=1 {{ARGS}}
