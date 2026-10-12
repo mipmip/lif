@@ -356,8 +356,8 @@ func TestRoadmapOutputNoLineExceedsWidth(t *testing.T) {
 		Milestones: []milestoneGroup{
 			{
 				Milestone: m,
-				Epics: []epicGroup{
-					{Epic: e, Features: []featureGroup{{Feature: f, Items: []*bean.Bean{leaf}}}},
+				Containers: []roadmapContainer{
+					{Epic: &epicGroup{Epic: e, Features: []featureGroup{{Feature: f, Items: []*bean.Bean{leaf}}}}},
 				},
 			},
 		},

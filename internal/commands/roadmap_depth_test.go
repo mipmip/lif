@@ -36,27 +36,27 @@ func depthFixture() *roadmapData {
 		Milestones: []milestoneGroup{
 			{
 				Milestone: ms,
-				Epics: []epicGroup{
-					{
+				Containers: []roadmapContainer{
+					{Epic: &epicGroup{
 						Epic:     msEpic,
 						Items:    []*bean.Bean{msEpicItem},
 						Features: []featureGroup{{Feature: msEpicFeat, Items: []*bean.Bean{msEpicFeatItem}}},
-					},
+					}},
+					{Feature: &featureGroup{Feature: msFeat, Items: []*bean.Bean{msFeatItem}}},
 				},
-				Features: []featureGroup{{Feature: msFeat, Items: []*bean.Bean{msFeatItem}}},
-				Other:    []*bean.Bean{msOther},
+				Other: []*bean.Bean{msOther},
 			},
 		},
 		Unscheduled: &unscheduledGroup{
-			Epics: []epicGroup{
-				{
+			Containers: []roadmapContainer{
+				{Epic: &epicGroup{
 					Epic:     unEpic,
 					Items:    []*bean.Bean{unEpicItem},
 					Features: []featureGroup{{Feature: unEpicFeat, Items: []*bean.Bean{unEpicFeatItem}}},
-				},
+				}},
+				{Feature: &featureGroup{Feature: unFeat, Items: []*bean.Bean{unFeatItem}}},
 			},
-			Features: []featureGroup{{Feature: unFeat, Items: []*bean.Bean{unFeatItem}}},
-			Other:    []*bean.Bean{unOther},
+			Other: []*bean.Bean{unOther},
 		},
 	}
 }
@@ -90,25 +90,27 @@ func TestPruneRoadmapDepthUnscopedDepth1(t *testing.T) {
 	if mg.Milestone.ID != "beans-ms01" {
 		t.Errorf("milestone ID = %q, want beans-ms01", mg.Milestone.ID)
 	}
-	if len(mg.Epics) != 0 || len(mg.Features) != 0 || len(mg.Other) != 0 {
-		t.Errorf("milestone children survived depth 1: epics=%d features=%d other=%d",
-			len(mg.Epics), len(mg.Features), len(mg.Other))
+	if len(mg.Containers) != 0 || len(mg.Other) != 0 {
+		t.Errorf("milestone children survived depth 1: containers=%d other=%d",
+			len(mg.Containers), len(mg.Other))
 	}
 
 	un := data.Unscheduled
 	if un == nil {
 		t.Fatal("unscheduled branch dropped at depth 1")
 	}
-	if len(un.Epics) != 1 || len(un.Features) != 1 || len(un.Other) != 1 {
+	unEpics := epicGroupsOf(un.Containers)
+	unFeatures := featureGroupsOf(un.Containers)
+	if len(unEpics) != 1 || len(unFeatures) != 1 || len(un.Other) != 1 {
 		t.Fatalf("unscheduled top level = epics %d, features %d, other %d; want 1/1/1",
-			len(un.Epics), len(un.Features), len(un.Other))
+			len(unEpics), len(unFeatures), len(un.Other))
 	}
-	if len(un.Epics[0].Items) != 0 || len(un.Epics[0].Features) != 0 {
+	if len(unEpics[0].Items) != 0 || len(unEpics[0].Features) != 0 {
 		t.Errorf("unscheduled epic children survived depth 1: items=%d features=%d",
-			len(un.Epics[0].Items), len(un.Epics[0].Features))
+			len(unEpics[0].Items), len(unEpics[0].Features))
 	}
-	if len(un.Features[0].Items) != 0 {
-		t.Errorf("unscheduled feature items survived depth 1: %d", len(un.Features[0].Items))
+	if len(unFeatures[0].Items) != 0 {
+		t.Errorf("unscheduled feature items survived depth 1: %d", len(unFeatures[0].Items))
 	}
 }
 
@@ -121,29 +123,33 @@ func TestPruneRoadmapDepthUnscopedDepth2(t *testing.T) {
 	pruneRoadmapDepth(data, 2, false)
 
 	mg := data.Milestones[0]
-	if len(mg.Epics) != 1 || len(mg.Features) != 1 || len(mg.Other) != 1 {
+	mgEpics := epicGroupsOf(mg.Containers)
+	mgFeatures := featureGroupsOf(mg.Containers)
+	if len(mgEpics) != 1 || len(mgFeatures) != 1 || len(mg.Other) != 1 {
 		t.Fatalf("milestone level 2 = epics %d, features %d, other %d; want 1/1/1",
-			len(mg.Epics), len(mg.Features), len(mg.Other))
+			len(mgEpics), len(mgFeatures), len(mg.Other))
 	}
-	if len(mg.Epics[0].Items) != 0 || len(mg.Epics[0].Features) != 0 {
+	if len(mgEpics[0].Items) != 0 || len(mgEpics[0].Features) != 0 {
 		t.Errorf("epic children survived depth 2: items=%d features=%d",
-			len(mg.Epics[0].Items), len(mg.Epics[0].Features))
+			len(mgEpics[0].Items), len(mgEpics[0].Features))
 	}
-	if len(mg.Features[0].Items) != 0 {
-		t.Errorf("milestone feature items survived depth 2: %d", len(mg.Features[0].Items))
+	if len(mgFeatures[0].Items) != 0 {
+		t.Errorf("milestone feature items survived depth 2: %d", len(mgFeatures[0].Items))
 	}
 
 	un := data.Unscheduled
-	if len(un.Epics[0].Items) != 1 || len(un.Epics[0].Features) != 1 {
+	unEpics := epicGroupsOf(un.Containers)
+	unFeatures := featureGroupsOf(un.Containers)
+	if len(unEpics[0].Items) != 1 || len(unEpics[0].Features) != 1 {
 		t.Fatalf("unscheduled epic level 2 = items %d, features %d; want 1/1",
-			len(un.Epics[0].Items), len(un.Epics[0].Features))
+			len(unEpics[0].Items), len(unEpics[0].Features))
 	}
-	if len(un.Epics[0].Features[0].Items) != 0 {
+	if len(unEpics[0].Features[0].Items) != 0 {
 		t.Errorf("unscheduled nested feature items survived depth 2: %d",
-			len(un.Epics[0].Features[0].Items))
+			len(unEpics[0].Features[0].Items))
 	}
-	if len(un.Features[0].Items) != 1 {
-		t.Errorf("unscheduled feature items at depth 2 = %d, want 1", len(un.Features[0].Items))
+	if len(unFeatures[0].Items) != 1 {
+		t.Errorf("unscheduled feature items at depth 2 = %d, want 1", len(unFeatures[0].Items))
 	}
 }
 
@@ -153,20 +159,20 @@ func TestPruneRoadmapDepthUnscopedDepth3(t *testing.T) {
 	data := depthFixture()
 	pruneRoadmapDepth(data, 3, false)
 
-	eg := data.Milestones[0].Epics[0]
+	eg := epicGroupsOf(data.Milestones[0].Containers)[0]
 	if len(eg.Items) != 1 || len(eg.Features) != 1 {
 		t.Fatalf("epic level 3 = items %d, features %d; want 1/1", len(eg.Items), len(eg.Features))
 	}
 	if len(eg.Features[0].Items) != 0 {
 		t.Errorf("nested feature items survived depth 3: %d", len(eg.Features[0].Items))
 	}
-	if len(data.Milestones[0].Features[0].Items) != 1 {
+	if len(featureGroupsOf(data.Milestones[0].Containers)[0].Items) != 1 {
 		t.Errorf("milestone feature items at depth 3 = %d, want 1",
-			len(data.Milestones[0].Features[0].Items))
+			len(featureGroupsOf(data.Milestones[0].Containers)[0].Items))
 	}
-	if len(data.Unscheduled.Epics[0].Features[0].Items) != 1 {
+	if len(epicGroupsOf(data.Unscheduled.Containers)[0].Features[0].Items) != 1 {
 		t.Errorf("unscheduled nested feature items at depth 3 = %d, want 1",
-			len(data.Unscheduled.Epics[0].Features[0].Items))
+			len(epicGroupsOf(data.Unscheduled.Containers)[0].Features[0].Items))
 	}
 }
 
@@ -177,10 +183,10 @@ func TestPruneRoadmapDepthUnscopedDepth4(t *testing.T) {
 		data := depthFixture()
 		pruneRoadmapDepth(data, depth, false)
 
-		if got := len(data.Milestones[0].Epics[0].Features[0].Items); got != 1 {
+		if got := len(epicGroupsOf(data.Milestones[0].Containers)[0].Features[0].Items); got != 1 {
 			t.Errorf("depth %d: deepest items = %d, want 1", depth, got)
 		}
-		if got := len(data.Unscheduled.Epics[0].Features[0].Items); got != 1 {
+		if got := len(epicGroupsOf(data.Unscheduled.Containers)[0].Features[0].Items); got != 1 {
 			t.Errorf("depth %d: deepest unscheduled items = %d, want 1", depth, got)
 		}
 	}
@@ -193,7 +199,7 @@ func TestPruneRoadmapDepthZeroIsNoOp(t *testing.T) {
 		data := depthFixture()
 		pruneRoadmapDepth(data, depth, false)
 
-		if got := len(data.Milestones[0].Epics[0].Features[0].Items); got != 1 {
+		if got := len(epicGroupsOf(data.Milestones[0].Containers)[0].Features[0].Items); got != 1 {
 			t.Errorf("depth %d: deepest items = %d, want 1 (no-op)", depth, got)
 		}
 	}
@@ -211,16 +217,18 @@ func TestPruneRoadmapDepthScopedMilestone(t *testing.T) {
 	if mg.Milestone.ID != "beans-ms01" {
 		t.Fatalf("scoped milestone dropped: %+v", mg.Milestone)
 	}
-	if len(mg.Epics) != 1 || len(mg.Features) != 1 || len(mg.Other) != 1 {
+	mgEpics := epicGroupsOf(mg.Containers)
+	mgFeatures := featureGroupsOf(mg.Containers)
+	if len(mgEpics) != 1 || len(mgFeatures) != 1 || len(mg.Other) != 1 {
 		t.Fatalf("scoped depth 1 = epics %d, features %d, other %d; want 1/1/1",
-			len(mg.Epics), len(mg.Features), len(mg.Other))
+			len(mgEpics), len(mgFeatures), len(mg.Other))
 	}
-	if len(mg.Epics[0].Items) != 0 || len(mg.Epics[0].Features) != 0 {
+	if len(mgEpics[0].Items) != 0 || len(mgEpics[0].Features) != 0 {
 		t.Errorf("scoped epic children survived depth 1: items=%d features=%d",
-			len(mg.Epics[0].Items), len(mg.Epics[0].Features))
+			len(mgEpics[0].Items), len(mgEpics[0].Features))
 	}
-	if len(mg.Features[0].Items) != 0 {
-		t.Errorf("scoped feature items survived depth 1: %d", len(mg.Features[0].Items))
+	if len(mgFeatures[0].Items) != 0 {
+		t.Errorf("scoped feature items survived depth 1: %d", len(mgFeatures[0].Items))
 	}
 }
 
@@ -324,8 +332,8 @@ func TestRoadmapCmdJSONRespectsDepth(t *testing.T) {
 	if len(got.Milestones) != 1 {
 		t.Fatalf("got Milestones = %+v, want exactly one", got.Milestones)
 	}
-	if len(got.Milestones[0].Epics) != 0 {
-		t.Errorf("epics survived --depth 1 in JSON: %+v", got.Milestones[0].Epics)
+	if epics := epicGroupsOf(got.Milestones[0].Containers); len(epics) != 0 {
+		t.Errorf("epics survived --depth 1 in JSON: %+v", epics)
 	}
 }
 
@@ -362,10 +370,14 @@ func TestRoadmapCmdDepthWithScopeCountsFromRoot(t *testing.T) {
 	if err := json.Unmarshal(out.Bytes(), &got); err != nil {
 		t.Fatalf("failed to unmarshal JSON output: %v", err)
 	}
-	if len(got.Milestones) != 1 || len(got.Milestones[0].Epics) != 1 {
+	if len(got.Milestones) != 1 {
 		t.Fatalf("scoped --depth 1 = %+v, want the milestone with its one epic", got.Milestones)
 	}
-	if len(got.Milestones[0].Epics[0].Items) != 0 {
-		t.Errorf("epic items survived scoped --depth 1: %+v", got.Milestones[0].Epics[0].Items)
+	epics := epicGroupsOf(got.Milestones[0].Containers)
+	if len(epics) != 1 {
+		t.Fatalf("scoped --depth 1 = %+v, want the milestone with its one epic", got.Milestones)
+	}
+	if len(epics[0].Items) != 0 {
+		t.Errorf("epic items survived scoped --depth 1: %+v", epics[0].Items)
 	}
 }
