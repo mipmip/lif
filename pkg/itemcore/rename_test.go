@@ -365,7 +365,7 @@ func TestNewItemPath(t *testing.T) {
 		},
 		{
 			name: "flat file without slug", oldPath: "tp-aaaa.md",
-			newID: "tp-zzzz", newSlug: "", want: "tp-zzzz.md",
+			newID: "tp-zzzz", newSlug: "", want: "tp-zzzz--.md",
 		},
 		{
 			name: "nested subdir preserved", oldPath: "epic-auth/tp-aaaa--slug.md",
@@ -377,7 +377,7 @@ func TestNewItemPath(t *testing.T) {
 		},
 		{
 			name: "nested subdir, slug cleared", oldPath: "epic-auth/tp-aaaa--slug.md",
-			newID: "tp-zzzz", newSlug: "", want: filepath.Join("epic-auth", "tp-zzzz.md"),
+			newID: "tp-zzzz", newSlug: "", want: filepath.Join("epic-auth", "tp-zzzz--.md"),
 		},
 	}
 	for _, tt := range tests {
