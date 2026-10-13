@@ -636,7 +636,7 @@ func TestOrderErrorsNameItems(t *testing.T) {
 		{"unknown reference", func() { orderAfter = "beans-nope" }, []string{a}, "item not found: beans-nope"},
 		{"reference is the item", func() { orderAfter = a }, []string{a}, "cannot place an item relative to itself"},
 		{"unordered reference", func() { orderAfter = a }, []string{b},
-			"item " + a + " has no explicit order yet; place it first (e.g. `lif order " + a + " --last`) before placing another item relative to it"},
+			"item " + a + " has no explicit order yet; place it first (e.g. `lif order " + a + " --first`) before placing another item relative to it"},
 		{"last without an ordered sibling", func() { orderLast = true }, []string{a}, "(e.g. `lif order <id> --first`, then `--after`)"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

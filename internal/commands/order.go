@@ -161,7 +161,7 @@ func orderRelativeTo(resolver *itemgraph.CoreResolver, ctx context.Context, b *i
 		return "", fmt.Errorf("order is scoped per parent: %s has a different parent than %s", ref.ID, b.ID)
 	}
 	if ref.Order == "" {
-		return "", fmt.Errorf("item %s has no explicit order yet; place it first (e.g. `lif order %s --last`) before placing another item relative to it", ref.ID, ref.ID)
+		return "", fmt.Errorf("item %s has no explicit order yet; place it first (e.g. `lif order %s --first`) before placing another item relative to it", ref.ID, ref.ID)
 	}
 
 	idx := -1

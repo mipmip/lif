@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -78,6 +79,10 @@ a full view of your project.`,
 
 			root, res, err := resolveStorePath(effectiveStorePath, cfg)
 			if err != nil {
+				var missing *missingStoreError
+				if f := cmd.Flags().Lookup("json"); f != nil && f.Value.String() == "true" && errors.As(err, &missing) {
+					return output.ErrorFrom(output.ErrNoLifDir, err)
+				}
 				return err
 			}
 			resolution = res
@@ -266,9 +271,9 @@ func resolveStorePath(flagPath string, c *config.Config) (string, storeResolutio
 			return root, res, nil
 		}
 		if explicitOverride {
-			return "", storeResolution{}, fmt.Errorf("store path does not exist or is not a directory: %s", root)
+			return "", storeResolution{}, &missingStoreError{fmt.Sprintf("store path does not exist or is not a directory: %s", root)}
 		}
-		return "", storeResolution{}, fmt.Errorf("no %s directory found at %s (run 'lif init' to create one)", filepath.Base(root), root)
+		return "", storeResolution{}, &missingStoreError{fmt.Sprintf("no %s directory found at %s (run 'lif init' to create one)", filepath.Base(root), root)}
 	}
 
 	return root, res, nil
@@ -295,6 +300,12 @@ func resolveAnchoredPath(c *config.Config) (string, error) {
 		return "", config.ValidateAnchor(c.Items.Anchor, c.SectionKey())
 	}
 }
+
+// missingStoreError marks the failure of a store directory that does not
+// exist, so the root hook can report it as NO_LIF_DIR under --json.
+type missingStoreError struct{ msg string }
+
+func (e *missingStoreError) Error() string { return e.msg }
 
 // reportExecutionError writes the one shape a failure takes: the error line
 // and a pointer to the manual, both on stderr. It is cobra's own idiom for an
