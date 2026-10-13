@@ -65,7 +65,7 @@ func (c *Core) PlanRenameSlug(id string, newSlug *string, reslug bool) (*RenameP
 	b, ok := c.items[id]
 	c.mu.RUnlock()
 	if !ok {
-		return nil, fmt.Errorf("bean %q not found", id)
+		return nil, fmt.Errorf("item %q not found", id)
 	}
 	var slug string
 	switch {
@@ -164,7 +164,7 @@ func (c *Core) PlanRenameID(oldID, newID string) (*RenamePlan, error) {
 	}
 	b, ok := c.items[oldID]
 	if !ok {
-		return nil, fmt.Errorf("bean %q not found", oldID)
+		return nil, fmt.Errorf("item %q not found", oldID)
 	}
 	if _, exists := c.items[newID]; exists {
 		return nil, fmt.Errorf("ID collision: %q already exists", newID)
@@ -339,7 +339,7 @@ func (c *Core) checkServerNotRunning() error {
 	conn, err := net.DialTimeout("tcp", fmt.Sprintf("127.0.0.1:%d", port), 200*time.Millisecond)
 	if err == nil {
 		conn.Close()
-		return fmt.Errorf("beans serve appears to be running on port %d; stop it before a prefix rebrand", port)
+		return fmt.Errorf("lif-serve appears to be running on port %d; stop it before a prefix rebrand", port)
 	}
 	return nil
 }
@@ -381,7 +381,7 @@ func (c *Core) PlanRebrand(newPrefix string) (*RenamePlan, error) {
 	renamed := map[string]*item.Item{}
 	for id, b := range c.items {
 		if oldPrefix != "" && !strings.HasPrefix(id, oldPrefix) {
-			return nil, fmt.Errorf("bean %q does not start with the current prefix %q; refusing rebrand to avoid ID corruption", id, oldPrefix)
+			return nil, fmt.Errorf("item %q does not start with the current prefix %q; refusing rebrand to avoid ID corruption", id, oldPrefix)
 		}
 		nid := item.RebrandID(id, oldPrefix, newPrefix)
 		if nid == id {
@@ -394,7 +394,7 @@ func (c *Core) PlanRebrand(newPrefix string) (*RenamePlan, error) {
 		renamed[id] = b
 	}
 	if len(idMap) == 0 {
-		return nil, fmt.Errorf("no beans matched prefix %q", oldPrefix)
+		return nil, fmt.Errorf("no items matched prefix %q", oldPrefix)
 	}
 
 	plan, err := c.planCascade("prefix", idMap, renamed)

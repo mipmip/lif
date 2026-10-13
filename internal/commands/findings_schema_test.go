@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 
@@ -365,5 +366,27 @@ func wantEnum(t *testing.T, got any, want []string) {
 		if list[i] != w {
 			t.Errorf("enum[%d] = %v, want %q", i, list[i], w)
 		}
+	}
+}
+
+// SC-04 / AC6: the embedded schema names the product as lif — in its $id and
+// in the promote command its description points to — and still compiles and
+// validates a record under that $id.
+func TestFindingsSchema_NamesLif(t *testing.T) {
+	var head struct {
+		ID          string `json:"$id"`
+		Description string `json:"description"`
+	}
+	if err := json.Unmarshal([]byte(FindingsSchema), &head); err != nil {
+		t.Fatalf("decoding the embedded schema: %v", err)
+	}
+	if want := "https://github.com/xRiErOS/lif/schemas/findings-artifact.schema.json"; head.ID != want {
+		t.Errorf("$id = %q, want %q", head.ID, want)
+	}
+	if !strings.Contains(head.Description, "`lif promote`") {
+		t.Errorf("description does not name `lif promote`: %q", head.Description)
+	}
+	if err := validate(t, compileFindingsSchema(t), `{"findings": []}`); err != nil {
+		t.Errorf("empty findings array no longer validates: %v", err)
 	}
 }

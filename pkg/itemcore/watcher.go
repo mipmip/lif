@@ -331,9 +331,9 @@ func (c *Core) handleChanges(changes map[string]fsnotify.Op) {
 					// on one.
 					if c.searchIndex != nil {
 						if err := c.ensureWritableSearchIndexLocked(); err != nil {
-							c.logWarn("failed to upgrade search index for bean %s: %v", id, err)
+							c.logWarn("failed to upgrade search index for item %s: %v", id, err)
 						} else if err := c.searchIndex.DeleteItem(id); err != nil {
-							c.logWarn("failed to remove bean %s from search index: %v", id, err)
+							c.logWarn("failed to remove item %s from search index: %v", id, err)
 						}
 					}
 
@@ -355,7 +355,7 @@ func (c *Core) handleChanges(changes map[string]fsnotify.Op) {
 		if op&fsnotify.Create != 0 || op&fsnotify.Write != 0 {
 			newItem, err := c.loadItem(path)
 			if err != nil {
-				c.logWarn("failed to load bean from %s: %v", path, err)
+				c.logWarn("failed to load item from %s: %v", path, err)
 				continue
 			}
 
@@ -369,9 +369,9 @@ func (c *Core) handleChanges(changes map[string]fsnotify.Op) {
 			// IndexItem would otherwise hang forever on one.
 			if c.searchIndex != nil {
 				if err := c.ensureWritableSearchIndexLocked(); err != nil {
-					c.logWarn("failed to upgrade search index for bean %s: %v", newItem.ID, err)
+					c.logWarn("failed to upgrade search index for item %s: %v", newItem.ID, err)
 				} else if err := c.searchIndex.IndexItem(newItem); err != nil {
-					c.logWarn("failed to index bean %s: %v", newItem.ID, err)
+					c.logWarn("failed to index item %s: %v", newItem.ID, err)
 				}
 			}
 

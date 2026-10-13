@@ -37,7 +37,7 @@ const ArchiveDir = "archive"
 // would otherwise be parsed into an item of its own (D24/R-31).
 const AttachmentsDir = "attachments"
 
-var ErrNotFound = errors.New("bean not found")
+var ErrNotFound = errors.New("item not found")
 
 // ETagMismatchError is returned when an ETag validation fails.
 // This allows callers to distinguish concurrency conflicts from other errors.
@@ -66,7 +66,7 @@ type PolicyViolationError struct {
 }
 
 func (e *PolicyViolationError) Error() string {
-	return fmt.Sprintf("status %q requires front matter field(s) %s: supply them in the same write (e.g. `beans complete %s --commit HEAD`)",
+	return fmt.Sprintf("status %q requires front matter field(s) %s: supply them in the same write (e.g. `lif complete %s --commit HEAD`)",
 		e.Status, strings.Join(e.Missing, ", "), e.ItemID)
 }
 
@@ -781,7 +781,7 @@ func (c *Core) SaveDirty() (int, error) {
 		}
 
 		if err := c.saveToDisk(b); err != nil {
-			return saved, fmt.Errorf("saving bean %s: %w", id, err)
+			return saved, fmt.Errorf("saving item %s: %w", id, err)
 		}
 
 		delete(c.dirty, id)
@@ -807,7 +807,7 @@ func (c *Core) SaveItem(id string) error {
 	}
 
 	if err := c.saveToDisk(b); err != nil {
-		return fmt.Errorf("saving bean %s: %w", id, err)
+		return fmt.Errorf("saving item %s: %w", id, err)
 	}
 
 	delete(c.dirty, id)
@@ -907,7 +907,7 @@ func (c *Core) Create(b *item.Item, opts ...UpdateOption) error {
 		}
 		id, err := item.NewID(prefix, length)
 		if err != nil {
-			return fmt.Errorf("generating bean ID: %w", err)
+			return fmt.Errorf("generating item ID: %w", err)
 		}
 		b.ID = id
 	}
@@ -944,9 +944,9 @@ func (c *Core) Create(b *item.Item, opts ...UpdateOption) error {
 	// forever on one (beans-4t2m).
 	if c.searchIndex != nil {
 		if err := c.ensureWritableSearchIndexLocked(); err != nil {
-			c.logWarn("failed to upgrade search index for bean %s: %v", b.ID, err)
+			c.logWarn("failed to upgrade search index for item %s: %v", b.ID, err)
 		} else if err := c.searchIndex.IndexItem(b); err != nil {
-			c.logWarn("failed to index bean %s: %v", b.ID, err)
+			c.logWarn("failed to index item %s: %v", b.ID, err)
 		}
 	}
 
@@ -1075,9 +1075,9 @@ func (c *Core) Update(b *item.Item, ifMatch *string, opts ...UpdateOption) error
 	// forever on one (beans-4t2m).
 	if c.searchIndex != nil {
 		if err := c.ensureWritableSearchIndexLocked(); err != nil {
-			c.logWarn("failed to upgrade search index for bean %s: %v", b.ID, err)
+			c.logWarn("failed to upgrade search index for item %s: %v", b.ID, err)
 		} else if err := c.searchIndex.IndexItem(b); err != nil {
-			c.logWarn("failed to update bean %s in search index: %v", b.ID, err)
+			c.logWarn("failed to update item %s in search index: %v", b.ID, err)
 		}
 	}
 
@@ -1123,7 +1123,7 @@ func (c *Core) saveToWorktree(b *item.Item, worktreePath string) error {
 
 	// Ensure the store directory exists in the worktree
 	if err := os.MkdirAll(itemsDir, 0755); err != nil {
-		return fmt.Errorf("creating worktree beans dir: %w", err)
+		return fmt.Errorf("creating worktree items dir: %w", err)
 	}
 
 	filename := item.BuildFilename(b.ID, b.Slug)
@@ -1135,7 +1135,7 @@ func (c *Core) saveToWorktree(b *item.Item, worktreePath string) error {
 	}
 
 	if err := os.WriteFile(path, content, 0644); err != nil {
-		return fmt.Errorf("writing worktree bean: %w", err)
+		return fmt.Errorf("writing worktree item: %w", err)
 	}
 	b.SetContentETag(content)
 
@@ -1190,9 +1190,9 @@ func (c *Core) Delete(id string) error {
 	// forever on one (beans-4t2m).
 	if c.searchIndex != nil {
 		if err := c.ensureWritableSearchIndexLocked(); err != nil {
-			c.logWarn("failed to upgrade search index for bean %s: %v", targetID, err)
+			c.logWarn("failed to upgrade search index for item %s: %v", targetID, err)
 		} else if err := c.searchIndex.DeleteItem(targetID); err != nil {
-			c.logWarn("failed to remove bean %s from search index: %v", targetID, err)
+			c.logWarn("failed to remove item %s from search index: %v", targetID, err)
 		}
 	}
 
@@ -1231,7 +1231,7 @@ func (c *Core) Archive(id string) error {
 
 	if err := os.Rename(oldPath, newPath); err != nil {
 		c.mu.Unlock()
-		return fmt.Errorf("moving bean to archive: %w", err)
+		return fmt.Errorf("moving item to archive: %w", err)
 	}
 
 	// Update item's path in store and notify subscribers
@@ -1275,7 +1275,7 @@ func (c *Core) Unarchive(id string) error {
 	newPath := filepath.Join(c.root, newRelPath)
 
 	if err := os.Rename(oldPath, newPath); err != nil {
-		return fmt.Errorf("moving bean from archive: %w", err)
+		return fmt.Errorf("moving item from archive: %w", err)
 	}
 
 	// Update item's path
@@ -1389,7 +1389,7 @@ func (c *Core) LoadAndUnarchive(id string) (*item.Item, error) {
 	newPath := filepath.Join(c.root, newRelPath)
 
 	if err := os.Rename(oldPath, newPath); err != nil {
-		return nil, fmt.Errorf("moving bean from archive: %w", err)
+		return nil, fmt.Errorf("moving item from archive: %w", err)
 	}
 
 	// Update item's path
@@ -1498,7 +1498,7 @@ func (c *Core) ValidatePrefixConsistency() string {
 		for p := range prefixesSeen {
 			prefixes = append(prefixes, p)
 		}
-		return fmt.Sprintf("mixed-prefix state detected: beans have prefixes %v but config.%s.prefix is %q", prefixes, configKey, configPrefix)
+		return fmt.Sprintf("mixed-prefix state detected: items have prefixes %v but config.%s.prefix is %q", prefixes, configKey, configPrefix)
 	}
 
 	// Check if the single prefix matches the config
@@ -1509,7 +1509,7 @@ func (c *Core) ValidatePrefixConsistency() string {
 	}
 
 	if actualPrefix != configPrefix {
-		return fmt.Sprintf("prefix mismatch: beans have prefix %q but config.%s.prefix is %q", actualPrefix, configKey, configPrefix)
+		return fmt.Sprintf("prefix mismatch: items have prefix %q but config.%s.prefix is %q", actualPrefix, configKey, configPrefix)
 	}
 
 	return ""
@@ -1520,7 +1520,7 @@ func (c *Core) ValidatePrefixConsistency() string {
 // Note: worktrees are stored outside the repo (in ~/.lif/worktrees/<project>/,
 // or ~/.beans/worktrees/<project>/ for a project that already has that root).
 func writeGitignore(itemsDir string) error {
-	content := "# Generated by beans init\n.conversations/\n"
+	content := "# Generated by lif init\n.conversations/\n"
 	return os.WriteFile(filepath.Join(itemsDir, ".gitignore"), []byte(content), 0644)
 }
 

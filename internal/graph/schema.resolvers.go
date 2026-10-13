@@ -222,7 +222,7 @@ func (r *mutationResolver) CreateWorktree(ctx context.Context, name string) (*mo
 
 	// Start watching the worktree's .items/ directory for item changes
 	if err := r.Core.WatchWorktreeItems(wt.Path); err != nil {
-		fmt.Printf("[items] warning: failed to watch worktree items: %v\n", err)
+		fmt.Printf("[lif] warning: failed to watch worktree items: %v\n", err)
 	}
 
 	return worktreeToModel(wt, r.Core, r.WorktreeMgr.BaseRef(), false), nil

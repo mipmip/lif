@@ -404,6 +404,9 @@ func TestLoadRequireFieldsOn(t *testing.T) {
 		if !strings.Contains(err.Error(), "reserved front matter field") {
 			t.Errorf("expected error to contain \"reserved front matter field\", got %q", err.Error())
 		}
+		if !strings.Contains(err.Error(), "managed by lif, not an extra key") {
+			t.Errorf("expected error to say the field is managed by lif, got %q", err.Error())
+		}
 	})
 
 	t.Run("save-load roundtrip preserves policy and commit field", func(t *testing.T) {
@@ -421,6 +424,13 @@ func TestLoadRequireFieldsOn(t *testing.T) {
 
 		if err := cfg.Save(tmpDir); err != nil {
 			t.Fatalf("Save() error = %v", err)
+		}
+		saved, err := os.ReadFile(filepath.Join(tmpDir, ConfigFileName))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if want := "# Front matter keys that must be set when an item enters a status"; !strings.Contains(string(saved), want) {
+			t.Errorf("saved config lacks the comment %q:\n%s", want, saved)
 		}
 
 		loaded, err := Load(filepath.Join(tmpDir, ConfigFileName))
@@ -1036,8 +1046,8 @@ func TestSaveIncludesComments(t *testing.T) {
 	content := string(data)
 
 	// Verify header comment
-	if !strings.Contains(content, "# Beans configuration") {
-		t.Error("missing header comment 'Beans configuration'")
+	if !strings.Contains(content, "# Lif configuration") {
+		t.Error("missing header comment 'Lif configuration'")
 	}
 	if !strings.Contains(content, "# See: https://github.com/xRiErOS/lif") {
 		t.Error("missing header comment with URL")
@@ -1045,12 +1055,12 @@ func TestSaveIncludesComments(t *testing.T) {
 
 	// Verify field comments
 	expectedComments := []string{
-		"# Directory where bean files are stored",
-		"# Prefix for bean IDs",
+		"# Directory where item files are stored",
+		"# Prefix for item IDs",
 		"# Length of the random ID suffix",
-		"# Default status for new beans",
-		"# Default type for new beans",
-		"# Port for the web UI",
+		"# Default status for new items",
+		"# Default type for new items",
+		"# Port for the web UI (used by `lif-serve`)",
 	}
 	for _, comment := range expectedComments {
 		if !strings.Contains(content, comment) {
@@ -2487,7 +2497,7 @@ func TestColourOnlyOverrideKeepsTheBuiltInRank(t *testing.T) {
 	}
 }
 
-// An explicit "color: ''"/"description: ''"/"short: ''" in the YAML source
+// An explicit `color: ""`, `description: ""` or `short: ""` in the YAML source
 // is a real value - clear the built-in default - not the same as never
 // naming the key at all, which leaves the default alone. This only applies
 // to configs loaded from YAML: UnmarshalYAML is what records which keys
@@ -2548,7 +2558,7 @@ func TestExplicitEmptyOverrideClearsTheBuiltInValue(t *testing.T) {
 }
 
 // A Save() -> Load() round trip must not lose the explicit clear either:
-// toYAMLNode() has to write "color: ''" back out, not skip the key the way
+// toYAMLNode() has to write `color: ""` back out, not skip the key the way
 // it would for a genuinely-unset override.
 func TestSaveRoundTripsAnExplicitlyEmptyOverride(t *testing.T) {
 	tmpDir := t.TempDir()

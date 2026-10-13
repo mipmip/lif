@@ -619,3 +619,33 @@ func TestOrderCmdSucceedsOnItemLoadedFreshFromDisk(t *testing.T) {
 type nopWriter struct{}
 
 func (nopWriter) Write(p []byte) (int, error) { return len(p), nil }
+
+// AC3: order's lookup and placement errors name the noun as item and quote
+// the lif command.
+func TestOrderErrorsNameItems(t *testing.T) {
+	_, children := setupOrderTestUnordered(t, 3)
+	a, b := children[0].ID, children[1].ID
+
+	for _, tc := range []struct {
+		name string
+		set  func()
+		args []string
+		want string
+	}{
+		{"unknown item", func() { orderFirst = true }, []string{"beans-nope"}, "item not found: beans-nope"},
+		{"unknown reference", func() { orderAfter = "beans-nope" }, []string{a}, "item not found: beans-nope"},
+		{"reference is the item", func() { orderAfter = a }, []string{a}, "cannot place an item relative to itself"},
+		{"unordered reference", func() { orderAfter = a }, []string{b},
+			"item " + a + " has no explicit order yet; place it first (e.g. `lif order " + a + " --last`) before placing another item relative to it"},
+		{"last without an ordered sibling", func() { orderLast = true }, []string{a}, "(e.g. `lif order <id> --first`, then `--after`)"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			resetOrderFlags(t)
+			tc.set()
+			err := orderCmd.RunE(orderCmd, tc.args)
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Errorf("error = %v, want it to contain %q", err, tc.want)
+			}
+		})
+	}
+}

@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/spf13/cobra"
 	"github.com/xRiErOS/lif/internal/output"
 	"github.com/xRiErOS/lif/internal/ui"
 	"github.com/xRiErOS/lif/pkg/item"
 	"github.com/xRiErOS/lif/pkg/itemgraph"
-	"github.com/spf13/cobra"
 )
 
 var (
@@ -72,7 +72,7 @@ func visibleChildrenIndex(children map[string][]*item.Item, hidden map[string]bo
 var milestonesCmd = &cobra.Command{
 	Use:   "milestones",
 	Short: "List milestones with descendant progress",
-	Long:  `Lists all beans on the top container rank, each annotated with how many of its descendants (via any number of parent levels, e.g. epics and their tasks) are completed. Completed and scrapped milestones are hidden by default; use --all to include them.`,
+	Long:  `Lists all items on the top container rank, each annotated with how many of its descendants (via any number of parent levels, e.g. epics and their tasks) are completed. Completed and scrapped milestones are hidden by default; use --all to include them.`,
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		// Flag validation comes before any data access and before every
@@ -88,7 +88,7 @@ var milestonesCmd = &cobra.Command{
 
 		allItems, err := resolver.Items(ctx, nil)
 		if err != nil {
-			return cmdError(milestonesJSON, output.ErrValidation, "querying beans: %v", err)
+			return cmdError(milestonesJSON, output.ErrValidation, "querying items: %v", err)
 		}
 
 		milestones := collectMilestones(allItems, milestonesAll)

@@ -147,6 +147,17 @@ func TestCheckReportsNoConfigIssueForDefaultTables(t *testing.T) {
 		t.Errorf("expected a clean check for a fresh store, got:\n%s", out)
 	}
 }
+
+// AC3: check's section heading and tick line name the noun as item.
+func TestCheckReportNamesItems(t *testing.T) {
+	out := stripANSITest(runCheckInTestStore(t))
+	for _, want := range []string{"Item Links", "Every item carries a known type"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("check report lacks %q:\n%s", want, out)
+		}
+	}
+}
+
 func TestUnknownTypeItemsFindsItemsTheConfigDoesNotCover(t *testing.T) {
 	prev := cfg
 	cfg = &config.Config{}

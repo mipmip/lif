@@ -43,12 +43,12 @@ var (
 var updateCmd = &cobra.Command{
 	Use:     "update <id> [id...]",
 	Aliases: []string{"u"},
-	Short:   "Update the properties of one or more beans",
-	Long: `Updates one or more properties of one or more existing beans.
+	Short:   "Update the properties of one or more items",
+	Long: `Updates one or more properties of one or more existing items.
 
-Every flag applies to every bean named in the call. Every ID is resolved, and
+Every flag applies to every item named in the call. Every ID is resolved, and
 --status's required fields and --parent's type and cycle rules are checked for
-every bean, before the first bean is written. --if-match carries one bean's
+every item, before the first item is written. --if-match carries one item's
 etag, so it accepts exactly one ID.`,
 	Args: cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -65,7 +65,7 @@ etag, so it accepts exactly one ID.`,
 		updateSet = normalizedSet
 
 		if updateIfMatch != "" && len(args) > 1 {
-			return cmdError(updateJSON, output.ErrValidation, "--if-match takes one bean's etag, got %d ids", len(args))
+			return cmdError(updateJSON, output.ErrValidation, "--if-match takes one item's etag, got %d ids", len(args))
 		}
 
 		targets, code, err := resolveBatchTargets(ctx, resolver, args)
@@ -307,12 +307,12 @@ func RegisterUpdateCmd(root *cobra.Command) {
 	updateCmd.Flags().StringVar(&updateBodyReplaceOld, "body-replace-old", "", "Text to find and replace (requires --body-replace-new)")
 	updateCmd.Flags().StringVar(&updateBodyReplaceNew, "body-replace-new", "", "Replacement text (requires --body-replace-old)")
 	updateCmd.Flags().StringVar(&updateBodyAppend, "body-append", "", "Text to append to body (use '-' for stdin)")
-	updateCmd.Flags().StringVar(&updateParent, "parent", "", "Set parent bean ID")
+	updateCmd.Flags().StringVar(&updateParent, "parent", "", "Set parent item ID")
 	updateCmd.Flags().BoolVar(&updateRemoveParent, "remove-parent", false, "Remove parent")
-	updateCmd.Flags().StringArrayVar(&updateBlocking, "blocking", nil, "ID of bean this blocks (can be repeated)")
-	updateCmd.Flags().StringArrayVar(&updateRemoveBlocking, "remove-blocking", nil, "ID of bean to unblock (can be repeated)")
-	updateCmd.Flags().StringArrayVar(&updateBlockedBy, "blocked-by", nil, "ID of bean that blocks this one (can be repeated)")
-	updateCmd.Flags().StringArrayVar(&updateRemoveBlockedBy, "remove-blocked-by", nil, "ID of blocker bean to remove (can be repeated)")
+	updateCmd.Flags().StringArrayVar(&updateBlocking, "blocking", nil, "ID of item this blocks (can be repeated)")
+	updateCmd.Flags().StringArrayVar(&updateRemoveBlocking, "remove-blocking", nil, "ID of item to unblock (can be repeated)")
+	updateCmd.Flags().StringArrayVar(&updateBlockedBy, "blocked-by", nil, "ID of item that blocks this one (can be repeated)")
+	updateCmd.Flags().StringArrayVar(&updateRemoveBlockedBy, "remove-blocked-by", nil, "ID of blocker item to remove (can be repeated)")
 	updateCmd.Flags().StringArrayVar(&updateTag, "tag", nil, "Add tag (can be repeated)")
 	updateCmd.Flags().StringArrayVar(&updateRemoveTag, "remove-tag", nil, "Remove tag (can be repeated)")
 	updateCmd.Flags().StringArrayVar(&updateSet, "set", nil, "Set an extra front matter key as key=value (can be repeated)")
@@ -365,7 +365,7 @@ func tagFlagCompletion(cmd *cobra.Command, args []string, toComplete string) ([]
 	}
 	out := make([]string, 0, len(tags))
 	for _, t := range tags {
-		out = append(out, fmt.Sprintf("%s\t%d bean(s)", t.Tag, t.Count))
+		out = append(out, fmt.Sprintf("%s\t%d item(s)", t.Tag, t.Count))
 	}
 	return out, completionDirective
 }

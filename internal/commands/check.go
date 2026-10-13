@@ -123,7 +123,7 @@ func attachmentOrphanIssues(c *itemcore.Core) []string {
 	}
 	issues := make([]string, 0, len(orphans))
 	for _, id := range orphans {
-		issues = append(issues, fmt.Sprintf("%s/%s has no bean %s", itemcore.AttachmentsDir, id, id))
+		issues = append(issues, fmt.Sprintf("%s/%s has no item %s", itemcore.AttachmentsDir, id, id))
 	}
 	return issues
 }
@@ -131,11 +131,11 @@ func attachmentOrphanIssues(c *itemcore.Core) []string {
 var checkCmd = &cobra.Command{
 	Use:   "check",
 	Args:  cobra.NoArgs,
-	Short: "Validate configuration and bean integrity",
-	Long: `Checks configuration and bean integrity, including:
+	Short: "Validate configuration and item integrity",
+	Long: `Checks configuration and item integrity, including:
 - Configuration settings (colors, default type)
-- Broken links (links to non-existent beans)
-- Self-references (beans linking to themselves)
+- Broken links (links to non-existent items)
+- Self-references (items linking to themselves)
 - Circular dependencies (cycles in blocks/parent relationships)
 
 Use --fix to automatically remove broken links and self-references.
@@ -173,10 +173,10 @@ Note: Cycles cannot be auto-fixed and require manual intervention.`,
 		if stray := unknownTypeItems(allItems); len(stray) > 0 {
 			for _, b := range stray {
 				configErrors = append(configErrors,
-					fmt.Sprintf("bean %s carries type '%s', which the configuration does not define", b.ID, b.Type))
+					fmt.Sprintf("item %s carries type '%s', which the configuration does not define", b.ID, b.Type))
 			}
 		} else if !checkJSON {
-			fmt.Printf("  %s Every bean carries a known type\n", ui.Success.Render("✓"))
+			fmt.Printf("  %s Every item carries a known type\n", ui.Success.Render("✓"))
 		}
 
 		// 2c. Check agent.default_effort is a valid effort level
@@ -262,7 +262,7 @@ Note: Cycles cannot be auto-fixed and require manual intervention.`,
 		// === Item link checks ===
 		if !checkJSON {
 			fmt.Println()
-			fmt.Println(ui.Bold.Render("Bean Links"))
+			fmt.Println(ui.Bold.Render("Item Links"))
 		}
 
 		linkResult := core.CheckAllLinks()

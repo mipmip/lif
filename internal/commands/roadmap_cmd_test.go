@@ -164,10 +164,10 @@ func TestRoadmapCmdRejectsUnknownID(t *testing.T) {
 
 	err := roadmapCmd.RunE(roadmapCmd, []string{"beans-doesnotexist"})
 	if err == nil {
-		t.Fatal("expected an error for an unknown bean ID")
+		t.Fatal("expected an error for an unknown item ID")
 	}
-	if !strings.Contains(err.Error(), "unknown bean") {
-		t.Errorf("expected error to mention 'unknown bean', got %q", err.Error())
+	if !strings.Contains(err.Error(), "unknown item: beans-doesnotexist") {
+		t.Errorf("expected error to be 'unknown item: ...', got %q", err.Error())
 	}
 }
 

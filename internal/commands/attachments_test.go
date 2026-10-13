@@ -85,8 +85,8 @@ func TestAttachmentOrphanIssues(t *testing.T) {
 	if len(issues) != 1 {
 		t.Fatalf("issues = %v, want exactly one", issues)
 	}
-	if !strings.Contains(issues[0], "tp-9999") {
-		t.Errorf("issue does not name the orphan: %q", issues[0])
+	if want := "attachments/tp-9999 has no item tp-9999"; issues[0] != want {
+		t.Errorf("issue = %q, want %q", issues[0], want)
 	}
 	if strings.Contains(issues[0], "tp-aaaa") {
 		t.Errorf("issue wrongly names a live bean's attachment: %q", issues[0])

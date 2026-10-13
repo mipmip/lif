@@ -37,8 +37,8 @@ var createCmd = &cobra.Command{
 	Use:     "create [title]",
 	Args:    cobra.ArbitraryArgs,
 	Aliases: []string{"c", "new"},
-	Short:   "Create a new bean",
-	Long:    `Creates a new bean (issue) with a generated ID and optional title.`,
+	Short:   "Create a new item",
+	Long:    `Creates a new item (issue) with a generated ID and optional title.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		title := strings.Join(args, " ")
 		if title == "" {
@@ -125,7 +125,7 @@ var createCmd = &cobra.Command{
 		resolver := &itemgraph.CoreResolver{Core: core}
 		b, err := resolver.CreateItem(context.Background(), input, itemcore.WithExtraOps(setMap, nil))
 		if err != nil {
-			return cmdError(createJSON, output.ErrFileError, "failed to create bean: %v", err)
+			return cmdError(createJSON, output.ErrFileError, "failed to create item: %v", err)
 		}
 
 		// An explicit order and --unset aren't part of the generated
@@ -171,14 +171,14 @@ func RegisterCreateCmd(root *cobra.Command) {
 	priorityNames := cfg.PriorityNames()
 
 	createCmd.Flags().StringVarP(&createStatus, "status", "s", "", "Initial status ("+strings.Join(statusNames, ", ")+")")
-	createCmd.Flags().StringVarP(&createType, "type", "t", "", "Bean type ("+strings.Join(typeNames, ", ")+")")
+	createCmd.Flags().StringVarP(&createType, "type", "t", "", "Item type ("+strings.Join(typeNames, ", ")+")")
 	createCmd.Flags().StringVarP(&createPriority, "priority", "p", "", "Priority level ("+strings.Join(priorityNames, ", ")+")")
 	createCmd.Flags().StringVarP(&createBody, "body", "d", "", "Body content (use '-' to read from stdin)")
 	createCmd.Flags().StringVar(&createBodyFile, "body-file", "", "Read body from file")
 	createCmd.Flags().StringArrayVar(&createTag, "tag", nil, "Add tag (can be repeated)")
-	createCmd.Flags().StringVar(&createParent, "parent", "", "Parent bean ID")
-	createCmd.Flags().StringArrayVar(&createBlocking, "blocking", nil, "ID of bean this blocks (can be repeated)")
-	createCmd.Flags().StringArrayVar(&createBlockedBy, "blocked-by", nil, "ID of bean that blocks this one (can be repeated)")
+	createCmd.Flags().StringVar(&createParent, "parent", "", "Parent item ID")
+	createCmd.Flags().StringArrayVar(&createBlocking, "blocking", nil, "ID of item this blocks (can be repeated)")
+	createCmd.Flags().StringArrayVar(&createBlockedBy, "blocked-by", nil, "ID of item that blocks this one (can be repeated)")
 	createCmd.Flags().StringVar(&createPrefix, "prefix", "", "Custom ID prefix (overrides config prefix)")
 	createCmd.Flags().StringArrayVar(&createSet, "set", nil, "Set an extra front matter key as key=value (can be repeated)")
 	createCmd.Flags().StringArrayVar(&createUnset, "unset", nil, "Remove an extra front matter key (can be repeated)")
@@ -243,7 +243,7 @@ var createFlagNames []string
 // definitions via VisitAll, not hand-copied -- so a newly added flag
 // shows up here automatically and a removed one can't linger (AC-03).
 func createHint() string {
-	return `provide a title, e.g. beans create "Fix the login bug" -- flags: ` + strings.Join(createFlagNames, ", ")
+	return `provide a title, e.g. lif create "Fix the login bug" -- flags: ` + strings.Join(createFlagNames, ", ")
 }
 
 // createValidArgs is create's ValidArgsFunction. create's sole positional

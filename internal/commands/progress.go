@@ -37,10 +37,10 @@ type progressResult struct {
 
 var progressCmd = &cobra.Command{
 	Use:   "progress [id]",
-	Short: "Show a summary of work status across all beans",
+	Short: "Show a summary of work status across all items",
 	Long: `Shows counts by status across every configured status, plus a percent-complete figure (completed / (total - scrapped)).
 
-With an ID argument (for example a milestone or epic), the counts cover that bean's descendants — through any number of parent levels — instead of the whole workspace. The root bean's own status is not counted: it is the container, not an item of work.`,
+With an ID argument (for example a milestone or epic), the counts cover that item's descendants — through any number of parent levels — instead of the whole workspace. The root item's own status is not counted: it is the container, not an item of work.`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
@@ -48,7 +48,7 @@ With an ID argument (for example a milestone or epic), the counts cover that bea
 
 		allItems, err := resolver.Items(ctx, nil)
 		if err != nil {
-			return cmdError(progressJSON, output.ErrValidation, "querying beans: %v", err)
+			return cmdError(progressJSON, output.ErrValidation, "querying items: %v", err)
 		}
 
 		scope := allItems
@@ -56,10 +56,10 @@ With an ID argument (for example a milestone or epic), the counts cover that bea
 		if len(args) == 1 {
 			root, err = resolver.Item(ctx, args[0])
 			if err != nil {
-				return cmdError(progressJSON, output.ErrNotFound, "failed to find bean: %v", err)
+				return cmdError(progressJSON, output.ErrNotFound, "failed to find item: %v", err)
 			}
 			if root == nil {
-				return cmdError(progressJSON, output.ErrNotFound, "bean not found: %s", args[0])
+				return cmdError(progressJSON, output.ErrNotFound, "item not found: %s", args[0])
 			}
 			idx := buildChildrenIndex(allItems)
 			scope = descendants(root.ID, idx)

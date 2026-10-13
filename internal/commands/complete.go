@@ -5,6 +5,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/spf13/cobra"
 	"github.com/xRiErOS/lif/internal/gitutil"
 	"github.com/xRiErOS/lif/internal/output"
 	"github.com/xRiErOS/lif/internal/ui"
@@ -12,7 +13,6 @@ import (
 	"github.com/xRiErOS/lif/pkg/itemcore"
 	"github.com/xRiErOS/lif/pkg/itemgraph"
 	"github.com/xRiErOS/lif/pkg/itemgraph/model"
-	"github.com/spf13/cobra"
 )
 
 var (
@@ -24,11 +24,11 @@ var (
 
 var completeCmd = &cobra.Command{
 	Use:   "complete <id> [id...]",
-	Short: "Mark one or more beans as completed",
-	Long: `Marks one or more existing beans as completed.
+	Short: "Mark one or more items as completed",
+	Long: `Marks one or more existing items as completed.
 
---summary, --commit and --set apply to every bean named in the call. Every ID
-is resolved and checked against the status policy before the first bean is
+--summary, --commit and --set apply to every item named in the call. Every ID
+is resolved and checked against the status policy before the first item is
 written, so an unknown ID or a policy violation leaves the whole batch alone.`,
 	Args: cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -117,9 +117,9 @@ written, so an unknown ID or a policy violation leaves the whole batch alone.`,
 }
 
 func RegisterCompleteCmd(root *cobra.Command) {
-	completeCmd.Flags().StringVar(&completeSummary, "summary", "", "Optional summary of changes, applied to every bean in the call")
-	completeCmd.Flags().StringVar(&completeCommit, "commit", "", "Git ref (HEAD, branch, tag, SHA) recorded in the configured commit field of every bean in the call")
-	completeCmd.Flags().StringArrayVar(&completeSet, "set", nil, "Set an extra front matter key as key=value on every bean in the call (can be repeated)")
+	completeCmd.Flags().StringVar(&completeSummary, "summary", "", "Optional summary of changes, applied to every item in the call")
+	completeCmd.Flags().StringVar(&completeCommit, "commit", "", "Git ref (HEAD, branch, tag, SHA) recorded in the configured commit field of every item in the call")
+	completeCmd.Flags().StringArrayVar(&completeSet, "set", nil, "Set an extra front matter key as key=value on every item in the call (can be repeated)")
 	completeCmd.Flags().BoolVar(&completeJSON, "json", false, "Output as JSON")
 	// complete excludes archived items (already completed/scrapped) --
 	// completing either again is not a valid action (beans-j5so).

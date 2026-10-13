@@ -3,6 +3,7 @@ package agent
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -175,6 +176,33 @@ func TestStoreRejectsPathTraversal(t *testing.T) {
 		}
 		if err := s.clear(id); err == nil {
 			t.Errorf("clear(%q) should have failed", id)
+		}
+	}
+}
+
+// AC3: a malformed item ID is rejected with a text that names the noun as
+// item, on every path that validates the ID.
+func TestStoreRejectionsNameItem(t *testing.T) {
+	s, err := newStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, pathErr := s.path("../x")
+	_, dirErr := s.attachmentDir("../x")
+	_, attErr := s.attachmentPath("../x", "img")
+	cleanErr := s.clearAttachments("../x")
+	pruneErr := s.pruneAttachments("../x", nil)
+
+	for want, err := range map[string]error{
+		"invalid item ID for conversation path":  pathErr,
+		"invalid item ID for attachment dir":     dirErr,
+		"invalid item ID for attachment:":        attErr,
+		"invalid item ID for attachment cleanup": cleanErr,
+		"invalid item ID for attachment prune":   pruneErr,
+	} {
+		if err == nil || !strings.Contains(err.Error(), want) {
+			t.Errorf("error = %v, want it to contain %q", err, want)
 		}
 	}
 }

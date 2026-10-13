@@ -71,12 +71,12 @@ func (r *CoreResolver) ValidateAndAddBlocking(b *item.Item, targetIDs []string) 
 
 		// Validate: cannot block itself
 		if normalizedTargetID == b.ID {
-			return fmt.Errorf("bean cannot block itself")
+			return fmt.Errorf("item cannot block itself")
 		}
 
 		// Validate: target must exist
 		if !ok {
-			return fmt.Errorf("blocking target bean not found: %s", targetID)
+			return fmt.Errorf("blocking target item not found: %s", targetID)
 		}
 
 		// Check for cycles in both directions
@@ -108,12 +108,12 @@ func (r *CoreResolver) ValidateAndAddBlockedBy(b *item.Item, targetIDs []string)
 
 		// Validate: cannot be blocked by itself
 		if normalizedTargetID == b.ID {
-			return fmt.Errorf("bean cannot be blocked by itself")
+			return fmt.Errorf("item cannot be blocked by itself")
 		}
 
 		// Validate: blocker must exist
 		if !ok {
-			return fmt.Errorf("blocker bean not found: %s", targetID)
+			return fmt.Errorf("blocker item not found: %s", targetID)
 		}
 
 		// Check for cycles in both directions

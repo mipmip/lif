@@ -20,7 +20,7 @@ var initProfile string
 var initCmd = &cobra.Command{
 	Use:   "init",
 	Args:  cobra.NoArgs,
-	Short: "Initialize a beans project",
+	Short: "Initialize a Lif project",
 	Long: `Creates a .lif directory and .lif.yml config file in the current directory.
 A project that already uses the legacy names .beans or .beans.yml keeps them.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -136,7 +136,7 @@ A project that already uses the legacy names .beans or .beans.yml keeps them.`,
 			return output.SuccessInit(itemsDir)
 		}
 
-		fmt.Println("Initialized beans project")
+		fmt.Println("Initialized Lif project")
 		return nil
 	},
 }

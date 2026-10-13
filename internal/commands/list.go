@@ -47,8 +47,8 @@ var listCmd = &cobra.Command{
 	Use:     "list",
 	Args:    cobra.NoArgs,
 	Aliases: []string{"ls"},
-	Short:   "List all beans",
-	Long: `Lists all beans in the .lif directory (or in the legacy .beans directory of a project that still uses it).
+	Short:   "List all items",
+	Long: `Lists all items in the .lif directory (or in the legacy .beans directory of a project that still uses it).
 
 Search Syntax (--search/-S):
   The search flag supports Bleve query string syntax:
@@ -145,7 +145,7 @@ Search Syntax (--search/-S):
 		resolver := &itemgraph.CoreResolver{Core: core}
 		items, err := resolver.Items(context.Background(), filter)
 		if err != nil {
-			return fmt.Errorf("querying beans: %w", err)
+			return fmt.Errorf("querying items: %w", err)
 		}
 
 		// --where filters on extra front matter keys after the graph query,
@@ -177,7 +177,7 @@ Search Syntax (--search/-S):
 		// context, the table form to compute implicit statuses.
 		allItems, err := resolver.Items(context.Background(), nil)
 		if err != nil {
-			return fmt.Errorf("querying all beans for tree: %w", err)
+			return fmt.Errorf("querying all items for tree: %w", err)
 		}
 
 		// Pre-compute implicit statuses for all items
@@ -197,7 +197,7 @@ Search Syntax (--search/-S):
 		tree := ui.BuildTree(items, allItems, sortFn, implicitStatuses)
 
 		if len(tree) == 0 {
-			fmt.Println(ui.Muted.Render("No beans found. Create one with: beans new <title>"))
+			fmt.Println(ui.Muted.Render("No items found. Create one with: lif create <title>"))
 			return nil
 		}
 
@@ -219,7 +219,7 @@ Search Syntax (--search/-S):
 		} else {
 			rows = ui.FlatRows(items)
 		}
-		fmt.Print(ui.Render(rows, form, "Beans", width, listTags, cfg))
+		fmt.Print(ui.Render(rows, form, "Items", width, listTags, cfg))
 		return nil
 	},
 }
@@ -445,25 +445,25 @@ func RegisterListCmd(root *cobra.Command) {
 		listCmd.Flags().StringSliceVarP(&listPriority, "priority", "p", nil, "Filter by priority (comma-separated or repeated)")
 		listCmd.Flags().StringSliceVar(&listNoPriority, "no-priority", nil, "Exclude by priority (comma-separated or repeated)")
 		listCmd.Flags().StringSliceVar(&listTag, "tag", nil, "Filter by tag (comma-separated or repeated, OR logic)")
-		listCmd.Flags().StringSliceVar(&listNoTag, "no-tag", nil, "Exclude beans with tag (comma-separated or repeated)")
-		listCmd.Flags().BoolVar(&listHasParent, "has-parent", false, "Filter beans with a parent")
-		listCmd.Flags().BoolVar(&listNoParent, "no-parent", false, "Filter beans without a parent")
+		listCmd.Flags().StringSliceVar(&listNoTag, "no-tag", nil, "Exclude items with tag (comma-separated or repeated)")
+		listCmd.Flags().BoolVar(&listHasParent, "has-parent", false, "Filter items with a parent")
+		listCmd.Flags().BoolVar(&listNoParent, "no-parent", false, "Filter items without a parent")
 		listCmd.Flags().StringVar(&listParentID, "parent", "", "Filter by parent ID")
-		listCmd.Flags().BoolVar(&listHasBlocking, "has-blocking", false, "Filter beans that are blocking others")
-		listCmd.Flags().BoolVar(&listNoBlocking, "no-blocking", false, "Filter beans that aren't blocking others")
-		listCmd.Flags().BoolVar(&listIsBlocked, "is-blocked", false, "Filter beans that are blocked by others")
-		listCmd.Flags().BoolVar(&listUnblocked, "unblocked", false, "Filter beans with no unresolved blocker")
-		listCmd.Flags().BoolVar(&listReady, "ready", false, "Filter beans available to start (not blocked, excludes in-progress/completed/scrapped/draft)")
+		listCmd.Flags().BoolVar(&listHasBlocking, "has-blocking", false, "Filter items that are blocking others")
+		listCmd.Flags().BoolVar(&listNoBlocking, "no-blocking", false, "Filter items that aren't blocking others")
+		listCmd.Flags().BoolVar(&listIsBlocked, "is-blocked", false, "Filter items that are blocked by others")
+		listCmd.Flags().BoolVar(&listUnblocked, "unblocked", false, "Filter items with no unresolved blocker")
+		listCmd.Flags().BoolVar(&listReady, "ready", false, "Filter items available to start (not blocked, excludes in-progress/completed/scrapped/draft)")
 		listCmd.Flags().BoolVarP(&listQuiet, "quiet", "q", false, "Only output IDs (one per line)")
 		listCmd.Flags().StringVar(&listSort, "sort", "", "Sort by: created, updated, status, priority, id, order (order is scoped per parent) (default: status, priority, type, title)")
 		listCmd.Flags().BoolVar(&listDesc, "desc", false, "Reverse the sort order")
-		listCmd.Flags().BoolVar(&listFull, "full", false, "Include bean body in JSON output")
+		listCmd.Flags().BoolVar(&listFull, "full", false, "Include item body in JSON output")
 		listCmd.Flags().StringArrayVar(&listWhere, "where", nil, "Filter by extra front matter key=value (can be repeated, AND logic)")
 		listCmd.Flags().StringVar(&listView, "view", "table",
 			"Arrangement: table (flat, sortable) or tree (nested)")
 		listCmd.Flags().IntVar(&listMaxWidth, "max-width", 0,
 			"Cap the rendered width; 0 disables the cap (default: display.max_width, else 110)")
-		listCmd.Flags().BoolVar(&listTags, "tags", false, "Render each bean's tags")
+		listCmd.Flags().BoolVar(&listTags, "tags", false, "Render each item's tags")
 		// AC-01/AC-02/AC-03/AC-04: only the affirmative enum-valued filter
 		// flags gain completion (beans-pkq3 Non-Goals) -- the boolean and
 		// --no-* exclusion flags take no enum value. --parent uses

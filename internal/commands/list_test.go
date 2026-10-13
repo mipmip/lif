@@ -809,6 +809,45 @@ func TestListDefaultsToTheTableForm(t *testing.T) {
 	}
 }
 
+// SC-03 / AC-02: a store without a matching item answers with a hint that
+// names the canonical create command (`create`, not its alias `new`).
+func TestListEmptyStateHintNamesLifCreate(t *testing.T) {
+	setupListTest(t)
+
+	root := &cobra.Command{Use: "lif"}
+	RegisterListCmd(root)
+	resetListViewFlags(t, root)
+
+	var runErr error
+	out := captureListStdout(t, func() {
+		root.SetArgs([]string{"list"})
+		root.SetOut(io.Discard)
+		root.SetErr(io.Discard)
+		runErr = root.Execute()
+	})
+	if runErr != nil {
+		t.Fatalf("list on an empty store: %v", runErr)
+	}
+
+	if got := string(out); !strings.Contains(got, "No items found.") {
+		t.Errorf("empty-state hint does not say \"No items found.\": %q", got)
+	}
+	if got := string(out); !strings.Contains(got, "Create one with: lif create <title>") {
+		t.Errorf("empty-state hint does not name `lif create <title>`: %q", got)
+	}
+}
+
+// AC3: the first line of the rendered list is the title, which names the
+// noun as item in the table and in the tree form.
+func TestListTitleNamesItems(t *testing.T) {
+	for _, view := range []string{"table", "tree"} {
+		out := runListInTestStore(t, []string{"--view", view})
+		if first, _, _ := strings.Cut(out, "\n"); first != "Items" {
+			t.Errorf("--view %s: first line = %q, want %q", view, first, "Items")
+		}
+	}
+}
+
 // TestListViewTreeDrawsTheTree is the brief's guard for --view tree.
 func TestListViewTreeDrawsTheTree(t *testing.T) {
 	out := runListInTestStore(t, []string{"--view", "tree"})

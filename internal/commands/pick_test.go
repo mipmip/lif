@@ -144,10 +144,10 @@ func TestRunPickReflectsStoreResolvedPerInvocation(t *testing.T) {
 	emptyErr := runWith(emptyDir)
 	populatedErr := runWith(populatedDir)
 
-	if !strings.Contains(emptyErr, "no beans to pick from") {
+	if !strings.Contains(emptyErr, "lif pick: store has no items to pick from") {
 		t.Errorf("empty store: got error %q, want the empty-candidates branch", emptyErr)
 	}
-	if !strings.Contains(populatedErr, "not a terminal") {
+	if !strings.Contains(populatedErr, "lif pick: stdin is not a terminal") {
 		t.Errorf("populated store: got error %q, want the non-tty branch", populatedErr)
 	}
 }
@@ -385,7 +385,7 @@ func TestPickScopeFlagRejectsUnknownType(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected an error for an unknown --scope type")
 	}
-	if !strings.Contains(err.Error(), "invalid --scope type") {
+	if !strings.Contains(err.Error(), "lif pick: invalid --scope type: bogus") {
 		t.Errorf("error = %q, want it to mention the invalid type", err)
 	}
 }
@@ -406,7 +406,7 @@ func TestPickScopeFlagRejectsBlankValue(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected an error for a --scope value with no types")
 	}
-	if !strings.Contains(err.Error(), "requires at least one bean type") {
+	if !strings.Contains(err.Error(), "lif pick: --scope requires at least one item type") {
 		t.Errorf("error = %q, want it to mention the missing type", err)
 	}
 }
@@ -468,7 +468,7 @@ func TestPickPartialLineUnknownVerbErrors(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected an error for an unresolvable verb")
 	}
-	if !strings.Contains(err.Error(), "does not resolve") {
+	if !strings.Contains(err.Error(), "lif pick: partial line verb does not resolve") {
 		t.Errorf("error = %q, want it to mention verb resolution", err)
 	}
 }
@@ -492,7 +492,7 @@ func TestPickPartialLinePlumbingVerbErrors(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected an error for a plumbing verb")
 	}
-	if !strings.Contains(err.Error(), "not a user-facing verb") {
+	if !strings.Contains(err.Error(), `lif pick: "path" is not a user-facing verb`) {
 		t.Errorf("error = %q, want it to mention user-facing", err)
 	}
 }
@@ -568,7 +568,7 @@ func TestPickPartialLineParentWithoutKnownItemErrors(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected an error when no positional bean id precedes --parent")
 	}
-	if !strings.Contains(err.Error(), "cannot resolve --parent context") {
+	if !strings.Contains(err.Error(), "lif pick: cannot resolve --parent context: no known item id precedes --parent") {
 		t.Errorf("error = %q, want it to mention the unresolved --parent context", err)
 	}
 }
@@ -587,7 +587,7 @@ func TestPickLineRequiresCursor(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected an error when --line is set without --cursor")
 	}
-	if !strings.Contains(err.Error(), "requires --cursor") {
+	if !strings.Contains(err.Error(), "lif pick: --line requires --cursor") {
 		t.Errorf("error = %q, want it to mention the missing --cursor", err)
 	}
 }
@@ -609,7 +609,7 @@ func TestPickLineRequiresCursorInRange(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected an error for an out-of-range --cursor")
 	}
-	if !strings.Contains(err.Error(), "out of range") {
+	if !strings.Contains(err.Error(), "lif pick: --cursor 999 is out of range") {
 		t.Errorf("error = %q, want it to mention the out-of-range cursor", err)
 	}
 }
@@ -637,7 +637,7 @@ func TestPickPartialLineVerbWithoutScopeSemanticsErrors(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected an error for a resolved, user-facing verb with no known scope mapping")
 	}
-	if !strings.Contains(err.Error(), "no known scope-derivation mapping") {
+	if !strings.Contains(err.Error(), `lif pick: verb "list" has no known scope-derivation mapping`) {
 		t.Errorf("error = %q, want it to mention the missing scope-derivation mapping", err)
 	}
 }
@@ -717,8 +717,44 @@ func TestPickWidgetLineWithUnmappedVerbErrors(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected an error for a widget-shaped --line with an unmapped verb")
 	}
-	if !strings.Contains(err.Error(), "no known scope-derivation mapping") {
+	if !strings.Contains(err.Error(), `lif pick: verb "show" has no known scope-derivation mapping`) {
 		t.Errorf("error = %q, want it to mention the missing scope-derivation mapping", err)
+	}
+}
+
+// The picker's own labels and the partial-line errors that no other test
+// reaches name the product as lif and the noun as item.
+func TestPickLabelsAndLineErrorsNameLifAndItem(t *testing.T) {
+	t.Run("picker title", func(t *testing.T) {
+		m, _ := newPickModel([]*item.Item{pickTestItem("beans-aaaa", "Alpha")}).Update(tea.WindowSizeMsg{Width: 60, Height: 12})
+		if view := m.View(); !strings.Contains(view, "Pick an item") {
+			t.Errorf("picker view lacks the title %q:\n%s", "Pick an item", view)
+		}
+	})
+
+	t.Run("aborted pick", func(t *testing.T) {
+		if got := errPickAborted.Error(); got != "lif pick: no item selected" {
+			t.Errorf("errPickAborted = %q, want %q", got, "lif pick: no item selected")
+		}
+	})
+
+	pick := setupPickScopeTest(t)
+	for _, tc := range []struct {
+		name, line string
+		cursor     int
+		want       string
+	}{
+		{"blank line", "  ", 0, "lif pick: --line has no verb to resolve"},
+		{"program name only", "lif", 3, "lif pick: --line has no verb after the program name"},
+		{"cursor on program name", "lif roadmap", 1, "lif pick: cursor position is not understood by scope derivation (it sits on the program name)"},
+		{"flag only", "--help", 6, "lif pick: partial line has no resolvable verb"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := partialLineCandidates(pick, tc.line, tc.cursor)
+			if err == nil || err.Error() != tc.want {
+				t.Errorf("partialLineCandidates(%q, %d) error = %v, want %q", tc.line, tc.cursor, err, tc.want)
+			}
+		})
 	}
 }
 

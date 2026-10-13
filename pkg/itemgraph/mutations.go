@@ -58,7 +58,7 @@ func (r *CoreResolver) CreateItem(ctx context.Context, input model.CreateItemInp
 			var ok bool
 			normalizedBlocking[i], ok = r.Core.NormalizeID(id)
 			if !ok {
-				return nil, fmt.Errorf("target bean not found: %s", id)
+				return nil, fmt.Errorf("target item not found: %s", id)
 			}
 		}
 		b.Blocking = normalizedBlocking
@@ -72,7 +72,7 @@ func (r *CoreResolver) CreateItem(ctx context.Context, input model.CreateItemInp
 			var ok bool
 			normalizedBlockedBy[i], ok = r.Core.NormalizeID(id)
 			if !ok {
-				return nil, fmt.Errorf("blocker bean not found: %s", id)
+				return nil, fmt.Errorf("blocker item not found: %s", id)
 			}
 		}
 		// Check for cycles with blocking relationships
@@ -80,7 +80,7 @@ func (r *CoreResolver) CreateItem(ctx context.Context, input model.CreateItemInp
 		for _, blockerID := range normalizedBlockedBy {
 			for _, blockingID := range b.Blocking {
 				if blockerID == blockingID {
-					return nil, fmt.Errorf("would create cycle: new bean both blocks and is blocked by %s", blockerID)
+					return nil, fmt.Errorf("would create cycle: new item both blocks and is blocked by %s", blockerID)
 				}
 			}
 		}
@@ -95,7 +95,7 @@ func (r *CoreResolver) CreateItem(ctx context.Context, input model.CreateItemInp
 		}
 		id, err := item.NewID(*input.Prefix, idLength)
 		if err != nil {
-			return nil, fmt.Errorf("generating bean ID: %w", err)
+			return nil, fmt.Errorf("generating item ID: %w", err)
 		}
 		b.ID = id
 	}
@@ -312,12 +312,12 @@ func (r *CoreResolver) AddBlocking(ctx context.Context, id string, targetID stri
 	normalizedTargetID, ok := r.Core.NormalizeID(targetID)
 
 	if normalizedTargetID == b.ID {
-		return nil, fmt.Errorf("bean cannot block itself")
+		return nil, fmt.Errorf("item cannot block itself")
 	}
 
 	// Check target exists
 	if !ok {
-		return nil, fmt.Errorf("target bean not found: %s", targetID)
+		return nil, fmt.Errorf("target item not found: %s", targetID)
 	}
 
 	// Check for cycles in both directions
@@ -361,12 +361,12 @@ func (r *CoreResolver) AddBlockedBy(ctx context.Context, id string, targetID str
 	normalizedTargetID, ok := r.Core.NormalizeID(targetID)
 
 	if normalizedTargetID == b.ID {
-		return nil, fmt.Errorf("bean cannot be blocked by itself")
+		return nil, fmt.Errorf("item cannot be blocked by itself")
 	}
 
 	// Check target exists
 	if !ok {
-		return nil, fmt.Errorf("blocker bean not found: %s", targetID)
+		return nil, fmt.Errorf("blocker item not found: %s", targetID)
 	}
 
 	// Check for cycles in both directions

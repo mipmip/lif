@@ -9,13 +9,13 @@ import (
 // using the system's diff command. filePath is used as the label in the diff header.
 // Returns an empty string if the contents are identical or on error.
 func computeUnifiedDiff(oldContent, newContent, filePath string) string {
-	oldFile, err := os.CreateTemp("", "beans-diff-old-*")
+	oldFile, err := os.CreateTemp("", "lif-diff-old-*")
 	if err != nil {
 		return ""
 	}
 	defer os.Remove(oldFile.Name())
 
-	newFile, err := os.CreateTemp("", "beans-diff-new-*")
+	newFile, err := os.CreateTemp("", "lif-diff-new-*")
 	if err != nil {
 		oldFile.Close()
 		return ""

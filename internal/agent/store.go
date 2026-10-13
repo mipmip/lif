@@ -38,12 +38,12 @@ type entryImage struct {
 // entry is a single line in the JSONL file.
 type entry struct {
 	Type        string       `json:"type"`                  // "message" or "meta"
-	Role        string       `json:"role,omitempty"`         // for messages: "user" or "assistant"
-	Content     string       `json:"content,omitempty"`      // for messages
-	Images      []entryImage `json:"images,omitempty"`       // for messages with image attachments
-	Diff        string       `json:"diff,omitempty"`         // for tool messages: unified diff output
-	Attachments []string     `json:"attachments,omitempty"`  // file paths from @-mentions
-	SessionID   string       `json:"session_id,omitempty"`   // for meta
+	Role        string       `json:"role,omitempty"`        // for messages: "user" or "assistant"
+	Content     string       `json:"content,omitempty"`     // for messages
+	Images      []entryImage `json:"images,omitempty"`      // for messages with image attachments
+	Diff        string       `json:"diff,omitempty"`        // for tool messages: unified diff output
+	Attachments []string     `json:"attachments,omitempty"` // file paths from @-mentions
+	SessionID   string       `json:"session_id,omitempty"`  // for meta
 }
 
 // newStore creates the conversations directory if needed.
@@ -165,7 +165,7 @@ func (s *store) clear(itemID string) error {
 // Returns an error if the itemID would cause path traversal.
 func (s *store) path(itemID string) (string, error) {
 	if err := safepath.ValidateItemID(itemID); err != nil {
-		return "", fmt.Errorf("invalid bean ID for conversation path: %w", err)
+		return "", fmt.Errorf("invalid item ID for conversation path: %w", err)
 	}
 	return safepath.SafeJoin(s.dir, itemID+".jsonl")
 }
@@ -173,7 +173,7 @@ func (s *store) path(itemID string) (string, error) {
 // attachmentDir returns the directory for an item's image attachments, creating it if needed.
 func (s *store) attachmentDir(itemID string) (string, error) {
 	if err := safepath.ValidateItemID(itemID); err != nil {
-		return "", fmt.Errorf("invalid bean ID for attachment dir: %w", err)
+		return "", fmt.Errorf("invalid item ID for attachment dir: %w", err)
 	}
 	dir, err := safepath.SafeJoin(s.dir, filepath.Join("attachments", itemID))
 	if err != nil {
@@ -214,7 +214,7 @@ func (s *store) saveImage(itemID, mediaType string, data []byte) (ImageRef, erro
 // Validates both itemID and imageID to prevent path traversal.
 func (s *store) attachmentPath(itemID, imageID string) (string, error) {
 	if err := safepath.ValidateItemID(itemID); err != nil {
-		return "", fmt.Errorf("invalid bean ID for attachment: %w", err)
+		return "", fmt.Errorf("invalid item ID for attachment: %w", err)
 	}
 	// Validate imageID: must not contain path separators or traversal sequences
 	if strings.ContainsAny(imageID, "/\\") || strings.Contains(imageID, "..") || imageID == "" {
@@ -227,7 +227,7 @@ func (s *store) attachmentPath(itemID, imageID string) (string, error) {
 // clearAttachments removes all stored images for an item.
 func (s *store) clearAttachments(itemID string) error {
 	if err := safepath.ValidateItemID(itemID); err != nil {
-		return fmt.Errorf("invalid bean ID for attachment cleanup: %w", err)
+		return fmt.Errorf("invalid item ID for attachment cleanup: %w", err)
 	}
 	dir := filepath.Join(s.dir, "attachments", itemID)
 	err := os.RemoveAll(dir)
@@ -240,7 +240,7 @@ func (s *store) clearAttachments(itemID string) error {
 // pruneAttachments deletes any attachment files for an item that are NOT in keepIDs.
 func (s *store) pruneAttachments(itemID string, keepIDs []string) error {
 	if err := safepath.ValidateItemID(itemID); err != nil {
-		return fmt.Errorf("invalid bean ID for attachment prune: %w", err)
+		return fmt.Errorf("invalid item ID for attachment prune: %w", err)
 	}
 	dir := filepath.Join(s.dir, "attachments", itemID)
 	entries, err := os.ReadDir(dir)

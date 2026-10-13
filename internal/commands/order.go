@@ -4,11 +4,11 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/spf13/cobra"
 	"github.com/xRiErOS/lif/internal/output"
 	"github.com/xRiErOS/lif/internal/ui"
 	"github.com/xRiErOS/lif/pkg/item"
 	"github.com/xRiErOS/lif/pkg/itemgraph"
-	"github.com/spf13/cobra"
 )
 
 var (
@@ -21,10 +21,10 @@ var (
 
 var orderCmd = &cobra.Command{
 	Use:   "order <id>",
-	Short: "Place a bean relative to its siblings",
-	Long: `Sets a bean's manual order key relative to its siblings under the same
+	Short: "Place an item relative to its siblings",
+	Long: `Sets an item's manual order key relative to its siblings under the same
 parent, using a fractional index. This means a move only ever writes the one
-bean file being placed, never the neighbours around it.`,
+item file being placed, never the neighbours around it.`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
@@ -37,10 +37,10 @@ bean file being placed, never the neighbours around it.`,
 
 		b, err := resolver.Item(ctx, args[0])
 		if err != nil {
-			return cmdError(orderJSON, output.ErrNotFound, "failed to find bean: %v", err)
+			return cmdError(orderJSON, output.ErrNotFound, "failed to find item: %v", err)
 		}
 		if b == nil {
-			return cmdError(orderJSON, output.ErrNotFound, "bean not found: %s", args[0])
+			return cmdError(orderJSON, output.ErrNotFound, "item not found: %s", args[0])
 		}
 
 		siblings, err := orderSiblingsOf(resolver, ctx, b)
@@ -110,7 +110,7 @@ func computeOrderPlacement(resolver *itemgraph.CoreResolver, ctx context.Context
 	case orderLast:
 		last := lastOrderedSibling(siblings)
 		if last == "" && len(siblings) > 0 {
-			return "", fmt.Errorf("--last needs at least one sibling with an order to anchor on, and none has one yet; order the siblings in the wanted sequence first (e.g. `beans order <id> --first`, then `--after`), then use --last")
+			return "", fmt.Errorf("--last needs at least one sibling with an order to anchor on, and none has one yet; order the siblings in the wanted sequence first (e.g. `lif order <id> --first`, then `--after`), then use --last")
 		}
 		return item.OrderBetween(last, ""), nil
 
@@ -149,19 +149,19 @@ func lastOrderedSibling(siblings []*item.Item) string {
 func orderRelativeTo(resolver *itemgraph.CoreResolver, ctx context.Context, b *item.Item, siblings []*item.Item, refID string, after bool) (string, error) {
 	ref, err := resolver.Item(ctx, refID)
 	if err != nil {
-		return "", fmt.Errorf("failed to find bean %s: %w", refID, err)
+		return "", fmt.Errorf("failed to find item %s: %w", refID, err)
 	}
 	if ref == nil {
-		return "", fmt.Errorf("bean not found: %s", refID)
+		return "", fmt.Errorf("item not found: %s", refID)
 	}
 	if ref.ID == b.ID {
-		return "", fmt.Errorf("cannot place a bean relative to itself")
+		return "", fmt.Errorf("cannot place an item relative to itself")
 	}
 	if ref.Parent != b.Parent {
 		return "", fmt.Errorf("order is scoped per parent: %s has a different parent than %s", ref.ID, b.ID)
 	}
 	if ref.Order == "" {
-		return "", fmt.Errorf("bean %s has no explicit order yet; place it first (e.g. `beans order %s --last`) before placing another bean relative to it", ref.ID, ref.ID)
+		return "", fmt.Errorf("item %s has no explicit order yet; place it first (e.g. `lif order %s --last`) before placing another item relative to it", ref.ID, ref.ID)
 	}
 
 	idx := -1
@@ -172,7 +172,7 @@ func orderRelativeTo(resolver *itemgraph.CoreResolver, ctx context.Context, b *i
 		}
 	}
 	if idx == -1 {
-		return "", fmt.Errorf("bean not found: %s", refID)
+		return "", fmt.Errorf("item not found: %s", refID)
 	}
 
 	if after {
@@ -198,8 +198,8 @@ func orderRelativeTo(resolver *itemgraph.CoreResolver, ctx context.Context, b *i
 // a second flag definition.
 func RegisterOrderCmd(root *cobra.Command) {
 	if orderCmd.Flags().Lookup("after") == nil {
-		orderCmd.Flags().StringVar(&orderAfter, "after", "", "Place after this sibling bean")
-		orderCmd.Flags().StringVar(&orderBefore, "before", "", "Place before this sibling bean")
+		orderCmd.Flags().StringVar(&orderAfter, "after", "", "Place after this sibling item")
+		orderCmd.Flags().StringVar(&orderBefore, "before", "", "Place before this sibling item")
 		orderCmd.Flags().BoolVar(&orderFirst, "first", false, "Place before all siblings")
 		orderCmd.Flags().BoolVar(&orderLast, "last", false, "Place after all siblings (needs at least one sibling that already has an order)")
 		orderCmd.Flags().BoolVar(&orderJSON, "json", false, "Output as JSON")

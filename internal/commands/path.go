@@ -9,8 +9,8 @@ import (
 var pathCmd = &cobra.Command{
 	Use:   "path",
 	Args:  cobra.NoArgs,
-	Short: "Print the resolved beans directory",
-	Long: `Prints the absolute path of the beans directory this invocation resolved to.
+	Short: "Print the resolved items directory",
+	Long: `Prints the absolute path of the items directory this invocation resolved to.
 
 Resolution follows the usual precedence (--lif-path, then the .lif.yml found
 upward or named via --config, then LIF_PATH, then the config directory), so

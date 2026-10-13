@@ -37,7 +37,7 @@ func NewRootCmd() *cobra.Command {
 		// covers every subcommand of all three binaries.
 		SilenceErrors: true,
 		SilenceUsage:  true,
-		Long: `Beans is a lightweight issue tracker that stores issues as markdown files.
+		Long: `Lif is a lightweight issue tracker that stores issues as markdown files.
 Track your work alongside your code and supercharge your coding agent with
 a full view of your project.`,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
@@ -84,7 +84,7 @@ a full view of your project.`,
 
 			core = itemcore.New(root, cfg)
 			if err := core.Load(); err != nil {
-				return fmt.Errorf("loading beans: %w", err)
+				return fmt.Errorf("loading items: %w", err)
 			}
 
 			return nil
@@ -266,9 +266,9 @@ func resolveStorePath(flagPath string, c *config.Config) (string, storeResolutio
 			return root, res, nil
 		}
 		if explicitOverride {
-			return "", storeResolution{}, fmt.Errorf("beans path does not exist or is not a directory: %s", root)
+			return "", storeResolution{}, fmt.Errorf("store path does not exist or is not a directory: %s", root)
 		}
-		return "", storeResolution{}, fmt.Errorf("no %s directory found at %s (run 'beans init' to create one)", filepath.Base(root), root)
+		return "", storeResolution{}, fmt.Errorf("no %s directory found at %s (run 'lif init' to create one)", filepath.Base(root), root)
 	}
 
 	return root, res, nil

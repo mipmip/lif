@@ -28,16 +28,16 @@ func resolveBatchTargets(ctx context.Context, resolver *itemgraph.CoreResolver, 
 	for _, id := range ids {
 		fullID, _ := core.NormalizeID(id)
 		if first, dup := seen[fullID]; dup {
-			return nil, output.ErrValidation, fmt.Errorf("bean %s named more than once (as %q and %q)", fullID, first, id)
+			return nil, output.ErrValidation, fmt.Errorf("item %s named more than once (as %q and %q)", fullID, first, id)
 		}
 		seen[fullID] = id
 
 		b, err := resolver.Item(ctx, id)
 		if err != nil {
-			return nil, output.ErrNotFound, fmt.Errorf("failed to find bean: %v", err)
+			return nil, output.ErrNotFound, fmt.Errorf("failed to find item: %v", err)
 		}
 		if b == nil {
-			return nil, output.ErrNotFound, fmt.Errorf("bean not found: %s", id)
+			return nil, output.ErrNotFound, fmt.Errorf("item not found: %s", id)
 		}
 		targets = append(targets, b)
 	}

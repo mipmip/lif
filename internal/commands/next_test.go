@@ -197,8 +197,10 @@ func TestNextReportsNoneReady(t *testing.T) {
 		})
 
 		got := string(out)
-		if !strings.Contains(got, "beans list") {
-			t.Errorf("expected suggestion to run beans list, output = %q", got)
+		for _, want := range []string{"No ready items found.", "lif list --is-blocked", "lif list for what's outstanding."} {
+			if !strings.Contains(got, want) {
+				t.Errorf("empty-result message lacks %q, output = %q", want, got)
+			}
 		}
 	})
 
@@ -223,8 +225,8 @@ func TestNextReportsNoneReady(t *testing.T) {
 		if !resp.Success {
 			t.Errorf("expected success=true for empty-result JSON, got %+v; output = %s", resp, out)
 		}
-		if resp.Message == "" {
-			t.Errorf("expected a non-empty message for empty-result JSON, got %+v; output = %s", resp, out)
+		if resp.Message != "no ready items found" {
+			t.Errorf("message = %q, want %q", resp.Message, "no ready items found")
 		}
 	})
 }
@@ -440,8 +442,10 @@ func TestNextReportsNoneReadyWithFilters(t *testing.T) {
 			}
 		}))
 
-		if !strings.Contains(out, "--type bug") {
-			t.Errorf("empty-result message does not name the active filter, output = %q", out)
+		for _, want := range []string{"No ready items found matching --type bug.", "lif list --type bug"} {
+			if !strings.Contains(out, want) {
+				t.Errorf("empty-result message lacks %q, output = %q", want, out)
+			}
 		}
 	})
 
@@ -469,8 +473,8 @@ func TestNextReportsNoneReadyWithFilters(t *testing.T) {
 		if !resp.Success {
 			t.Errorf("expected success=true, got %+v; output = %s", resp, out)
 		}
-		if !strings.Contains(resp.Message, "--type bug") {
-			t.Errorf("JSON message does not name the active filter, got %q", resp.Message)
+		if want := "no ready items found matching --type bug"; resp.Message != want {
+			t.Errorf("JSON message = %q, want %q", resp.Message, want)
 		}
 	})
 }

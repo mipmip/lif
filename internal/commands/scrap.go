@@ -4,12 +4,12 @@ import (
 	"context"
 	"strings"
 
+	"github.com/spf13/cobra"
 	"github.com/xRiErOS/lif/internal/output"
 	"github.com/xRiErOS/lif/internal/ui"
 	"github.com/xRiErOS/lif/pkg/item"
 	"github.com/xRiErOS/lif/pkg/itemgraph"
 	"github.com/xRiErOS/lif/pkg/itemgraph/model"
-	"github.com/spf13/cobra"
 )
 
 var (
@@ -25,11 +25,11 @@ const scrapTargetStatus = "scrapped"
 
 var scrapCmd = &cobra.Command{
 	Use:   "scrap <id> [id...]",
-	Short: "Mark one or more beans as scrapped",
-	Long: `Marks one or more existing beans as scrapped.
+	Short: "Mark one or more items as scrapped",
+	Long: `Marks one or more existing items as scrapped.
 
---reason applies to every bean named in the call. Every ID is resolved before
-the first bean is written, so an unknown ID leaves the whole batch alone.`,
+--reason applies to every item named in the call. Every ID is resolved before
+the first item is written, so an unknown ID leaves the whole batch alone.`,
 	Args: cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
@@ -90,7 +90,7 @@ the first bean is written, so an unknown ID leaves the whole batch alone.`,
 }
 
 func RegisterScrapCmd(root *cobra.Command) {
-	scrapCmd.Flags().StringVar(&scrapReason, "reason", "", "Reason for scrapping, applied to every bean in the call (required)")
+	scrapCmd.Flags().StringVar(&scrapReason, "reason", "", "Reason for scrapping, applied to every item in the call (required)")
 	scrapCmd.MarkFlagRequired("reason")
 	scrapCmd.Flags().BoolVar(&scrapJSON, "json", false, "Output as JSON")
 	// scrap excludes items already scrapped -- scrapping again is not a

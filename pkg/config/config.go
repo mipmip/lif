@@ -796,7 +796,7 @@ func (c *Config) validateRequireFieldsOn() error {
 				return fmt.Errorf("%s.require_fields_on[%q] contains an empty field name", c.SectionKey(), status)
 			}
 			if _, known := item.ReservedKeyFlag(field); known {
-				return fmt.Errorf("%s.require_fields_on[%q] names reserved front matter field %q (managed by beans, not an extra key)", c.SectionKey(), status, field)
+				return fmt.Errorf("%s.require_fields_on[%q] names reserved front matter field %q (managed by lif, not an extra key)", c.SectionKey(), status, field)
 			}
 		}
 	}
@@ -1015,7 +1015,7 @@ func (c *Config) toYAMLNode() *yaml.Node {
 	// the store is opened (ResolveItemsPath), not frozen into the file.
 	if c.Items.Path != "" {
 		key := strNode("path")
-		key.HeadComment = "Directory where bean files are stored"
+		key.HeadComment = "Directory where item files are stored"
 		itemsMapping.Content = append(itemsMapping.Content, key, strNode(c.Items.Path))
 	}
 
@@ -1026,7 +1026,7 @@ func (c *Config) toYAMLNode() *yaml.Node {
 	}
 
 	prefixKey := strNode("prefix")
-	prefixKey.HeadComment = "Prefix for bean IDs (e.g., \"myproject-abc1\")"
+	prefixKey.HeadComment = "Prefix for item IDs (e.g., \"myproject-abc1\")"
 	itemsMapping.Content = append(itemsMapping.Content, prefixKey, strNode(c.Items.Prefix))
 
 	idLenKey := strNode("id_length")
@@ -1035,13 +1035,13 @@ func (c *Config) toYAMLNode() *yaml.Node {
 
 	if c.Items.DefaultStatus != "" {
 		key := strNode("default_status")
-		key.HeadComment = "Default status for new beans"
+		key.HeadComment = "Default status for new items"
 		itemsMapping.Content = append(itemsMapping.Content, key, strNode(c.Items.DefaultStatus))
 	}
 
 	if c.Items.DefaultType != "" {
 		key := strNode("default_type")
-		key.HeadComment = "Default type for new beans"
+		key.HeadComment = "Default type for new items"
 		itemsMapping.Content = append(itemsMapping.Content, key, strNode(c.Items.DefaultType))
 	}
 
@@ -1053,7 +1053,7 @@ func (c *Config) toYAMLNode() *yaml.Node {
 
 	if len(c.Items.RequireFieldsOn) > 0 {
 		key := strNode("require_fields_on")
-		key.HeadComment = "Front matter keys that must be set when a bean enters a status"
+		key.HeadComment = "Front matter keys that must be set when an item enters a status"
 		mapping := &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
 		// Iterate the map's own keys, sorted for deterministic output -
 		// looping over StatusList() instead would silently drop any status
@@ -1136,7 +1136,7 @@ func (c *Config) toYAMLNode() *yaml.Node {
 	serverMapping := &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
 	if c.Server.Port != 0 {
 		portKey := strNode("port")
-		portKey.HeadComment = "Port for the web UI (used by `beans-serve`)"
+		portKey.HeadComment = "Port for the web UI (used by `lif-serve`)"
 		serverMapping.Content = append(serverMapping.Content, portKey, intNode(c.Server.Port))
 	}
 	if len(c.Server.CORSOrigins) > 0 {
@@ -1227,7 +1227,7 @@ func (c *Config) toYAMLNode() *yaml.Node {
 	topMapping := &yaml.Node{
 		Kind:        yaml.MappingNode,
 		Tag:         "!!map",
-		HeadComment: "Beans configuration\nSee: https://github.com/xRiErOS/lif",
+		HeadComment: "Lif configuration\nSee: https://github.com/xRiErOS/lif",
 	}
 	if len(projectMapping.Content) > 0 {
 		topMapping.Content = append(topMapping.Content, strNode("project"), projectMapping)
