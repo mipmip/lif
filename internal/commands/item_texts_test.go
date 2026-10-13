@@ -1,12 +1,14 @@
 package commands
 
 import (
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/xRiErOS/lif/pkg/config"
 	"github.com/xRiErOS/lif/pkg/item"
+	"github.com/xRiErOS/lif/pkg/itemcore"
 )
 
 // AC3: the tag completion describes each tag's usage count in items.
@@ -155,4 +157,84 @@ func TestStoreResolutionErrorsNameLif(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "(run 'lif init' to create one)") {
 		t.Errorf("missing store error = %v, want it to point at 'lif init'", err)
 	}
+}
+
+// denyDir makes dir unwritable (or unreadable, for mode 0) for the rest of
+// the test; a process running as root ignores permission bits, so there is
+// nothing to observe then.
+func denyDir(t *testing.T, dir string, mode os.FileMode) {
+	t.Helper()
+	if os.Geteuid() == 0 {
+		t.Skip("permission bits do not bind root")
+	}
+	if err := os.Chmod(dir, mode); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(dir, 0755) })
+}
+
+// AC3: a store that cannot be read is reported as items that could not be
+// loaded, and a store that cannot be written reports the failed archive or
+// delete as an item.
+func TestIOFailuresNameItems(t *testing.T) {
+	t.Run("load", func(t *testing.T) {
+		dir := filepath.Join(t.TempDir(), ".lif")
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			t.Fatal(err)
+		}
+		denyDir(t, dir, 0)
+		t.Cleanup(func() { resetFlags(sharedTestRoot(t)) })
+
+		_, _, err := runRootInDir(t, dir, "list")
+		if err == nil || !strings.HasPrefix(err.Error(), "loading items: ") {
+			t.Errorf("error = %v, want it to start with %q", err, "loading items: ")
+		}
+	})
+
+	archiveFixture := func(t *testing.T) {
+		t.Helper()
+		setupListTest(t)
+		if err := core.Create(&item.Item{ID: "t-1", Slug: "a", Title: "A", Status: "completed", Type: "task"}); err != nil {
+			t.Fatal(err)
+		}
+		archiveDir := filepath.Join(core.Root(), itemcore.ArchiveDir)
+		if err := os.MkdirAll(archiveDir, 0755); err != nil {
+			t.Fatal(err)
+		}
+		denyDir(t, archiveDir, 0555)
+	}
+
+	t.Run("archive", func(t *testing.T) {
+		archiveFixture(t)
+		err := archiveCmd.RunE(archiveCmd, nil)
+		if err == nil || !strings.HasPrefix(err.Error(), "failed to archive item t-1: moving item to archive: ") {
+			t.Errorf("error = %v, want it to start with %q", err, "failed to archive item t-1: moving item to archive: ")
+		}
+	})
+
+	t.Run("archive as json", func(t *testing.T) {
+		archiveFixture(t)
+		old := archiveJSON
+		archiveJSON = true
+		t.Cleanup(func() { archiveJSON = old })
+
+		var err error
+		out := captureListStdout(t, func() { err = archiveCmd.RunE(archiveCmd, nil) })
+		if err == nil || !strings.Contains(string(out), "failed to archive item t-1: ") {
+			t.Errorf("error = %v, output = %q, want the JSON error to say %q", err, out, "failed to archive item t-1: ")
+		}
+	})
+
+	t.Run("delete", func(t *testing.T) {
+		setupDeleteTest(t)
+		resetDeleteFlags(t)
+		forceDelete = true
+		b := mkDeleteItem(t, "beans-delx", "X")
+		denyDir(t, core.Root(), 0555)
+
+		err := deleteCmd.RunE(deleteCmd, []string{b.ID})
+		if err == nil || !strings.HasPrefix(err.Error(), "failed to delete item beans-delx: ") {
+			t.Errorf("error = %v, want it to start with %q", err, "failed to delete item beans-delx: ")
+		}
+	})
 }

@@ -20,8 +20,25 @@ var oldProductWord = regexp.MustCompile(`(?i)\bbeans?\b`)
 // the product as lif and the noun as item. prime and graphql carry their own
 // texts (prime leaf) and are not part of this check.
 func TestHelpTextsNameLifAndItem(t *testing.T) {
-	root := sharedTestRoot(t)
+	assertHelpNamesLifAndItem(t, sharedTestRoot(t))
+}
 
+// The `tui` and `serve` commands live in their own binaries (lif-tui,
+// lif-serve); the lif root only carries placeholders for them, so their own
+// help texts need their own walk.
+func TestHelpTextsOfTheTuiAndServeCommandsNameLifAndItem(t *testing.T) {
+	root := NewRootCmd()
+	RegisterTuiCmd(root)
+	if serveCmd.Flags().Lookup("port") == nil {
+		RegisterServeCmd(root)
+	} else {
+		root.AddCommand(serveCmd)
+	}
+	assertHelpNamesLifAndItem(t, root)
+}
+
+func assertHelpNamesLifAndItem(t *testing.T, root *cobra.Command) {
+	t.Helper()
 	var walk func(cmd *cobra.Command)
 	walk = func(cmd *cobra.Command) {
 		if cmd.Name() == "prime" || cmd.Name() == "graphql" {
