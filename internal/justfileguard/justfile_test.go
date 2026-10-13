@@ -14,7 +14,7 @@ import (
 	"testing"
 )
 
-// wantCountFlag ist die erwartete Zeichenfolge, wie sie items-mkfb/AC-04 als Literal-Konstante
+// wantCountFlag ist die erwartete Zeichenfolge, wie sie beans-mkfb/AC-04 als Literal-Konstante
 // verlangt. Sie wird NICHT aus dem justfile-Inhalt abgeleitet oder zurueckverglichen.
 const wantCountFlag = "-count=1"
 

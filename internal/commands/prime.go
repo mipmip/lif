@@ -28,10 +28,10 @@ type promptData struct {
 	Statuses   []config.StatusConfig
 	Priorities []config.PriorityConfig
 
-	// RequiredFields lists this project's items.require_fields_on policy,
+	// RequiredFields lists this project's beans.require_fields_on policy,
 	// sorted by status; empty when no policy is configured.
 	RequiredFields []requiredFieldsEntry
-	// CommitField is the configured items.commit_field (or its default).
+	// CommitField is the configured beans.commit_field (or its default).
 	CommitField string
 	// CommitFieldGated is true when CommitField is among some status's
 	// required fields, i.e. `--commit` resolution applies somewhere in
@@ -70,7 +70,7 @@ var primeCmd = &cobra.Command{
 		// Load the project's actual config so the required-fields policy
 		// section reflects what's really configured here, not static prose.
 		// If no explicit path is given and no project can be found, stay
-		// silent (agents outside an items project get no prompt).
+		// silent (agents outside a lif project get no prompt).
 		var loadedCfg *config.Config
 		switch {
 		case configPath != "":

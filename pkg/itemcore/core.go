@@ -618,7 +618,7 @@ func (c *Core) All() []*item.Item {
 // Get finds an item by exact ID match and returns a copy, safe to use after
 // the lock is gone. If a prefix is configured and the query doesn't include
 // it, the prefix is automatically prepended. For example, with prefix
-// "items-", Get("abc") will match "beans-abc" but Get("ab") will not.
+// "beans-", Get("abc") will match "beans-abc" but Get("ab") will not.
 //
 // The copy is the contract: writers mutate the stored structs in place
 // under the write lock (RemoveLinksTo, FixBrokenLinks, applyRenameSlug), so

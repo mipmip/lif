@@ -207,7 +207,7 @@ func TestCompletionItemsPathOverridesEnvWithNoConfigFile(t *testing.T) {
 // it, __complete would resolve a .beans.yml named explicitly via --config
 // only for the regular command path, silently falling back to directory
 // discovery for completion -- offering a third store's config (and
-// through it, its items.path) while --beans-path/--config both point
+// through it, its beans.path) while --beans-path/--config both point
 // elsewhere. Measured from a foreign cwd with its own unrelated
 // .beans.yml, so directory discovery and --config cannot coincide.
 func TestCompletionConfigFlagOverridesForeignCwdDiscovery(t *testing.T) {

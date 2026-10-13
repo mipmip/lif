@@ -27,7 +27,7 @@ var tableLabelVocabulary = []string{
 // bandIDWidth budgets the id cell in the top band from the store's own id
 // shape, so "type:" starts at the same cell for every item of a store
 // without spending cells a store's ids can never use. A constant fitted to
-// "items-" wasted four cells on a "SPF-" store and would have been too
+// "beans-" wasted four cells on a "SPF-" store and would have been too
 // narrow for a longer prefix; an id longer than its own configuration -- a
 // item carried over from another store -- pushes the band right, which is
 // visible and rare, the same trade the label column makes.

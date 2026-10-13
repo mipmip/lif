@@ -6,7 +6,7 @@ import "strings"
 // Keys are strings of base-62 digits (0-9, A-Z, a-z).
 // Given any two keys, a new key can always be generated between them.
 //
-// This is used for manual ordering of beans: moving an item only requires
+// This is used for manual ordering of items: moving an item only requires
 // updating that one item's order key, not renumbering neighbors.
 
 const base62Digits = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"

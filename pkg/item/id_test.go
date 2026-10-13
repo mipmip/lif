@@ -128,7 +128,7 @@ func TestNewID(t *testing.T) {
 		if err != nil {
 			t.Fatalf("NewID(\"beans-\", 4) unexpected error: %v", err)
 		}
-		if len(id) != 10 { // "items-" (6) + 4
+		if len(id) != 10 { // "beans-" (6) + 4
 			t.Errorf("NewID(\"beans-\", 4) length = %d, want 10", len(id))
 		}
 	})

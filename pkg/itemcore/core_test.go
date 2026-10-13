@@ -2435,7 +2435,7 @@ Bean content.
 }
 
 // setupTestCoreWithRequireFieldsOn returns a Core configured with the given
-// items.require_fields_on policy.
+// beans.require_fields_on policy.
 func setupTestCoreWithRequireFieldsOn(t *testing.T, fields map[string][]string) (*Core, string) {
 	t.Helper()
 	t.Setenv("HOME", t.TempDir()) // keep the persisted search index out of the real ~/.beans

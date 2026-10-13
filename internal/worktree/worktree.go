@@ -216,7 +216,7 @@ func (m *Manager) notify() {
 	}
 }
 
-// List returns all active worktrees that were created by items (branch prefix "items/").
+// List returns all active worktrees that were created by lif (branch prefix "beans/").
 func (m *Manager) List() ([]Worktree, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -255,7 +255,7 @@ func (m *Manager) List() ([]Worktree, error) {
 // worktrees whose branch starts with the items prefix.
 // Entries marked as "prunable" (stale/missing directory) are skipped.
 // worktreesDir is the path to the items worktrees directory (e.g. "~/.beans/worktrees/<project>/"),
-// used to identify beans-managed worktrees that are temporarily detached (e.g. during rebase).
+// used to identify lif-managed worktrees that are temporarily detached (e.g. during rebase).
 func parsePorcelain(output string, worktreesDir string) []Worktree {
 	var worktrees []Worktree
 	var currentPath, currentBranch string
@@ -271,7 +271,7 @@ func parsePorcelain(output string, worktreesDir string) []Worktree {
 		}
 
 		if strings.HasPrefix(currentBranch, branchPrefix) {
-			// Normal case: branch is on an items/ branch
+			// Normal case: branch is on a beans/ branch
 			id := strings.TrimPrefix(currentBranch, branchPrefix)
 			worktrees = append(worktrees, Worktree{
 				ID:     id,
@@ -305,7 +305,7 @@ func parsePorcelain(output string, worktreesDir string) []Worktree {
 			detached = false
 		} else if strings.HasPrefix(line, "branch ") {
 			ref := strings.TrimPrefix(line, "branch ")
-			// ref is like "refs/heads/items/items-abc1"
+			// ref is like "refs/heads/beans/beans-abc1"
 			currentBranch = strings.TrimPrefix(ref, "refs/heads/")
 		} else if line == "detached" {
 			detached = true

@@ -567,7 +567,7 @@ func TestGraphMermaidNeutralisesHTMLInLabels(t *testing.T) {
 
 
 // TestGraphMermaidHandlesAConfiguredPrefix covers the reason the handle is
-// not simply the id: items.prefix is free-form configuration, so an id can
+// not simply the id: beans.prefix is free-form configuration, so an id can
 // carry a space or a quote, and either one splits a handle and its class
 // statement into fragments Mermaid cannot read. The hyphen is exempt -- it
 // parses -- so the guard has to be narrow rather than a blanket rewrite.

@@ -179,7 +179,7 @@ func completionAwareRootFlags(cmd *cobra.Command, args []string) (itemsPathVal, 
 // lif-serve watches worktree .beans/ dirs and merges changes into
 // runtime state, so the UI stays up-to-date without writing to main.
 // A repository that wants one shared store instead opts out of that with
-// `items.anchor: repo-root` in its .beans.yml (see resolveAnchoredPath).
+// `beans.anchor: repo-root` in its .beans.yml (see resolveAnchoredPath).
 func resolveBeansPath(flagPath string, c *config.Config) (string, error) {
 	envPath := os.Getenv("BEANS_PATH")
 	// A found .beans.yml, and only a found one, demotes the env var. A
@@ -220,7 +220,7 @@ func resolveBeansPath(flagPath string, c *config.Config) (string, error) {
 	return root, nil
 }
 
-// resolveAnchoredPath applies the config's items.anchor setting.
+// resolveAnchoredPath applies the config's beans.anchor setting.
 //
 // With AnchorRepoRoot, a call from a secondary worktree resolves to the main
 // worktree's store, so worktrees of one repository share it. Outside a git repo

@@ -28,7 +28,7 @@ const (
 	// the main workdir's store rather than each carrying their own.
 	AnchorRepoRoot = "repo-root"
 	// DefaultCommitField is the front matter key used to record a commit SHA
-	// when items.commit_field is not configured.
+	// when beans.commit_field is not configured.
 	DefaultCommitField = "commit"
 	// LeafRank is the rank of a type that carries no children. A type without
 	// an explicit rank lands here, which keeps the old behaviour where an
@@ -553,7 +553,7 @@ func Load(configPath string) (*Config, error) {
 	return &cfg, nil
 }
 
-// ValidateAnchor rejects any items.anchor value the resolver cannot honour.
+// ValidateAnchor rejects any beans.anchor value the resolver cannot honour.
 func ValidateAnchor(anchor string) error {
 	switch anchor {
 	case "", AnchorRepoRoot:
@@ -563,7 +563,7 @@ func ValidateAnchor(anchor string) error {
 	}
 }
 
-// validateRequireFieldsOn rejects an items.require_fields_on configuration that
+// validateRequireFieldsOn rejects a beans.require_fields_on configuration that
 // names an unknown status, an empty field name, or a field items already
 // manages as a schema field. Misconfiguration must not silently degrade into
 // no policy at all.

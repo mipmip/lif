@@ -412,7 +412,7 @@ func TestSync_ReindexesOnPathChangeEvenWithUnchangedETag(t *testing.T) {
 // in-memory index (dir == "", see NewIndex) must never let saveETags
 // succeed, because a success with an empty dir writes relative to the
 // caller's cwd instead of failing -- observed directly as a stray
-// items-etags.json inside package source directories during the beans-6y60
+// beans-etags.json inside package source directories during the beans-6y60
 // re-measurement. The assertion is on saveETags's return value, not on the
 // absence of a file in idx.dir, because a location-only check would miss
 // the file landing elsewhere via the caller's cwd (see Scope in beans-8kqz).

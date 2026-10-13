@@ -402,7 +402,7 @@ func deriveParentContext(toks []lineToken, flagIdx int) (itemIDs, itemTypes []st
 // first token (e.g. "lif roadmap "); a bare verb-first line ("roadmap
 // ") is also accepted directly. A leading token is tolerated as the
 // program name by comparing it against the resolved root command's own
-// Name() -- never against a literal like "items" (AC4) -- so both forms
+// Name() -- never against a literal like "beans" (AC4) -- so both forms
 // resolve to the same scope.
 func partialLineCandidates(cmd *cobra.Command, line string, cursor int) ([]*item.Item, error) {
 	if cursor < 0 || cursor > len(line) {

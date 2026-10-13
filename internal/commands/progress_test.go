@@ -217,7 +217,7 @@ func TestProgressRootArgScopesToDescendantsWithPrefix(t *testing.T) {
 		}
 	}
 
-	// "mile1" is a short ID that requires prefix-normalization ("items-"
+	// "mile1" is a short ID that requires prefix-normalization ("beans-"
 	// prepended) to resolve to the full "beans-mile1" item ID.
 	progressJSON = true
 

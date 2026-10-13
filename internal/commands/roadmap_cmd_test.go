@@ -474,7 +474,7 @@ func depthOnlyCmd(t *testing.T) *cobra.Command {
 // envelope"), not only the two the item's Guard section names as the
 // minimum. Each row's wantCode also fixes the error-code convention this
 // fix must follow: ErrNotFound for a missing root item (matching
-// progress.go/update.go/delete.go/order.go's "item not found" handling),
+// progress.go/update.go/delete.go/order.go's "bean not found" handling),
 // ErrValidation for every flag/shape validation (matching
 // list.go/milestones.go/next.go/progress.go's "querying items" and
 // unknown-flag-value handling). cmd defaults to roadmapCmd when nil; only

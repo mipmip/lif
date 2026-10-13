@@ -647,7 +647,7 @@ func TestPickPartialLineVerbWithoutScopeSemanticsErrors(t *testing.T) {
 // program name as its first token ("lif roadmap "), not just the bare
 // verb ("roadmap "). Both forms must resolve to the identical candidate
 // set, and the program name is recognized via cmd.Root().Name(), never a
-// literal "items" comparison (AC4).
+// literal "beans" comparison (AC4).
 func TestPickPartialLineToleratesLeadingProgramName(t *testing.T) {
 	pick := setupPickScopeTest(t)
 	createScopeFixture(t)
@@ -695,7 +695,7 @@ func TestPickPartialLineToleratesLeadingProgramName(t *testing.T) {
 
 // TestPickWidgetLineWithUnmappedVerbErrors pins beans-eeej: the zsh
 // widget's non-empty-buffer branch forwards --line/--cursor exactly as
-// items-pick.zsh now does ("items <buffer>" with the cursor at the
+// beans-pick.zsh now does ("lif <buffer>" with the cursor at the
 // buffer's end). An unmapped verb (only roadmap carries scope semantics)
 // must still surface AC5's visible error, never a silent fallback to the
 // full, unscoped candidate set -- this is what a widget invocation typed

@@ -267,7 +267,7 @@ func TestCounterWidthIsMeasuredNotAssumed(t *testing.T) {
 	// could make that half of this test catch a DisplayWidth-for-len swap.
 	// The same row-scanning loop also measures the item ID, and IDs are free
 	// text (a slug carrying an umlaut is realistic in this codebase), so
-	// "items-über" here is what actually exercises DisplayWidth: 11 bytes,
+	// "beans-über" here is what actually exercises DisplayWidth: 11 bytes,
 	// 10 cells, because ü is two UTF-8 bytes but one terminal cell.
 	rows := []Row{
 		{Item: &item.Item{ID: "beans-über", Title: "m", Type: "milestone"}, Progress: &Progress{Done: 131, Total: 139}},
@@ -381,7 +381,7 @@ func TestRebalanceIsANoopWithoutTags(t *testing.T) {
 }
 
 // TestRebalanceMeasuresTagWidthInDisplayCells guards against a byte-count
-// regression: "items-über" is 11 bytes but only 10 display cells (ü is a
+// regression: "beans-über" is 11 bytes but only 10 display cells (ü is a
 // single cell but two UTF-8 bytes). The single tag here needs exactly 11
 // cells ("#" plus the 10-cell tag) — a literal, not a value read back from
 // c. If Rebalance measured with len() instead of DisplayWidth, the tag
@@ -553,7 +553,7 @@ func TestHeaderHasNoTrailingWhitespaceWithProgressNoTags(t *testing.T) {
 // already guarantees, which is exactly the failure mode that made an
 // earlier task's overflow test unable to go red.
 //
-// The ID is "items-über": 11 bytes, but 10 display cells because ü is a
+// The ID is "beans-über": 11 bytes, but 10 display cells because ü is a
 // single-width rune. Using it here — rather than an ASCII ID of the same
 // visual width — means a header built on len() instead of DisplayWidth
 // would compute idWidth as 11, shift every column after it, and no longer
@@ -566,7 +566,7 @@ func TestHeaderExactLayoutWithMultibyteID(t *testing.T) {
 	got := stripANSI(c.Header())
 
 	// Hand-derived from the documented algorithm at width 80, showTags true:
-	// Type=1, ID=10 (DisplayWidth of "items-über"), Status=1, Prio=1 all stay
+	// Type=1, ID=10 (DisplayWidth of "beans-über"), Status=1, Prio=1 all stay
 	// short (the first upgrade already costs more than the 80-cell budget
 	// allows past minTitleWidth); Tags=18 because width < 120; Title is what
 	// remains of the budget once the fixed columns and five 2-space gaps are

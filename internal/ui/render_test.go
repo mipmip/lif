@@ -508,7 +508,7 @@ func TestTagCellIsAlwaysASingleLine(t *testing.T) {
 // final review: renderTree charged the title budget c.ID -- the widest ID in
 // the set -- but rendered the cell as st.render(r.Item.ID) with no PadRight,
 // while renderTable padded it correctly. With IDs of differing width in one
-// set (this workspace has SPF-, items- and prefix-less legacy IDs at once)
+// set (this workspace has SPF-, beans- and prefix-less legacy IDs at once)
 // everything to the right of a short ID shifted left, and the width was
 // still taken from the title rather than used by the ID.
 //
