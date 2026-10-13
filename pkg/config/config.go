@@ -15,10 +15,29 @@ import (
 )
 
 const (
-	// ConfigFileName is the name of the config file at project root
-	ConfigFileName = ".beans.yml"
-	// DefaultBeansPath is the default directory for storing items
-	DefaultBeansPath = ".beans"
+	// ConfigFileName is the name of the config file at project root.
+	ConfigFileName = ".lif.yml"
+	// SectionKey is the top-level key of the items section in a config file.
+	SectionKey = "lif"
+	// DefaultStoreDir is the default directory for storing items.
+	DefaultStoreDir = ".lif"
+	// StoreEnvVar is the env var that names the store directory.
+	StoreEnvVar = "LIF_PATH"
+
+	// The four legacy names. A project made by the former tool keeps them and
+	// they are read in place (never renamed). Every legacy name of these four
+	// levels is defined here and only here, so dropping the fallback is one
+	// deletion per level.
+	//
+	// LegacyConfigFileName is the former config file name.
+	LegacyConfigFileName = ".beans.yml"
+	// LegacySectionKey is the former key of the items section.
+	LegacySectionKey = "beans"
+	// LegacyDefaultStoreDir is the former default store directory.
+	LegacyDefaultStoreDir = ".beans"
+	// LegacyStoreEnvVar is the former env var that names the store directory.
+	LegacyStoreEnvVar = "BEANS_PATH"
+
 	// LegacyConfigFile is the old config file location (deprecated)
 	LegacyConfigFile = "config.yaml"
 	// DefaultServerPort is the default port for the web server
@@ -355,7 +374,7 @@ type DisplayConfig struct {
 // Config holds the items configuration.
 type Config struct {
 	Project  ProjectConfig  `yaml:"project,omitempty"`
-	Items    ItemsConfig    `yaml:"beans"`
+	Items    ItemsConfig    `yaml:"-"`
 	Worktree WorktreeConfig `yaml:"worktree,omitempty"`
 	Agent    AgentConfig    `yaml:"agent,omitempty"`
 	Server   ServerConfig   `yaml:"server,omitempty"`
@@ -379,11 +398,15 @@ type Config struct {
 	// Used to resolve relative paths
 	configDir string `yaml:"-"`
 
-	// configFile is the .beans.yml this config was read from (not serialized).
+	// configFile is the config file this config was read from (not serialized).
 	// Empty when no file was found and the defaults are in play; callers use
 	// that distinction to tell a repository's own declaration apart from a
 	// fallback (see ConfigFile).
 	configFile string `yaml:"-"`
+
+	// sectionKey is the top-level key the items section was read under
+	// ("lif" or "beans"). Empty means the new key (see SectionKey).
+	sectionKey string `yaml:"-"`
 }
 
 // ItemsConfig defines settings for item creation.
@@ -412,7 +435,7 @@ type ItemsConfig struct {
 func Default() *Config {
 	return &Config{
 		Items: ItemsConfig{
-			Path:          DefaultBeansPath,
+			Path:          "",
 			Prefix:        "",
 			IDLength:      4,
 			DefaultStatus: "todo",
@@ -439,13 +462,13 @@ func DefaultWithPrefix(prefix string) *Config {
 	return cfg
 }
 
-// FindConfig searches upward from the given directory for a .beans.yml config file.
+// FindConfig searches upward from the given directory for a config file.
 // Returns the absolute path to the config file, or empty string if not found.
 func FindConfig(startDir string) (string, error) {
 	return FindConfigWithin(startDir, "")
 }
 
-// FindConfigWithin searches upward from startDir for a .beans.yml config file,
+// FindConfigWithin searches upward from startDir for a config file (see ResolveConfigFile),
 // stopping at rootDir (inclusive). If rootDir is empty, searches up to the
 // filesystem root.
 func FindConfigWithin(startDir, rootDir string) (string, error) {
@@ -463,8 +486,11 @@ func FindConfigWithin(startDir, rootDir string) (string, error) {
 	}
 
 	for {
-		configPath := filepath.Join(dir, ConfigFileName)
-		if _, err := os.Stat(configPath); err == nil {
+		configPath, found, err := ResolveConfigFile(dir)
+		if err != nil {
+			return "", err
+		}
+		if found {
 			return configPath, nil
 		}
 
@@ -482,6 +508,145 @@ func FindConfigWithin(startDir, rootDir string) (string, error) {
 	}
 }
 
+// The four name levels -- config file, section key, default store directory
+// and store-path env var -- follow one rule each: exactly one of the new and
+// the legacy name present uses that one in place, both present is an error
+// naming both, neither present uses the new name. Each level resolves in the
+// function below; no caller compares the names itself.
+
+// ResolveConfigFile resolves the config file inside dir. found reports whether
+// a file exists; when none does, path is where the new-name file would go.
+func ResolveConfigFile(dir string) (path string, found bool, err error) {
+	newPath := filepath.Join(dir, ConfigFileName)
+	legacyPath := filepath.Join(dir, LegacyConfigFileName)
+	hasNew, hasLegacy := exists(newPath), exists(legacyPath)
+	switch {
+	case hasNew && hasLegacy:
+		return "", false, fmt.Errorf("both %s and %s exist in %s; keep one of them", ConfigFileName, LegacyConfigFileName, dir)
+	case hasLegacy:
+		return legacyPath, true, nil
+	case hasNew:
+		return newPath, true, nil
+	default:
+		return newPath, false, nil
+	}
+}
+
+// ResolveSectionKey resolves the section key of the config file at path. A
+// missing file or a file with neither key yields the new key.
+func ResolveSectionKey(path string) (string, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return SectionKey, nil
+		}
+		return "", fmt.Errorf("%s: %w", path, err)
+	}
+	var doc yaml.Node
+	if err := yaml.Unmarshal(data, &doc); err != nil {
+		return "", fmt.Errorf("%s: %w", path, err)
+	}
+	_, key, err := itemsSection(&doc, path)
+	return key, err
+}
+
+// itemsSection locates the items section of a parsed config document and
+// returns its value node together with the key it sits under. The node is nil
+// when neither key is present.
+func itemsSection(doc *yaml.Node, path string) (section *yaml.Node, key string, err error) {
+	key = SectionKey
+	if doc.Kind != yaml.DocumentNode || len(doc.Content) == 0 || doc.Content[0].Kind != yaml.MappingNode {
+		return nil, key, nil
+	}
+	top := doc.Content[0]
+	var newNode, legacyNode *yaml.Node
+	for i := 0; i+1 < len(top.Content); i += 2 {
+		switch top.Content[i].Value {
+		case SectionKey:
+			newNode = top.Content[i+1]
+		case LegacySectionKey:
+			legacyNode = top.Content[i+1]
+		}
+	}
+	switch {
+	case newNode != nil && legacyNode != nil:
+		return nil, "", fmt.Errorf("%s: both sections %q and %q are present; keep one of them", path, SectionKey+":", LegacySectionKey+":")
+	case legacyNode != nil:
+		return legacyNode, LegacySectionKey, nil
+	default:
+		return newNode, SectionKey, nil
+	}
+}
+
+// ResolveDefaultStoreDir resolves the default store directory name inside dir,
+// for a config without an explicit path.
+func ResolveDefaultStoreDir(dir string) (string, error) {
+	hasNew := exists(filepath.Join(dir, DefaultStoreDir))
+	hasLegacy := exists(filepath.Join(dir, LegacyDefaultStoreDir))
+	switch {
+	case hasNew && hasLegacy:
+		return "", fmt.Errorf("both %s and %s exist in %s; keep one of them", DefaultStoreDir, LegacyDefaultStoreDir, dir)
+	case hasLegacy:
+		return LegacyDefaultStoreDir, nil
+	default:
+		return DefaultStoreDir, nil
+	}
+}
+
+// ResolveInitStoreDir resolves the store directory `init` creates or
+// re-initializes inside dir. It is ResolveDefaultStoreDir, except for a
+// directory that holds a legacy config file and no store directory yet: that
+// is a project with only legacy names, and init keeps it that way.
+func ResolveInitStoreDir(dir string) (string, error) {
+	name, err := ResolveDefaultStoreDir(dir)
+	if err != nil || exists(filepath.Join(dir, DefaultStoreDir)) {
+		return name, err
+	}
+	configFile, found, err := ResolveConfigFile(dir)
+	if err != nil {
+		return "", err
+	}
+	if found && IsLegacyConfigFile(configFile) {
+		return LegacyDefaultStoreDir, nil
+	}
+	return name, nil
+}
+
+// ResolveStoreEnv resolves the store-path env var. A variable counts as
+// present when it is non-empty. legacy reports that the value came from the
+// legacy variable; path is empty when neither is set.
+func ResolveStoreEnv() (path string, legacy bool, err error) {
+	newValue, legacyValue := os.Getenv(StoreEnvVar), os.Getenv(LegacyStoreEnvVar)
+	switch {
+	case newValue != "" && legacyValue != "":
+		return "", false, fmt.Errorf("both %s and %s are set; unset one of them", StoreEnvVar, LegacyStoreEnvVar)
+	case legacyValue != "":
+		return legacyValue, true, nil
+	default:
+		return newValue, false, nil
+	}
+}
+
+// IsLegacyConfigFile reports whether path names the legacy config file.
+func IsLegacyConfigFile(path string) bool {
+	return filepath.Base(path) == LegacyConfigFileName
+}
+
+// IsLegacyStoreDir reports whether path names the legacy store directory.
+func IsLegacyStoreDir(path string) bool {
+	return filepath.Base(path) == LegacyDefaultStoreDir
+}
+
+// IsLegacySectionKey reports whether key is the legacy section key.
+func IsLegacySectionKey(key string) bool {
+	return key == LegacySectionKey
+}
+
+func exists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
+}
+
 // Load reads configuration from the given config file path.
 // Returns default config if the file doesn't exist.
 func Load(configPath string) (*Config, error) {
@@ -493,9 +658,28 @@ func Load(configPath string) (*Config, error) {
 		return nil, err
 	}
 
-	var cfg Config
-	if err := yaml.Unmarshal(data, &cfg); err != nil {
+	// Decode in two steps: the items section sits under one of two keys, so
+	// it is located first and decoded on its own; the rest of the document
+	// decodes into the struct, where Items is tagged out.
+	var doc yaml.Node
+	if err := yaml.Unmarshal(data, &doc); err != nil {
 		return nil, err
+	}
+	var cfg Config
+	if doc.Kind != 0 {
+		if err := doc.Decode(&cfg); err != nil {
+			return nil, err
+		}
+		section, key, err := itemsSection(&doc, configPath)
+		if err != nil {
+			return nil, err
+		}
+		cfg.sectionKey = key
+		if section != nil {
+			if err := section.Decode(&cfg.Items); err != nil {
+				return nil, err
+			}
+		}
 	}
 
 	// Store the config file and its directory: the directory resolves
@@ -503,10 +687,9 @@ func Load(configPath string) (*Config, error) {
 	cfg.configDir = filepath.Dir(configPath)
 	cfg.configFile = configPath
 
-	// Apply defaults for missing values
-	if cfg.Items.Path == "" {
-		cfg.Items.Path = DefaultBeansPath
-	}
+	// Apply defaults for missing values. A missing path stays empty: it means
+	// "the default store directory", which is resolved against the disk when
+	// the store is opened (ResolveItemsPath).
 	if cfg.Items.IDLength == 0 {
 		cfg.Items.IDLength = 4
 	}
@@ -614,17 +797,68 @@ func LoadFromDirectoryWithin(startDir, rootDir string) (*Config, error) {
 	return Load(configPath)
 }
 
-// ResolveItemsPath returns the absolute path to the items directory.
-func (c *Config) ResolveItemsPath() string {
-	if filepath.IsAbs(c.Items.Path) {
-		return c.Items.Path
-	}
-	if c.configDir == "" {
+// ResolveItemsPath returns the absolute path to the items directory,
+// anchored at the config directory (the current directory when none is set).
+func (c *Config) ResolveItemsPath() (string, error) {
+	base := c.configDir
+	if base == "" {
 		// Fallback: use current directory
-		cwd, _ := os.Getwd()
-		return filepath.Join(cwd, c.Items.Path)
+		base, _ = os.Getwd()
 	}
-	return filepath.Join(c.configDir, c.Items.Path)
+	return c.ResolveItemsPathIn(base)
+}
+
+// ResolveItemsPathIn is ResolveItemsPath with an explicit anchor directory,
+// the main worktree root for `anchor: repo-root`. An explicit path is joined
+// verbatim; without one the default store directory is resolved inside base
+// (see ResolveDefaultStoreDir), which is where both default names can clash.
+func (c *Config) ResolveItemsPathIn(base string) (string, error) {
+	if filepath.IsAbs(c.Items.Path) {
+		return c.Items.Path, nil
+	}
+	if c.Items.Path != "" {
+		return filepath.Join(base, c.Items.Path), nil
+	}
+	name, err := ResolveDefaultStoreDir(base)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(base, name), nil
+}
+
+// SectionKey returns the top-level key of the items section: the key of the
+// file this config was loaded from, and the new key when no file was loaded.
+func (c *Config) SectionKey() string {
+	if c.sectionKey == "" {
+		return SectionKey
+	}
+	return c.sectionKey
+}
+
+// SaveTarget decides which file Save writes and under which section key. A
+// config read from a file writes that very file under its own key. Any other
+// config writes into the one config file already present in the target
+// directory and keeps that file's key; only a directory without a config file
+// gets the new file with the new key.
+func (c *Config) SaveTarget(dir string) (path, key string, err error) {
+	if c.configFile != "" {
+		return c.configFile, c.SectionKey(), nil
+	}
+	targetDir := c.configDir
+	if targetDir == "" {
+		targetDir = dir
+	}
+	path, found, err := ResolveConfigFile(targetDir)
+	if err != nil {
+		return "", "", err
+	}
+	key = SectionKey
+	if found {
+		if key, err = ResolveSectionKey(path); err != nil {
+			return "", "", err
+		}
+	}
+	return path, key, nil
 }
 
 // ConfigDir returns the directory containing the config file.
@@ -632,10 +866,10 @@ func (c *Config) ConfigDir() string {
 	return c.configDir
 }
 
-// ConfigFile returns the path of the .beans.yml this config was read from, or
+// ConfigFile returns the path of the config file this config was read from, or
 // an empty string when no config file was found and the defaults apply. A
 // non-empty result means the repository declared where its store lives, which
-// ranks above the BEANS_PATH env var during path resolution.
+// ranks above the store-path env var during path resolution.
 func (c *Config) ConfigFile() string {
 	return c.configFile
 }
@@ -650,11 +884,12 @@ func (c *Config) SetConfigDir(dir string) {
 // Preserves the existing file mode if the file already exists.
 // If configDir is set, saves to that directory; otherwise saves to the given directory.
 func (c *Config) Save(dir string) error {
-	targetDir := c.configDir
-	if targetDir == "" {
-		targetDir = dir
+	path, key, err := c.SaveTarget(dir)
+	if err != nil {
+		return err
 	}
-	path := filepath.Join(targetDir, ConfigFileName)
+	targetDir := filepath.Dir(path)
+	c.sectionKey = key
 
 	doc := c.toYAMLNode()
 
@@ -675,7 +910,7 @@ func (c *Config) Save(dir string) error {
 	}
 
 	// Write to a temporary file in the same directory to ensure atomicity.
-	tmpFile, err := os.CreateTemp(targetDir, ConfigFileName+".tmp.*")
+	tmpFile, err := os.CreateTemp(targetDir, filepath.Base(path)+".tmp.*")
 	if err != nil {
 		return fmt.Errorf("creating temp file: %w", err)
 	}
@@ -734,6 +969,8 @@ func (c *Config) toYAMLNode() *yaml.Node {
 	// Build the items mapping
 	itemsMapping := &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
 
+	// An omitted path stays omitted: the default directory is resolved when
+	// the store is opened (ResolveItemsPath), not frozen into the file.
 	if c.Items.Path != "" {
 		key := strNode("path")
 		key.HeadComment = "Directory where bean files are stored"
@@ -954,7 +1191,7 @@ func (c *Config) toYAMLNode() *yaml.Node {
 		topMapping.Content = append(topMapping.Content, strNode("project"), projectMapping)
 	}
 
-	topMapping.Content = append(topMapping.Content, strNode("beans"), itemsMapping)
+	topMapping.Content = append(topMapping.Content, strNode(c.SectionKey()), itemsMapping)
 
 	if len(worktreeMapping.Content) > 0 {
 		topMapping.Content = append(topMapping.Content, strNode("worktree"), worktreeMapping)

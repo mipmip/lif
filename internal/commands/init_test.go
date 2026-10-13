@@ -21,9 +21,9 @@ func runInitCmd(t *testing.T, profile string, json bool) (dir string, err error)
 	dir = t.TempDir()
 	t.Chdir(dir)
 
-	origProfile, origJSON, origItemsPath := initProfile, initJSON, beansPath
-	initProfile, initJSON, beansPath = profile, json, ""
-	t.Cleanup(func() { initProfile, initJSON, beansPath = origProfile, origJSON, origItemsPath })
+	origProfile, origJSON, origItemsPath := initProfile, initJSON, storePath
+	initProfile, initJSON, storePath = profile, json, ""
+	t.Cleanup(func() { initProfile, initJSON, storePath = origProfile, origJSON, origItemsPath })
 
 	err = initCmd.RunE(initCmd, nil)
 	return dir, err
@@ -132,10 +132,7 @@ func TestInitCmdWithUnknownProfileFailsBeforeAnySideEffect(t *testing.T) {
 		}
 	}
 
-	if _, statErr := os.Stat(filepath.Join(dir, ".beans")); !os.IsNotExist(statErr) {
-		t.Errorf(".beans must not be created when the profile is rejected, stat err = %v", statErr)
-	}
-	if _, statErr := os.Stat(filepath.Join(dir, config.ConfigFileName)); !os.IsNotExist(statErr) {
-		t.Errorf(".beans.yml must not be created when the profile is rejected, stat err = %v", statErr)
-	}
+	// Neither the store directory nor the config file may appear, under the
+	// new or the legacy name.
+	requireAbsent(t, dir, config.DefaultStoreDir, config.LegacyDefaultStoreDir, config.ConfigFileName, config.LegacyConfigFileName)
 }

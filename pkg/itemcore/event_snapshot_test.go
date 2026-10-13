@@ -7,6 +7,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/xRiErOS/lif/pkg/config"
 )
 
 // TestArchiveEventCarriesACopy pins the fix for beans-35rr on the Archive
@@ -126,7 +128,7 @@ func TestWorktreeWatcherEventCarriesACopy(t *testing.T) {
 	createTestItem(t, core, "wt-ev-1", "Original Title", "todo")
 
 	wtDir := t.TempDir()
-	wtItemsDir := filepath.Join(wtDir, BeansDir)
+	wtItemsDir := filepath.Join(wtDir, config.DefaultStoreDir)
 	if err := os.MkdirAll(wtItemsDir, 0755); err != nil {
 		t.Fatalf("creating worktree .beans dir: %v", err)
 	}

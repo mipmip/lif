@@ -92,8 +92,8 @@ func writeFixtureStore(t *testing.T, itemsDir string, idPrefix string) {
 
 // runItemsCompletion runs the compiled binary with cwd, args, and any
 // extraEnv entries ("KEY=value") appended to a copy of the current
-// environment with any inherited BEANS_PATH stripped first -- so a
-// developer's real BEANS_PATH can never leak into a result, and a test
+// environment with any inherited LIF_PATH and BEANS_PATH stripped first -- so a
+// developer's real LIF_PATH or BEANS_PATH can never leak into a result, and a test
 // that wants BEANS_PATH set does so explicitly via extraEnv. Returns
 // stdout and the exit error (nil on success). Only stdout is used for
 // assertions: cobra's __complete Run prints candidates and the trailing
@@ -105,7 +105,7 @@ func runItemsCompletion(t *testing.T, cwd string, extraEnv []string, args []stri
 	baseEnv := os.Environ()
 	filtered := make([]string, 0, len(baseEnv)+len(extraEnv))
 	for _, kv := range baseEnv {
-		if strings.HasPrefix(kv, "BEANS_PATH=") {
+		if strings.HasPrefix(kv, config.StoreEnvVar+"=") || strings.HasPrefix(kv, config.LegacyStoreEnvVar+"=") {
 			continue
 		}
 		filtered = append(filtered, kv)
@@ -121,7 +121,7 @@ func runItemsCompletion(t *testing.T, cwd string, extraEnv []string, args []stri
 	return stdout.String(), err
 }
 
-// AC-01/AC-02: lif --beans-path <X> __complete show "" must yield
+// AC-01/AC-02: lif --lif-path <X> __complete show "" must yield
 // candidates from <X>, not from a store discovered via cwd -- even when
 // that foreign cwd carries its own .beans.yml. A foreign .beans.yml is the
 // case that matters (see beans-9jtq "Known failure mode"): directory
@@ -138,13 +138,13 @@ func TestCompletionItemsPathOverridesForeignCwdDiscovery(t *testing.T) {
 		t.Fatalf("writing foreign .beans.yml: %v", err)
 	}
 
-	out, err := runItemsCompletion(t, foreignCwd, nil, []string{"--beans-path", flagStoreItems, "__complete", "show", ""})
+	out, err := runItemsCompletion(t, foreignCwd, nil, []string{"--lif-path", flagStoreItems, "__complete", "show", ""})
 	if err != nil {
 		t.Fatalf("__complete show \"\" failed: %v\nstdout: %s", err, out)
 	}
 
 	if !strings.Contains(out, "flagstore-only") {
-		t.Errorf("completion output = %q, want the --beans-path store's candidate (flagstore-only)", out)
+		t.Errorf("completion output = %q, want the --lif-path store's candidate (flagstore-only)", out)
 	}
 	if strings.Contains(out, "cwdstore-only") {
 		t.Errorf("completion output = %q, must not contain the foreign cwd's own store's candidate (cwdstore-only) -- the flag must win", out)
@@ -152,7 +152,7 @@ func TestCompletionItemsPathOverridesForeignCwdDiscovery(t *testing.T) {
 }
 
 // The store-unresolvable half of the same contract: an invalid
-// --beans-path must never fall back to the foreign cwd's perfectly valid
+// --lif-path must never fall back to the foreign cwd's perfectly valid
 // store. "No candidates" is the only acceptable outcome.
 func TestCompletionUnresolvableStoreYieldsNoCandidates(t *testing.T) {
 	foreignCwd := t.TempDir()
@@ -162,12 +162,12 @@ func TestCompletionUnresolvableStoreYieldsNoCandidates(t *testing.T) {
 	}
 
 	missingStore := filepath.Join(t.TempDir(), "does-not-exist")
-	out, err := runItemsCompletion(t, foreignCwd, nil, []string{"--beans-path", missingStore, "__complete", "show", ""})
+	out, err := runItemsCompletion(t, foreignCwd, nil, []string{"--lif-path", missingStore, "__complete", "show", ""})
 	if err == nil {
-		t.Fatalf("__complete show \"\" with an unresolvable --beans-path succeeded, want failure; stdout = %q", out)
+		t.Fatalf("__complete show \"\" with an unresolvable --lif-path succeeded, want failure; stdout = %q", out)
 	}
 	if strings.Contains(out, "cwdstore-only") {
-		t.Errorf("completion output = %q, must not fall back to the foreign cwd's own store when --beans-path is unresolvable", out)
+		t.Errorf("completion output = %q, must not fall back to the foreign cwd's own store when --lif-path is unresolvable", out)
 	}
 }
 
@@ -188,14 +188,14 @@ func TestCompletionItemsPathOverridesEnvWithNoConfigFile(t *testing.T) {
 	// is BEANS_PATH.
 	foreignCwd := t.TempDir()
 
-	out, err := runItemsCompletion(t, foreignCwd, []string{"BEANS_PATH=" + envStoreItems},
-		[]string{"--beans-path", flagStoreItems, "__complete", "show", ""})
+	out, err := runItemsCompletion(t, foreignCwd, []string{config.StoreEnvVar + "=" + envStoreItems},
+		[]string{"--lif-path", flagStoreItems, "__complete", "show", ""})
 	if err != nil {
 		t.Fatalf("__complete show \"\" failed: %v\nstdout: %s", err, out)
 	}
 
 	if !strings.Contains(out, "flagstore2-only") {
-		t.Errorf("completion output = %q, want the --beans-path store's candidate (flagstore2-only)", out)
+		t.Errorf("completion output = %q, want the --lif-path store's candidate (flagstore2-only)", out)
 	}
 	if strings.Contains(out, "envstore-only") {
 		t.Errorf("completion output = %q, must not contain BEANS_PATH's candidate (envstore-only) -- the flag must win", out)
@@ -203,11 +203,11 @@ func TestCompletionItemsPathOverridesEnvWithNoConfigFile(t *testing.T) {
 }
 
 // SC-02: --config is the second raw-arg-recovered flag alongside
-// --beans-path (root.go's completionAwareRootFlags handles both). Without
+// --lif-path (root.go's completionAwareRootFlags handles both). Without
 // it, __complete would resolve a .beans.yml named explicitly via --config
 // only for the regular command path, silently falling back to directory
 // discovery for completion -- offering a third store's config (and
-// through it, its beans.path) while --beans-path/--config both point
+// through it, its beans.path) while --lif-path/--config both point
 // elsewhere. Measured from a foreign cwd with its own unrelated
 // .beans.yml, so directory discovery and --config cannot coincide.
 func TestCompletionConfigFlagOverridesForeignCwdDiscovery(t *testing.T) {

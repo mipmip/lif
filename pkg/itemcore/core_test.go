@@ -19,7 +19,7 @@ func setupTestCore(t *testing.T) (*Core, string) {
 	t.Helper()
 	t.Setenv("HOME", t.TempDir()) // keep the persisted search index out of the real ~/.beans
 	tmpDir := t.TempDir()
-	itemsDir := filepath.Join(tmpDir, BeansDir)
+	itemsDir := filepath.Join(tmpDir, config.DefaultStoreDir)
 	if err := os.MkdirAll(itemsDir, 0755); err != nil {
 		t.Fatalf("failed to create test .beans dir: %v", err)
 	}
@@ -38,7 +38,7 @@ func setupTestCoreWithRequireIfMatch(t *testing.T) (*Core, string) {
 	t.Helper()
 	t.Setenv("HOME", t.TempDir()) // keep the persisted search index out of the real ~/.beans
 	tmpDir := t.TempDir()
-	itemsDir := filepath.Join(tmpDir, BeansDir)
+	itemsDir := filepath.Join(tmpDir, config.DefaultStoreDir)
 	if err := os.MkdirAll(itemsDir, 0755); err != nil {
 		t.Fatalf("failed to create test .beans dir: %v", err)
 	}
@@ -82,7 +82,7 @@ func TestNew(t *testing.T) {
 
 func TestInit(t *testing.T) {
 	tmpDir := t.TempDir()
-	itemsDir := filepath.Join(tmpDir, BeansDir)
+	itemsDir := filepath.Join(tmpDir, config.DefaultStoreDir)
 
 	core := New(itemsDir, nil)
 	err := core.Init()
@@ -101,7 +101,7 @@ func TestInit(t *testing.T) {
 
 func TestInitIdempotent(t *testing.T) {
 	tmpDir := t.TempDir()
-	itemsDir := filepath.Join(tmpDir, BeansDir)
+	itemsDir := filepath.Join(tmpDir, config.DefaultStoreDir)
 
 	core := New(itemsDir, nil)
 
@@ -237,7 +237,7 @@ func TestGetNotFound(t *testing.T) {
 func TestGetShortID(t *testing.T) {
 	// Create a core with a configured prefix
 	tmpDir := t.TempDir()
-	itemsDir := filepath.Join(tmpDir, BeansDir)
+	itemsDir := filepath.Join(tmpDir, config.DefaultStoreDir)
 	if err := os.MkdirAll(itemsDir, 0755); err != nil {
 		t.Fatalf("failed to create test .beans dir: %v", err)
 	}
@@ -389,7 +389,7 @@ func TestDeleteNotFound(t *testing.T) {
 func TestDeleteShortID(t *testing.T) {
 	// Create a core with a configured prefix
 	tmpDir := t.TempDir()
-	itemsDir := filepath.Join(tmpDir, BeansDir)
+	itemsDir := filepath.Join(tmpDir, config.DefaultStoreDir)
 	if err := os.MkdirAll(itemsDir, 0755); err != nil {
 		t.Fatalf("failed to create test .beans dir: %v", err)
 	}
@@ -1452,7 +1452,7 @@ func TestArchivedItemsAlwaysLoaded(t *testing.T) {
 func TestLoadFromSubdirectories(t *testing.T) {
 	// Create a core with items in various subdirectories
 	tmpDir := t.TempDir()
-	itemsDir := filepath.Join(tmpDir, BeansDir)
+	itemsDir := filepath.Join(tmpDir, config.DefaultStoreDir)
 	if err := os.MkdirAll(itemsDir, 0755); err != nil {
 		t.Fatalf("failed to create test .beans dir: %v", err)
 	}
@@ -1570,7 +1570,7 @@ func TestGetFromArchive(t *testing.T) {
 	t.Run("no archive directory", func(t *testing.T) {
 		// Create a fresh core with no archive
 		tmpDir := t.TempDir()
-		freshItemsDir := filepath.Join(tmpDir, BeansDir)
+		freshItemsDir := filepath.Join(tmpDir, config.DefaultStoreDir)
 		if err := os.MkdirAll(freshItemsDir, 0755); err != nil {
 			t.Fatalf("failed to create .beans dir: %v", err)
 		}
@@ -1656,7 +1656,7 @@ func TestLoadAndUnarchiveNotFound(t *testing.T) {
 func TestArchiveShortID(t *testing.T) {
 	// Create a core with a configured prefix
 	tmpDir := t.TempDir()
-	itemsDir := filepath.Join(tmpDir, BeansDir)
+	itemsDir := filepath.Join(tmpDir, config.DefaultStoreDir)
 	if err := os.MkdirAll(itemsDir, 0755); err != nil {
 		t.Fatalf("failed to create test .beans dir: %v", err)
 	}
@@ -1684,7 +1684,7 @@ func TestArchiveShortID(t *testing.T) {
 
 func TestNormalizeID(t *testing.T) {
 	tmpDir := t.TempDir()
-	itemsDir := filepath.Join(tmpDir, BeansDir)
+	itemsDir := filepath.Join(tmpDir, config.DefaultStoreDir)
 	os.MkdirAll(itemsDir, 0755)
 
 	cfg := config.DefaultWithPrefix("beans-")
@@ -2318,7 +2318,7 @@ func TestValidatePrefixConsistency(t *testing.T) {
 
 	t.Run("body reference to a foreign prefix is not a finding", func(t *testing.T) {
 		tmpDir := t.TempDir()
-		itemsDir := filepath.Join(tmpDir, BeansDir)
+		itemsDir := filepath.Join(tmpDir, config.DefaultStoreDir)
 		if err := os.MkdirAll(itemsDir, 0755); err != nil {
 			t.Fatalf("failed to create test .beans dir: %v", err)
 		}
@@ -2351,7 +2351,7 @@ to beans in other stores, not beans of this store.
 
 	t.Run("archived bean with a foreign prefix is not a finding", func(t *testing.T) {
 		tmpDir := t.TempDir()
-		itemsDir := filepath.Join(tmpDir, BeansDir)
+		itemsDir := filepath.Join(tmpDir, config.DefaultStoreDir)
 		archiveDir := filepath.Join(itemsDir, ArchiveDir)
 		if err := os.MkdirAll(archiveDir, 0755); err != nil {
 			t.Fatalf("failed to create test archive dir: %v", err)
@@ -2397,7 +2397,7 @@ Archived content from another project.
 
 	t.Run("two active beans with different id prefixes is still a finding", func(t *testing.T) {
 		tmpDir := t.TempDir()
-		itemsDir := filepath.Join(tmpDir, BeansDir)
+		itemsDir := filepath.Join(tmpDir, config.DefaultStoreDir)
 		if err := os.MkdirAll(itemsDir, 0755); err != nil {
 			t.Fatalf("failed to create test .beans dir: %v", err)
 		}
@@ -2440,7 +2440,7 @@ func setupTestCoreWithRequireFieldsOn(t *testing.T, fields map[string][]string) 
 	t.Helper()
 	t.Setenv("HOME", t.TempDir()) // keep the persisted search index out of the real ~/.beans
 	tmpDir := t.TempDir()
-	itemsDir := filepath.Join(tmpDir, BeansDir)
+	itemsDir := filepath.Join(tmpDir, config.DefaultStoreDir)
 	if err := os.MkdirAll(itemsDir, 0755); err != nil {
 		t.Fatalf("failed to create test .beans dir: %v", err)
 	}

@@ -843,8 +843,8 @@ func TestLoadFromDirectory(t *testing.T) {
 		if err != nil {
 			t.Fatalf("LoadFromDirectoryWithin() error = %v", err)
 		}
-		if cfg.Items.Path != DefaultBeansPath {
-			t.Errorf("Beans.Path = %q, want %q", cfg.Items.Path, DefaultBeansPath)
+		if cfg.Items.Path != "" {
+			t.Errorf("Items.Path = %q, want empty (no explicit path)", cfg.Items.Path)
 		}
 		if cfg.ConfigDir() != tmpDir {
 			t.Errorf("ConfigDir() = %q, want %q", cfg.ConfigDir(), tmpDir)
@@ -859,10 +859,10 @@ func TestResolveItemsPath(t *testing.T) {
 		}
 		cfg.SetConfigDir("/project/root")
 
-		got := cfg.ResolveItemsPath()
+		got, err := cfg.ResolveItemsPath()
 		want := "/project/root/custom-beans"
-		if got != want {
-			t.Errorf("ResolveBeansPath() = %q, want %q", got, want)
+		if err != nil || got != want {
+			t.Errorf("ResolveItemsPath() = %q, %v, want %q", got, err, want)
 		}
 	})
 
@@ -872,29 +872,30 @@ func TestResolveItemsPath(t *testing.T) {
 		}
 		cfg.SetConfigDir("/project/root")
 
-		got := cfg.ResolveItemsPath()
+		got, err := cfg.ResolveItemsPath()
 		want := "/absolute/path/to/beans"
-		if got != want {
-			t.Errorf("ResolveBeansPath() = %q, want %q", got, want)
+		if err != nil || got != want {
+			t.Errorf("ResolveItemsPath() = %q, %v, want %q", got, err, want)
 		}
 	})
 
-	t.Run("uses default .beans path", func(t *testing.T) {
+	t.Run("uses default store directory", func(t *testing.T) {
+		dir := t.TempDir()
 		cfg := Default()
-		cfg.SetConfigDir("/project/root")
+		cfg.SetConfigDir(dir)
 
-		got := cfg.ResolveItemsPath()
-		want := "/project/root/.beans"
-		if got != want {
-			t.Errorf("ResolveBeansPath() = %q, want %q", got, want)
+		got, err := cfg.ResolveItemsPath()
+		want := filepath.Join(dir, DefaultStoreDir)
+		if err != nil || got != want {
+			t.Errorf("ResolveItemsPath() = %q, %v, want %q", got, err, want)
 		}
 	})
 }
 
-func TestDefaultHasItemsPath(t *testing.T) {
+func TestDefaultHasNoExplicitItemsPath(t *testing.T) {
 	cfg := Default()
-	if cfg.Items.Path != DefaultBeansPath {
-		t.Errorf("Default().Beans.Path = %q, want %q", cfg.Items.Path, DefaultBeansPath)
+	if cfg.Items.Path != "" {
+		t.Errorf("Default().Items.Path = %q, want empty (the default directory is resolved on disk)", cfg.Items.Path)
 	}
 }
 
@@ -1021,6 +1022,7 @@ func TestSaveIncludesComments(t *testing.T) {
 
 	cfg := DefaultWithPrefix("myapp-")
 	cfg.SetConfigDir(tmpDir)
+	cfg.Items.Path = DefaultStoreDir
 
 	if err := cfg.Save(tmpDir); err != nil {
 		t.Fatalf("Save() error = %v", err)

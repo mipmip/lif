@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/xRiErOS/lif/internal/gitutil"
+	"github.com/xRiErOS/lif/pkg/config"
 	"github.com/xRiErOS/lif/pkg/item"
 )
 
@@ -60,6 +61,7 @@ type Manager struct {
 	baseRef      string
 	setupCommand string        // shell command to run after worktree creation
 	fetchTimeout time.Duration // timeout for git fetch during worktree creation (0 = skip fetch)
+	storeDir     string        // name of the store directory inside a worktree checkout
 	mu           sync.RWMutex
 
 	// setupStatuses tracks runtime setup status for worktrees (not persisted)
@@ -94,6 +96,15 @@ func WithFetchTimeout(d time.Duration) ManagerOption {
 	}
 }
 
+// WithStoreDir sets the name of the store directory inside a worktree checkout,
+// the same name as the main project's store directory (default: the new
+// default store directory). DetectItemIDs reads item changes under it.
+func WithStoreDir(name string) ManagerOption {
+	return func(m *Manager) {
+		m.storeDir = name
+	}
+}
+
 func NewManager(repoRoot, worktreeRoot, baseRef, setupCommand string, opts ...ManagerOption) *Manager {
 	m := &Manager{
 		repoRoot:      repoRoot,
@@ -101,6 +112,7 @@ func NewManager(repoRoot, worktreeRoot, baseRef, setupCommand string, opts ...Ma
 		baseRef:       baseRef,
 		setupCommand:  setupCommand,
 		fetchTimeout:  DefaultFetchTimeout,
+		storeDir:      config.DefaultStoreDir,
 		setupStatuses: make(map[string]setupState),
 	}
 	for _, opt := range opts {
@@ -117,6 +129,11 @@ func (m *Manager) RepoRoot() string {
 // BaseRef returns the configured base ref for worktree branches.
 func (m *Manager) BaseRef() string {
 	return m.baseRef
+}
+
+// StoreDir returns the name of the store directory inside a worktree checkout.
+func (m *Manager) StoreDir() string {
+	return m.storeDir
 }
 
 // fetchBaseRef fetches the base ref from the remote so that worktrees branch
@@ -323,7 +340,7 @@ func parsePorcelain(output string, worktreesDir string) []Worktree {
 }
 
 // DetectItemIDs returns item IDs found in the worktree's diff vs the base branch.
-// It filters for .beans/*.md files, excluding dot-prefixed subdirs (like .worktrees/,
+// It filters for <store dir>/*.md files, excluding dot-prefixed subdirs (like .worktrees/,
 // .conversations/) and the archive/ directory.
 func (m *Manager) DetectItemIDs(worktreePath string) []string {
 	changes, err := gitutil.AllChangesVsUpstream(worktreePath, m.baseRef)
@@ -335,8 +352,8 @@ func (m *Manager) DetectItemIDs(worktreePath string) []string {
 	var ids []string
 
 	for _, change := range changes {
-		// Must be directly under .beans/ and end with .md
-		rest, ok := strings.CutPrefix(change.Path, ".beans/")
+		// Must be directly under the store directory and end with .md
+		rest, ok := strings.CutPrefix(change.Path, m.storeDir+"/")
 		if !ok {
 			continue
 		}
@@ -352,7 +369,7 @@ func (m *Manager) DetectItemIDs(worktreePath string) []string {
 		}
 
 		// Skip if the file was deleted in the worktree
-		fullPath := filepath.Join(worktreePath, ".beans", rest)
+		fullPath := filepath.Join(worktreePath, m.storeDir, rest)
 		if _, err := os.Stat(fullPath); os.IsNotExist(err) {
 			continue
 		}

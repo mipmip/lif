@@ -88,7 +88,7 @@ func createScopeFixture(t *testing.T) {
 }
 
 // TestRunPickReflectsStoreResolvedPerInvocation pins SC-03/AC2.1: pick's
-// candidate set comes from whatever store resolveBeansPath resolved for
+// candidate set comes from whatever store resolveStorePath resolved for
 // this invocation via NewRootCmd's PersistentPreRunE, not from a second,
 // independent resolution path. It distinguishes "store A" from "store B"
 // by which of runPick's two early error branches fires -- the empty-store
@@ -113,7 +113,7 @@ func TestRunPickReflectsStoreResolvedPerInvocation(t *testing.T) {
 	}
 
 	// A closed-read-end pipe is non-terminal stdin, held constant across
-	// both runs so the only variable between them is --beans-path.
+	// both runs so the only variable between them is --lif-path.
 	r, w, err := os.Pipe()
 	if err != nil {
 		t.Fatalf("os.Pipe() error = %v", err)
@@ -133,7 +133,7 @@ func TestRunPickReflectsStoreResolvedPerInvocation(t *testing.T) {
 		var errBuf bytes.Buffer
 		root.SetOut(io.Discard)
 		root.SetErr(&errBuf)
-		root.SetArgs([]string{"--beans-path", dir, "pick"})
+		root.SetArgs([]string{"--lif-path", dir, "pick"})
 		_, execErr := root.ExecuteC()
 		if execErr == nil {
 			t.Fatalf("expected pick to fail for non-terminal stdin against %s", dir)

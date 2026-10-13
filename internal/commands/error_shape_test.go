@@ -71,7 +71,7 @@ func runRootWithArgs(t *testing.T, args ...string) (stdout, stderr string, err e
 	var outBuf, errBuf bytes.Buffer
 	root.SetOut(&outBuf)
 	root.SetErr(&errBuf)
-	root.SetArgs(append([]string{"--beans-path", itemsDir}, args...))
+	root.SetArgs(append([]string{"--lif-path", itemsDir}, args...))
 
 	cmd, err := root.ExecuteC()
 	if err != nil {

@@ -27,16 +27,16 @@ var initCmd = &cobra.Command{
 		var itemsDir string
 		var dirName string
 
-		if beansPath != "" && initProfile != "" {
-			msg := "--profile writes a .beans.yml, which --beans-path skips; use one or the other"
+		if storePath != "" && initProfile != "" {
+			msg := "--profile writes a .beans.yml, which --lif-path skips; use one or the other"
 			if initJSON {
 				return output.Error(output.ErrValidation, msg)
 			}
 			return errors.New(msg)
 		}
 
-		// Resolve the profile before any side effect (itemcore.Init creates
-		// .beans/ and its .gitignore): a typo must not leave a half-initialised
+		// Resolve the profile before any side effect (Core.Init creates
+		// the store directory and its .gitignore): a typo must not leave a half-initialised
 		// project behind.
 		var profileTypes []config.TypeOverride
 		if initProfile != "" {
@@ -51,9 +51,9 @@ var initCmd = &cobra.Command{
 			profileTypes = types
 		}
 
-		if beansPath != "" {
+		if storePath != "" {
 			// Use explicit path for items directory
-			itemsDir = beansPath
+			itemsDir = storePath
 			// Create the directory using Core.Init to set up .gitignore
 			core := itemcore.New(itemsDir, nil)
 			if err := core.Init(); err != nil {
@@ -62,7 +62,7 @@ var initCmd = &cobra.Command{
 				}
 				return fmt.Errorf("failed to create directory: %w", err)
 			}
-			// Skip creating .beans.yml when --beans-path is explicit:
+			// Skip creating a config file when --lif-path is explicit:
 			// the path is already known, and writing a config to the parent
 			// directory could pollute unrelated locations (e.g. /tmp).
 		} else {
@@ -75,21 +75,26 @@ var initCmd = &cobra.Command{
 				return err
 			}
 
-			if err := itemcore.Init(dir); err != nil {
+			// Resolve every name level that can fail -- store directory,
+			// config file, section key -- before the first side effect: an
+			// ambiguous project must be left exactly as it was.
+			storeDirName, err := config.ResolveInitStoreDir(dir)
+			if err != nil {
 				if initJSON {
-					return output.Error(output.ErrFileError, err.Error())
+					return output.Error(output.ErrValidation, err.Error())
 				}
-				return fmt.Errorf("failed to initialize: %w", err)
+				return err
 			}
 
 			projectDir = dir
-			itemsDir = filepath.Join(dir, ".beans")
+			itemsDir = filepath.Join(dir, storeDirName)
 			dirName = filepath.Base(dir)
 
 			// Create default config file with directory name as prefix
-			// Config is saved at project root (not inside .beans/)
+			// Config is saved at project root (not inside the store directory)
 			defaultCfg := config.DefaultWithPrefix(dirName + "-")
 			defaultCfg.Project.Name = dirName
+			defaultCfg.Items.Path = storeDirName
 			if initProfile != "" {
 				defaultCfg.Types = profileTypes
 				// A profile gives a project exactly its own types: switch off
@@ -104,6 +109,19 @@ var initCmd = &cobra.Command{
 			// Auto-detect the remote's default branch if we're in a git repo
 			if baseRef, ok := gitutil.DefaultRemoteBranch(projectDir, "origin"); ok {
 				defaultCfg.Worktree.BaseRef = baseRef
+			}
+			if _, _, err := defaultCfg.SaveTarget(projectDir); err != nil {
+				if initJSON {
+					return output.Error(output.ErrValidation, err.Error())
+				}
+				return err
+			}
+
+			if err := itemcore.New(itemsDir, nil).Init(); err != nil {
+				if initJSON {
+					return output.Error(output.ErrFileError, err.Error())
+				}
+				return fmt.Errorf("failed to initialize: %w", err)
 			}
 			if err := defaultCfg.Save(projectDir); err != nil {
 				if initJSON {

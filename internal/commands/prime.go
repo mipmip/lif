@@ -79,7 +79,7 @@ var primeCmd = &cobra.Command{
 				return nil // Silently exit on error
 			}
 			loadedCfg = c
-		case beansPath != "":
+		case storePath != "":
 			cwd, err := os.Getwd()
 			if err != nil {
 				return nil // Silently exit on error

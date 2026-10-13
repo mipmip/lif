@@ -9,7 +9,7 @@ import (
 	"github.com/xRiErOS/lif/pkg/itemcore"
 )
 
-// The store path is resolved in exactly one place (resolveBeansPath). Scripts
+// The store path is resolved in exactly one place (resolveStorePath). Scripts
 // that need it must be able to ask for it rather than re-deriving it, so the
 // command prints the bare path and nothing else.
 func TestPathCmdPrintsResolvedStore(t *testing.T) {

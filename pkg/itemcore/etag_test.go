@@ -20,7 +20,7 @@ import (
 // would hide the defaulting-on-load discrepancy entirely.
 func TestETagConsistentAcrossListShowAndWrite(t *testing.T) {
 	tmpDir := t.TempDir()
-	itemsDir := filepath.Join(tmpDir, BeansDir)
+	itemsDir := filepath.Join(tmpDir, config.DefaultStoreDir)
 	if err := os.MkdirAll(itemsDir, 0755); err != nil {
 		t.Fatalf("failed to create test .beans dir: %v", err)
 	}
@@ -88,7 +88,7 @@ func TestETagConsistentAcrossListShowAndWrite(t *testing.T) {
 // before its own write lands, must have that write rejected.
 func TestETagIfMatchRejectsGenuineConcurrentModification(t *testing.T) {
 	tmpDir := t.TempDir()
-	itemsDir := filepath.Join(tmpDir, BeansDir)
+	itemsDir := filepath.Join(tmpDir, config.DefaultStoreDir)
 	if err := os.MkdirAll(itemsDir, 0755); err != nil {
 		t.Fatalf("failed to create test .beans dir: %v", err)
 	}
@@ -246,7 +246,7 @@ func TestUpdateIfMatchUnderWorktreePath(t *testing.T) {
 		if err := core.Update(b, &freshETag, WithWorktreePath(wtDir)); err != nil {
 			t.Fatalf("Update() error = %v, want nil", err)
 		}
-		if _, err := os.Stat(filepath.Join(wtDir, BeansDir, item.BuildFilename(b.ID, b.Slug))); err != nil {
+		if _, err := os.Stat(filepath.Join(wtDir, config.DefaultStoreDir, item.BuildFilename(b.ID, b.Slug))); err != nil {
 			t.Fatalf("the bean was not written to the worktree: %v", err)
 		}
 	})

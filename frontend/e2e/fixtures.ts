@@ -30,7 +30,7 @@ function getBinaries() {
 /**
  * Create a beans template directory via `beans init`.
  * Called once per worker. Each test gets a fresh git repo but copies the
- * pre-initialized .beans directory to avoid the expensive CLI invocation.
+ * pre-initialized .lif directory to avoid the expensive CLI invocation.
  */
 function createBeansTemplate(beansBin: string): string {
   const templateDir = mkdtempSync(join(tmpdir(), 'beans-e2e-template-'));
@@ -95,7 +95,7 @@ class BeansCLI {
   ) {}
 
   run(args: string[]): string {
-    return execFileSync(this.binaryPath, ['--beans-path', this.beansPath, ...args], {
+    return execFileSync(this.binaryPath, ['--lif-path', this.beansPath, ...args], {
       cwd: this.projectDir,
       encoding: 'utf-8',
       timeout: 10_000
@@ -171,7 +171,7 @@ type WorkerFixtures = {
  * beans-serve process, and port. Full isolation — no shared state between tests.
  */
 export const test = base.extend<Fixtures, WorkerFixtures>({
-  // Worker-scoped: run `beans init` once per worker, copy .beans dir for each test.
+  // Worker-scoped: run `beans init` once per worker, copy .lif dir for each test.
   // Fresh git repos are created per test (avoids stale git index/worktree state).
   beansTemplate: [
     async ({}, use) => {
@@ -195,10 +195,10 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
       env: GIT_ENV
     });
     // Copy pre-initialized beans files from template (avoids expensive `beans init` per test)
-    cpSync(join(beansTemplate, '.beans'), join(projectDir, '.beans'), { recursive: true });
-    cpSync(join(beansTemplate, '.beans.yml'), join(projectDir, '.beans.yml'));
+    cpSync(join(beansTemplate, '.lif'), join(projectDir, '.lif'), { recursive: true });
+    cpSync(join(beansTemplate, '.lif.yml'), join(projectDir, '.lif.yml'));
 
-    const beansPath = join(projectDir, '.beans');
+    const beansPath = join(projectDir, '.lif');
 
     // Pick a unique port based on worker + test index
     const port = BASE_PORT + testInfo.workerIndex * 100 + testInfo.parallelIndex;
@@ -206,7 +206,7 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
     // Start beans-serve
     const server: ChildProcess = spawn(
       beansServe,
-      ['--port', String(port), '--beans-path', beansPath],
+      ['--port', String(port), '--lif-path', beansPath],
       {
         cwd: projectDir,
         env: { ...process.env, GIN_MODE: 'release' },
@@ -240,20 +240,20 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
       timeout: 10_000,
       env: GIT_ENV
     });
-    cpSync(join(beansTemplate, '.beans'), join(projectDir, '.beans'), { recursive: true });
-    cpSync(join(beansTemplate, '.beans.yml'), join(projectDir, '.beans.yml'));
+    cpSync(join(beansTemplate, '.lif'), join(projectDir, '.lif'), { recursive: true });
+    cpSync(join(beansTemplate, '.lif.yml'), join(projectDir, '.lif.yml'));
 
     // Add a run command to the config — a long-running process we can stop
-    const configPath = join(projectDir, '.beans.yml');
+    const configPath = join(projectDir, '.lif.yml');
     const config = readFileSync(configPath, 'utf-8');
     writeFileSync(configPath, config.replace(/run: ""/g, 'run: "sleep 300"'));
 
-    const beansPath = join(projectDir, '.beans');
+    const beansPath = join(projectDir, '.lif');
     const port = BASE_PORT + testInfo.workerIndex * 100 + testInfo.parallelIndex;
 
     const server: ChildProcess = spawn(
       beansServe,
-      ['--port', String(port), '--beans-path', beansPath],
+      ['--port', String(port), '--lif-path', beansPath],
       {
         cwd: projectDir,
         env: { ...process.env, GIN_MODE: 'release' },

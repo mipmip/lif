@@ -7,10 +7,12 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/xRiErOS/lif/pkg/config"
 )
 
 // initTestRepo creates a temporary git repo with an initial commit,
-// a .beans directory inside it, and a separate worktree root directory.
+// a default store directory inside it, and a separate worktree root directory.
 func initTestRepo(t *testing.T) (repoDir, itemsDir, worktreeRoot string) {
 	t.Helper()
 	dir := t.TempDir()
@@ -32,7 +34,7 @@ func initTestRepo(t *testing.T) (repoDir, itemsDir, worktreeRoot string) {
 		}
 	}
 
-	bd := filepath.Join(dir, ".beans")
+	bd := filepath.Join(dir, config.DefaultStoreDir)
 	if err := os.MkdirAll(bd, 0755); err != nil {
 		t.Fatalf("MkdirAll .beans: %v", err)
 	}
@@ -473,7 +475,7 @@ func TestDetectItemIDs(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(itemsDir, ".gitkeep"), []byte(""), 0644); err != nil {
 		t.Fatalf("WriteFile: %v", err)
 	}
-	gitRun(t, repoDir, "add", ".beans/.gitkeep")
+	gitRun(t, repoDir, "add", config.DefaultStoreDir+"/.gitkeep")
 	gitRun(t, repoDir, "commit", "-m", "add .beans dir")
 
 	mgr := NewManager(repoDir, wtRoot, "main", "")
@@ -485,7 +487,7 @@ func TestDetectItemIDs(t *testing.T) {
 	}
 
 	// Create item files in the worktree's .beans/ directory
-	wtItemsDir := filepath.Join(wt.Path, ".beans")
+	wtItemsDir := filepath.Join(wt.Path, config.DefaultStoreDir)
 	if err := os.MkdirAll(wtItemsDir, 0755); err != nil {
 		t.Fatalf("MkdirAll: %v", err)
 	}
@@ -564,7 +566,7 @@ func TestDetectItemIDs_UncommittedChanges(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(itemsDir, ".gitkeep"), []byte(""), 0644); err != nil {
 		t.Fatalf("WriteFile: %v", err)
 	}
-	gitRun(t, repoDir, "add", ".beans/.gitkeep")
+	gitRun(t, repoDir, "add", config.DefaultStoreDir+"/.gitkeep")
 	gitRun(t, repoDir, "commit", "-m", "add .beans dir")
 
 	mgr := NewManager(repoDir, wtRoot, "main", "")
@@ -575,7 +577,7 @@ func TestDetectItemIDs_UncommittedChanges(t *testing.T) {
 	}
 
 	// Add an untracked item file (not committed)
-	wtItemsDir := filepath.Join(wt.Path, ".beans")
+	wtItemsDir := filepath.Join(wt.Path, config.DefaultStoreDir)
 	if err := os.MkdirAll(wtItemsDir, 0755); err != nil {
 		t.Fatalf("MkdirAll: %v", err)
 	}
@@ -612,7 +614,7 @@ func TestDetectItemIDs_DeletedFile(t *testing.T) {
 	}
 
 	// Delete the item file in the worktree
-	wtItemFile := filepath.Join(wt.Path, ".beans", "beans-del1--to-delete.md")
+	wtItemFile := filepath.Join(wt.Path, config.DefaultStoreDir, "beans-del1--to-delete.md")
 	if err := os.Remove(wtItemFile); err != nil {
 		t.Fatalf("Remove: %v", err)
 	}
@@ -859,5 +861,44 @@ func gitRun(t *testing.T, dir string, args ...string) {
 	cmd.Dir = dir
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("git %v failed: %s: %v", args, out, err)
+	}
+}
+
+// DetectItemIDs reads item changes under the main project's store directory
+// name inside the worktree: .beans for a legacy store, .lif for a new one
+// (AC-9). Files under the sibling name are not items of this store.
+func TestDetectItemIDs_StoreDirName(t *testing.T) {
+	cases := []struct {
+		name, own, other string
+		opts             []ManagerOption
+	}{
+		{"legacy store", config.LegacyDefaultStoreDir, config.DefaultStoreDir, []ManagerOption{WithStoreDir(config.LegacyDefaultStoreDir)}},
+		{"new store", config.DefaultStoreDir, config.LegacyDefaultStoreDir, nil},
+		{"new store named explicitly", config.DefaultStoreDir, config.LegacyDefaultStoreDir, []ManagerOption{WithStoreDir(config.DefaultStoreDir)}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			repoDir, _, wtRoot := initTestRepo(t)
+			mgr := NewManager(repoDir, wtRoot, "main", "", tc.opts...)
+			wt, err := mgr.Create("store-dir-" + strings.ReplaceAll(tc.name, " ", "-"))
+			if err != nil {
+				t.Fatalf("Create: %v", err)
+			}
+			for dir, file := range map[string]string{tc.own: "beans-own1--mine.md", tc.other: "beans-oth1--sibling.md"} {
+				if err := os.MkdirAll(filepath.Join(wt.Path, dir), 0755); err != nil {
+					t.Fatalf("MkdirAll: %v", err)
+				}
+				if err := os.WriteFile(filepath.Join(wt.Path, dir, file), []byte("---\ntitle: T\n---\n"), 0644); err != nil {
+					t.Fatalf("WriteFile: %v", err)
+				}
+			}
+			gitRun(t, wt.Path, "add", "-A")
+			gitRun(t, wt.Path, "commit", "-m", "add items")
+
+			ids := mgr.DetectItemIDs(wt.Path)
+			if len(ids) != 1 || ids[0] != "beans-own1" {
+				t.Errorf("DetectItemIDs() = %v, want only [beans-own1] from %s", ids, tc.own)
+			}
+		})
 	}
 }

@@ -63,7 +63,7 @@ func TestGetReturnsIndependentCopy(t *testing.T) {
 // TestGetWithShortIDReturnsIndependentCopy covers the second return path in
 // Get(): the prefix-prepended match.
 func TestGetWithShortIDReturnsIndependentCopy(t *testing.T) {
-	itemsDir := filepath.Join(t.TempDir(), BeansDir)
+	itemsDir := filepath.Join(t.TempDir(), config.DefaultStoreDir)
 	if err := os.MkdirAll(itemsDir, 0755); err != nil {
 		t.Fatalf("creating test .beans dir: %v", err)
 	}
