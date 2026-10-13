@@ -238,3 +238,12 @@ func TestIOFailuresNameItems(t *testing.T) {
 		}
 	})
 }
+
+// AC3: a search query the index rejects is reported as a failed query for
+// items.
+func TestListSearchFailureNamesItems(t *testing.T) {
+	err := runListExpectingError(t, []string{"--search", `"unterminated`})
+	if err == nil || !strings.HasPrefix(err.Error(), "querying items: ") {
+		t.Errorf("error = %v, want it to start with %q", err, "querying items: ")
+	}
+}
