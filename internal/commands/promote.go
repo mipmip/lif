@@ -42,9 +42,9 @@ type findingsArtifactRaw struct {
 
 var promoteCmd = &cobra.Command{
 	Use:   "promote <artifact> <finding-id> [<finding-id>...]",
-	Short: "Promote selected findings from a review artifact into beans",
+	Short: "Promote selected findings from a review artifact into items",
 	Long: `Validates the named finding records from a review artifact against the
-findings schema and, once every selected record passes, creates one bean per
+findings schema and, once every selected record passes, creates one item per
 record by a fixed code-to-type mapping. Writing nothing at all if any
 selected record is malformed, and skipping a finding already promoted by an
 earlier call rather than duplicating it.`,
@@ -119,7 +119,7 @@ earlier call rather than duplicating it.`,
 
 			b, err := createPromotedItem(ctx, resolver, artifactPath, rec)
 			if err != nil {
-				return emitBatchFailure(promoteJSON, done, fmt.Errorf("failed to create bean for %s: %v", rec.ID, err))
+				return emitBatchFailure(promoteJSON, done, fmt.Errorf("failed to create item for %s: %v", rec.ID, err))
 			}
 			done = append(done, b)
 		}

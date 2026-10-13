@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/spf13/cobra"
 	"github.com/xRiErOS/lif/internal/output"
 	"github.com/xRiErOS/lif/internal/ui"
 	"github.com/xRiErOS/lif/pkg/itemgraph"
 	"github.com/xRiErOS/lif/pkg/itemgraph/model"
-	"github.com/spf13/cobra"
 )
 
 var (
@@ -23,10 +23,10 @@ var (
 
 var nextCmd = &cobra.Command{
 	Use:   "next",
-	Short: "Show the highest-priority ready bean",
-	Long: `Finds the highest-priority bean available to start (not blocked, not in-progress/completed/scrapped/draft) and displays it.
+	Short: "Show the highest-priority ready item",
+	Long: `Finds the highest-priority item available to start (not blocked, not in-progress/completed/scrapped/draft) and displays it.
 
-The --type, --tag, --parent and --sort flags mean the same as in ` + "`beans list`" + `, so a narrowed
+The --type, --tag, --parent and --sort flags mean the same as in ` + "`lif list`" + `, so a narrowed
 query can be moved between the two commands unchanged.`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -46,7 +46,7 @@ query can be moved between the two commands unchanged.`,
 
 		items, err := resolver.Items(ctx, filter)
 		if err != nil {
-			return cmdError(nextJSON, output.ErrValidation, "querying beans: %v", err)
+			return cmdError(nextJSON, output.ErrValidation, "querying items: %v", err)
 		}
 
 		sortItems(items, nextSort, nextDesc, cfg)
@@ -84,16 +84,16 @@ func describeNextFilters() string {
 func reportNoReadyItems(filters string) error {
 	if filters == "" {
 		if nextJSON {
-			return output.SuccessMessage("no ready beans found")
+			return output.SuccessMessage("no ready items found")
 		}
-		fmt.Println(ui.Muted.Render("No ready beans found. Check " + ui.ID.Render("beans list --is-blocked") + " or " + ui.ID.Render("beans list") + " for what's outstanding."))
+		fmt.Println(ui.Muted.Render("No ready items found. Check " + ui.ID.Render("lif list --is-blocked") + " or " + ui.ID.Render("lif list") + " for what's outstanding."))
 		return nil
 	}
 
 	if nextJSON {
-		return output.SuccessMessage("no ready beans found matching " + filters)
+		return output.SuccessMessage("no ready items found matching " + filters)
 	}
-	fmt.Println(ui.Muted.Render("No ready beans found matching "+ui.ID.Render(filters)+". Widen the filter, or check ") + ui.ID.Render("beans list "+filters) + ui.Muted.Render(" for what's outstanding."))
+	fmt.Println(ui.Muted.Render("No ready items found matching "+ui.ID.Render(filters)+". Widen the filter, or check ") + ui.ID.Render("lif list "+filters) + ui.Muted.Render(" for what's outstanding."))
 	return nil
 }
 

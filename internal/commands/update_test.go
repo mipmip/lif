@@ -501,8 +501,8 @@ func TestUpdateCmdBatchWritesNothingOnUnknownID(t *testing.T) {
 	batchUpdateFixtures(t)
 
 	_, _, err := runRootInDir(t, core.Root(), "update", "--parent", "beans-upe01", "beans-test1", "beans-nope9")
-	if err == nil || !strings.Contains(err.Error(), "bean not found: beans-nope9") {
-		t.Fatalf("err = %v, want bean not found: beans-nope9", err)
+	if err == nil || !strings.Contains(err.Error(), "item not found: beans-nope9") {
+		t.Fatalf("err = %v, want item not found: beans-nope9", err)
 	}
 	if got := diskItem(t, "beans-test1").Parent; got != "" {
 		t.Errorf("beans-test1 parent = %q, want empty", got)

@@ -62,6 +62,12 @@ func TestCheckHelperProcess(t *testing.T) {
 			os.Exit(2)
 		}
 	}
+	if os.Getenv("BEANS_CHECK_STRAY_TYPE") == "1" {
+		if err := testCore.Create(&item.Item{ID: "aaa2", Title: "S", Status: "todo", Type: "chore"}); err != nil {
+			os.Stderr.WriteString("creating item: " + err.Error() + "\n")
+			os.Exit(2)
+		}
+	}
 	core, cfg = testCore, testCfg
 
 	_ = checkCmd.RunE(checkCmd, nil) // may os.Exit(1); that's fine, we're a subprocess
@@ -147,6 +153,27 @@ func TestCheckReportsNoConfigIssueForDefaultTables(t *testing.T) {
 		t.Errorf("expected a clean check for a fresh store, got:\n%s", out)
 	}
 }
+
+// AC3: check's section heading and tick line name the noun as item.
+func TestCheckReportNamesItems(t *testing.T) {
+	out := stripANSITest(runCheckInTestStore(t))
+	for _, want := range []string{"Item Links", "Every item carries a known type"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("check report lacks %q:\n%s", want, out)
+		}
+	}
+}
+
+// AC3: an item whose type the configuration does not define is reported as
+// an item.
+func TestCheckReportsAStrayTypeAsAnItem(t *testing.T) {
+	t.Setenv("BEANS_CHECK_STRAY_TYPE", "1")
+	out := stripANSITest(runCheckInTestStore(t))
+	if want := "item aaa2 carries type 'chore', which the configuration does not define"; !strings.Contains(out, want) {
+		t.Errorf("check report lacks %q:\n%s", want, out)
+	}
+}
+
 func TestUnknownTypeItemsFindsItemsTheConfigDoesNotCover(t *testing.T) {
 	prev := cfg
 	cfg = &config.Config{}

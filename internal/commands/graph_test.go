@@ -279,8 +279,8 @@ func TestGraphRejectsDepthWithoutID(t *testing.T) {
 	seedGraphFixtures(t)
 
 	_, err := runGraph(t, "--depth", "2")
-	if err == nil || !strings.Contains(err.Error(), "--depth requires a bean id") {
-		t.Errorf("error = %v, want message containing %q", err, "--depth requires a bean id")
+	if err == nil || !strings.Contains(err.Error(), "--depth requires an item id") {
+		t.Errorf("error = %v, want message containing %q", err, "--depth requires an item id")
 	}
 }
 
@@ -301,8 +301,8 @@ func TestGraphRejectsUnknownItemID(t *testing.T) {
 	seedGraphFixtures(t)
 
 	_, err := runGraph(t, "nonexistent")
-	if err == nil || !strings.Contains(err.Error(), "bean not found: nonexistent") {
-		t.Errorf("error = %v, want message containing %q", err, "bean not found: nonexistent")
+	if err == nil || !strings.Contains(err.Error(), "item not found: nonexistent") {
+		t.Errorf("error = %v, want message containing %q", err, "item not found: nonexistent")
 	}
 }
 
@@ -314,7 +314,7 @@ func TestGraphEmptyStoreIsNotAnError(t *testing.T) {
 	if err != nil {
 		t.Fatalf("runGraph() error = %v", err)
 	}
-	if !strings.Contains(out, "digraph beans {") || !strings.Contains(out, "}") {
+	if !strings.Contains(out, "digraph lif {") || !strings.Contains(out, "}") {
 		t.Errorf("dot output on empty store = %q, want a valid empty digraph", out)
 	}
 

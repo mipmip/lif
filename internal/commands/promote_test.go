@@ -334,7 +334,10 @@ func TestPromoteWriteFailureNamesCreatedItems(t *testing.T) {
 		t.Fatalf("beans created = %d, want 1 (B01 written before B02 failed)", got)
 	}
 	if !contains(err.Error(), core.All()[0].ID) {
-		t.Errorf("error %q does not name the already-created bean %s", err.Error(), core.All()[0].ID)
+		t.Errorf("error %q does not name the already-created item %s", err.Error(), core.All()[0].ID)
+	}
+	if !contains(err.Error(), "failed to create item for B02") {
+		t.Errorf("error %q does not say which finding failed as an item", err.Error())
 	}
 }
 

@@ -6,10 +6,10 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/spf13/cobra"
 	"github.com/xRiErOS/lif/internal/output"
 	"github.com/xRiErOS/lif/internal/ui"
 	"github.com/xRiErOS/lif/pkg/item"
-	"github.com/spf13/cobra"
 )
 
 // Relation kinds a graph edge can carry. "parent" points from the parent
@@ -186,8 +186,8 @@ var (
 
 var graphCmd = &cobra.Command{
 	Use:   "graph [id]",
-	Short: "Print the bean relationship graph",
-	Long: `Prints the parent and blocking relationships between beans.
+	Short: "Print the item relationship graph",
+	Long: `Prints the parent and blocking relationships between items.
 
 The default output is Graphviz DOT, which pipes into ` + "`dot -Tpng`" + ` for an
 image; --format ascii prints a plain edge list for reading in a terminal,
@@ -195,13 +195,13 @@ image; --format ascii prints a plain edge list for reading in a terminal,
 and --format json the same graph as data. Nodes are coloured by the status colour
 from the configuration.
 
-Naming a bean scopes the output to that bean's neighbourhood: --depth 1 (the
-default) shows only relationships the bean itself takes part in, a higher
+Naming an item scopes the output to that item's neighbourhood: --depth 1 (the
+default) shows only relationships the item itself takes part in, a higher
 depth widens it by that many hops, and --depth 0 walks the whole connected
 component.
 
-Links pointing at a bean that does not exist, and self-references, are left
-out here; ` + "`beans check`" + ` is what reports them.`,
+Links pointing at an item that does not exist, and self-references, are left
+out here; ` + "`lif check`" + ` is what reports them.`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if graphFormat != "dot" && graphFormat != "ascii" && graphFormat != "json" && graphFormat != "mermaid" {
@@ -213,7 +213,7 @@ out here; ` + "`beans check`" + ` is what reports them.`,
 			return cmdError(jsonMode, output.ErrValidation, "--depth must be >= 0, got %d", graphDepth)
 		}
 		if cmd.Flags().Changed("depth") && len(args) == 0 {
-			return cmdError(jsonMode, output.ErrValidation, "--depth requires a bean id")
+			return cmdError(jsonMode, output.ErrValidation, "--depth requires an item id")
 		}
 		for _, r := range graphRelation {
 			if r != relParent && r != relBlocks {
@@ -230,7 +230,7 @@ out here; ` + "`beans check`" + ` is what reports them.`,
 		if len(args) == 1 {
 			resolved, err := core.Get(args[0])
 			if err != nil {
-				return cmdError(jsonMode, output.ErrNotFound, "bean not found: %s", args[0])
+				return cmdError(jsonMode, output.ErrNotFound, "item not found: %s", args[0])
 			}
 			rootID = resolved.ID
 
@@ -271,7 +271,7 @@ func dotQuote(s string) string {
 
 func renderGraphDot(cmd *cobra.Command, items []*item.Item, edges []graphEdge) error {
 	w := cmd.OutOrStdout()
-	fmt.Fprintln(w, "digraph beans {")
+	fmt.Fprintln(w, "digraph lif {")
 	fmt.Fprintln(w, "  rankdir=LR;")
 	fmt.Fprintln(w, `  node [shape=box style=filled fontname="Helvetica"];`)
 	for _, b := range items {
@@ -438,7 +438,7 @@ func RegisterGraphCmd(root *cobra.Command) {
 	if graphCmd.Flags().Lookup("format") == nil {
 		graphCmd.Flags().StringVar(&graphFormat, "format", "dot", `Output format: "dot", "ascii", "mermaid" or "json"`)
 		graphCmd.Flags().StringArrayVar(&graphRelation, "relation", nil, `Only this relation kind: "parent" or "blocks" (can be repeated)`)
-		graphCmd.Flags().IntVar(&graphDepth, "depth", 1, "Hops from the named bean; 0 walks the whole connected component (requires a bean id)")
+		graphCmd.Flags().IntVar(&graphDepth, "depth", 1, "Hops from the named item; 0 walks the whole connected component (requires an item id)")
 	}
 	graphCmd.ValidArgsFunction = completionUpTo(1)
 	root.AddCommand(graphCmd)

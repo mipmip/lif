@@ -251,6 +251,9 @@ func TestProgressRootArgErrorsOnUnknownID(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected an error for an unknown root ID argument, got nil")
 	}
+	if want := "item not found: beans-doesnotexist"; err.Error() != want {
+		t.Errorf("error = %q, want %q", err.Error(), want)
+	}
 }
 
 // TestProgressRejectsMoreThanOneRootArg verifies that Args wires

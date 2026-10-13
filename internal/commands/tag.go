@@ -3,12 +3,12 @@ package commands
 import (
 	"context"
 
+	"github.com/spf13/cobra"
 	"github.com/xRiErOS/lif/internal/output"
 	"github.com/xRiErOS/lif/internal/ui"
 	"github.com/xRiErOS/lif/pkg/item"
 	"github.com/xRiErOS/lif/pkg/itemgraph"
 	"github.com/xRiErOS/lif/pkg/itemgraph/model"
-	"github.com/spf13/cobra"
 )
 
 var (
@@ -19,12 +19,12 @@ var (
 
 var tagCmd = &cobra.Command{
 	Use:   "tag <id> [id...]",
-	Short: "Add or remove tags on one or more beans",
-	Long: `Adds and removes tags on one or more beans in a single call.
+	Short: "Add or remove tags on one or more items",
+	Long: `Adds and removes tags on one or more items in a single call.
 
 Tags are merged, not replaced: --tag adds, --remove-tag takes away, and every
 tag not named is left alone. At least one of the two is required. Every ID is
-resolved before the first bean is written.`,
+resolved before the first item is written.`,
 	Args: cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()

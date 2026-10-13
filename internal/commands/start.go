@@ -4,12 +4,12 @@ import (
 	"context"
 	"strings"
 
+	"github.com/spf13/cobra"
 	"github.com/xRiErOS/lif/internal/output"
 	"github.com/xRiErOS/lif/internal/ui"
 	"github.com/xRiErOS/lif/pkg/item"
 	"github.com/xRiErOS/lif/pkg/itemgraph"
 	"github.com/xRiErOS/lif/pkg/itemgraph/model"
-	"github.com/spf13/cobra"
 )
 
 var (
@@ -24,12 +24,12 @@ const startTargetStatus = "in-progress"
 
 var startCmd = &cobra.Command{
 	Use:   "start <id> [id...]",
-	Short: "Mark one or more beans as in-progress",
-	Long: `Marks one or more existing beans as in-progress.
+	Short: "Mark one or more items as in-progress",
+	Long: `Marks one or more existing items as in-progress.
 
-A single bean is displayed in full, as beans show would. Several beans give one
+A single item is displayed in full, as lif show would. Several items give one
 confirmation line each, because n full bodies on one screen help nobody. Every
-ID is resolved before the first bean is written.`,
+ID is resolved before the first item is written.`,
 	Args: cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()

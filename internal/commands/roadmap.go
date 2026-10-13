@@ -121,7 +121,7 @@ argument the root is that item, so --depth 1 lists its direct children.
 		resolver := &itemgraph.CoreResolver{Core: core}
 		allItems, err := resolver.Items(context.Background(), nil)
 		if err != nil {
-			return cmdError(roadmapJSON, output.ErrValidation, "querying beans: %v", err)
+			return cmdError(roadmapJSON, output.ErrValidation, "querying items: %v", err)
 		}
 
 		if err := validateRoadmapDepth(roadmapDepth, cmd.Flags().Changed("depth")); err != nil {
@@ -154,7 +154,7 @@ argument the root is that item, so --depth 1 lists its direct children.
 			}
 			root, err := core.Get(args[0])
 			if err != nil {
-				return cmdError(roadmapJSON, output.ErrNotFound, "unknown bean: %s", args[0])
+				return cmdError(roadmapJSON, output.ErrNotFound, "unknown item: %s", args[0])
 			}
 			if err := validateRoadmapRootType(root); err != nil {
 				return cmdError(roadmapJSON, output.ErrValidation, "%s", err)
@@ -1105,7 +1105,7 @@ func RegisterRoadmapCmd(root *cobra.Command) {
 	roadmapCmd.Flags().StringSliceVar(&roadmapNoStatus, "no-status", nil, "Exclude milestones by status (comma-separated or repeated)")
 	_ = roadmapCmd.RegisterFlagCompletionFunc("status", statusFlagCompletion)
 	_ = roadmapCmd.RegisterFlagCompletionFunc("no-status", statusFlagCompletion)
-	roadmapCmd.Flags().BoolVar(&roadmapNoLinks, "no-links", false, "Don't render bean IDs as markdown links")
+	roadmapCmd.Flags().BoolVar(&roadmapNoLinks, "no-links", false, "Don't render item IDs as markdown links")
 	roadmapCmd.Flags().StringVar(&roadmapLinkPrefix, "link-prefix", "", "URL prefix for links")
 	roadmapCmd.Flags().IntVar(&roadmapDepth, "depth", 0, "Limit output to n levels below the roadmap root (default: no limit)")
 	roadmapCmd.Flags().BoolVar(&roadmapTags, "tags", false, "Render each item's tags")

@@ -117,8 +117,8 @@ func TestResolveItemsPath(t *testing.T) {
 		if err == nil {
 			t.Fatal("expected error for invalid config path, got nil")
 		}
-		if !strings.Contains(err.Error(), "beans init") {
-			t.Errorf("expected error to suggest 'beans init', got %q", err.Error())
+		if !strings.Contains(err.Error(), "lif init") {
+			t.Errorf("expected error to suggest 'lif init', got %q", err.Error())
 		}
 	})
 
@@ -466,8 +466,8 @@ func TestResolveItemsPathConfigFileOutranksEnv(t *testing.T) {
 		if err == nil {
 			t.Fatal("expected an error for a config file pointing at a missing store, got nil")
 		}
-		if !strings.Contains(err.Error(), "beans init") {
-			t.Errorf("expected error to suggest 'beans init', got %q", err.Error())
+		if !strings.Contains(err.Error(), "lif init") {
+			t.Errorf("expected error to suggest 'lif init', got %q", err.Error())
 		}
 	})
 }
