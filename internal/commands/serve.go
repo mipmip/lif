@@ -29,6 +29,7 @@ import (
 	"github.com/xRiErOS/lif/internal/worktree"
 	"github.com/xRiErOS/lif/pkg/config"
 	"github.com/xRiErOS/lif/pkg/forge"
+	"github.com/xRiErOS/lif/pkg/item"
 	"github.com/xRiErOS/lif/pkg/itemgraph"
 )
 
@@ -205,20 +206,7 @@ func runServer(port int, origins []string) error {
 		if err != nil {
 			return ""
 		}
-		var sb strings.Builder
-		sb.WriteString("IMPORTANT: Do NOT use Claude Code's built-in worktree system (EnterWorktree tool). You are already working inside a lif-managed worktree.\n\n")
-		sb.WriteString("CRITICAL — ASKING QUESTIONS:\nYou are running inside a web UI, NOT an interactive terminal. The user CANNOT see or respond to plain-text questions in your output. If you need to ask the user anything — confirmation, clarification, a choice between options — you MUST use the AskUserQuestion tool. Every single time. No exceptions. Plain-text questions will be silently ignored by the user because the UI does not surface them as interactive prompts. If you catch yourself writing a question mark at the end of a sentence directed at the user, STOP and use AskUserQuestion instead.\n\n")
-		sb.WriteString("IMPORTANT: You MUST only create or modify files within this worktree directory. NEVER make changes to files in the main repository or any other worktree. All your file operations (reads are fine anywhere, but writes, edits, and deletions) must be scoped to your current working directory.\n\n")
-		fmt.Fprintf(&sb, "You are working on item %s: %q\n", b.ID, b.Title)
-		fmt.Fprintf(&sb, "Type: %s | Status: %s", b.Type, b.Status)
-		if b.Priority != "" {
-			fmt.Fprintf(&sb, " | Priority: %s", b.Priority)
-		}
-		sb.WriteString("\n")
-		if b.Body != "" {
-			fmt.Fprintf(&sb, "\nDescription:\n%s", b.Body)
-		}
-		return sb.String()
+		return itemAgentContext(b)
 	}, agent.DefaultMode(cfg.GetDefaultMode()))
 	if effort := cfg.GetDefaultEffort(); config.IsValidEffortLevel(effort) {
 		agentMgr.SetDefaultEffort(agent.EffortLevel(effort))
@@ -231,7 +219,7 @@ func runServer(port int, origins []string) error {
 	// its workspace identity.
 	agentMgr.SetSystemPromptProvider(func(itemID string) string {
 		if itemID == graph.CentralSessionID {
-			return fmt.Sprintf("You are the central planning agent for the Lif project. Your working directory is the main repository at: %s\nNEVER merge pull requests. After creating a PR, stop and report the URL. Do not run `gh pr merge` or any equivalent.\nNEVER assume CI checks are absent. Checks take time to register after a push. If `gh pr checks` returns empty, it means checks haven't started yet, not that none are configured.", filepath.Dir(core.Root()))
+			return centralPlanningPrompt(filepath.Dir(core.Root()))
 		}
 		wtPath := wtManager.WorktreePath(itemID)
 		if wtPath == "" {
@@ -494,4 +482,29 @@ func workspaceEnvFunc(portAlloc *portalloc.Allocator) terminal.EnvFunc {
 			fmt.Sprintf("%s=%d", config.LegacyWorkspacePortEnvVar, port),
 		}
 	}
+}
+
+// itemAgentContext is the first-message context an item's agent session
+// starts with: the worktree rules plus the item it works on.
+func itemAgentContext(b *item.Item) string {
+	var sb strings.Builder
+	sb.WriteString("IMPORTANT: Do NOT use Claude Code's built-in worktree system (EnterWorktree tool). You are already working inside a lif-managed worktree.\n\n")
+	sb.WriteString("CRITICAL — ASKING QUESTIONS:\nYou are running inside a web UI, NOT an interactive terminal. The user CANNOT see or respond to plain-text questions in your output. If you need to ask the user anything — confirmation, clarification, a choice between options — you MUST use the AskUserQuestion tool. Every single time. No exceptions. Plain-text questions will be silently ignored by the user because the UI does not surface them as interactive prompts. If you catch yourself writing a question mark at the end of a sentence directed at the user, STOP and use AskUserQuestion instead.\n\n")
+	sb.WriteString("IMPORTANT: You MUST only create or modify files within this worktree directory. NEVER make changes to files in the main repository or any other worktree. All your file operations (reads are fine anywhere, but writes, edits, and deletions) must be scoped to your current working directory.\n\n")
+	fmt.Fprintf(&sb, "You are working on item %s: %q\n", b.ID, b.Title)
+	fmt.Fprintf(&sb, "Type: %s | Status: %s", b.Type, b.Status)
+	if b.Priority != "" {
+		fmt.Fprintf(&sb, " | Priority: %s", b.Priority)
+	}
+	sb.WriteString("\n")
+	if b.Body != "" {
+		fmt.Fprintf(&sb, "\nDescription:\n%s", b.Body)
+	}
+	return sb.String()
+}
+
+// centralPlanningPrompt is the system prompt of the central planning agent,
+// which works in the main repository at root.
+func centralPlanningPrompt(root string) string {
+	return fmt.Sprintf("You are the central planning agent for the Lif project. Your working directory is the main repository at: %s\nNEVER merge pull requests. After creating a PR, stop and report the URL. Do not run `gh pr merge` or any equivalent.\nNEVER assume CI checks are absent. Checks take time to register after a push. If `gh pr checks` returns empty, it means checks haven't started yet, not that none are configured.", root)
 }
