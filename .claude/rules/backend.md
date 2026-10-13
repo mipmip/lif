@@ -13,14 +13,14 @@ paths:
 The codebase follows a strict dependency direction:
 
 ```
-cmd/ → internal/commands/ → internal/graph/ → pkg/beancore/ → pkg/bean/
+cmd/ → internal/commands/ → internal/graph/ → pkg/itemgraph/ → pkg/itemcore/ → pkg/item/
                           → internal/agent/
                           → internal/worktree/
                           → internal/terminal/
 ```
 
-- `pkg/bean/` — pure data model, no I/O, no dependencies beyond stdlib
-- `pkg/beancore/` — stateful engine with mutex-protected in-memory store + disk persistence + file watchers
+- `pkg/item/` — pure data model, no I/O, no dependencies beyond stdlib
+- `pkg/itemcore/` — stateful engine with mutex-protected in-memory store + disk persistence + file watchers
 - `internal/graph/` — GraphQL resolvers; the API layer that glues everything together
 - `internal/agent/` — manages Claude Code subprocess lifecycle
 - `internal/worktree/` — manages git worktree lifecycle
@@ -34,7 +34,7 @@ GraphQL resolvers in `internal/graph/schema.resolvers.go` are the API boundary. 
 
 - Validate input (etags, IDs, relationships) before mutating state
 - Normalize short IDs to full IDs via `Core.NormalizeID()` before use
-- Use helper methods on `Resolver` (e.g., `validateETag`, `validateAndSetParent`) rather than inlining validation logic
+- Use helper methods on `itemgraph.CoreResolver` (e.g., `validateETag`, `SetParent`) rather than inlining validation logic
 - Return user-facing error messages (these surface in the GraphQL response)
 - After mutations, notify subscribers so subscriptions push updates to the frontend
 
@@ -42,11 +42,11 @@ GraphQL resolvers in `internal/graph/schema.resolvers.go` are the API boundary. 
 
 The agent manager (`internal/agent/manager.go`) owns the lifecycle of Claude Code subprocesses:
 
-- Sessions are keyed by bean ID (or `__central__` for the main workspace)
+- Sessions are keyed by item ID (or `__central__` for the main workspace)
 - One `AgentChatStore` per session on the frontend, one `Session` + optional `runningProcess` on the backend
-- JSONL conversation files are persisted to `.beans/.conversations/<beanID>.jsonl`
+- JSONL conversation files are persisted to `.lif/.conversations/<itemID>.jsonl`
 - The store format uses `entry` structs with `type: "message"` or `type: "meta"` — see `store.go`
-- Images are saved to `.beans/.conversations/images/` and referenced by UUID in JSONL entries
+- Images are saved to `.lif/.conversations/images/` and referenced by UUID in JSONL entries
 - The manager provides pub/sub channels for real-time subscription updates — always notify subscribers after state changes, even for "empty" states (see GraphQL Subscriptions rule in CLAUDE.md)
 - Agent processes are spawned with `--print` and `--output-format stream-json` for structured output parsing
 
@@ -54,13 +54,13 @@ The agent manager (`internal/agent/manager.go`) owns the lifecycle of Claude Cod
 
 The worktree manager (`internal/worktree/worktree.go`) handles git worktree lifecycle:
 
-- Worktrees are created under a `beans/` branch prefix
+- Worktrees are created under a `lif/` branch prefix
 - Optional post-creation setup commands run asynchronously with status tracking (`SetupRunning` → `SetupDone`/`SetupFailed`)
-- The manager scans for bean ID changes by diffing the worktree's `.beans/` dir against the base branch
+- `DetectItemIDs` scans for item ID changes by diffing the worktree's `.lif/` dir against the base branch
 
 ## Concurrency
 
-- `beancore.Core` and `agent.Manager` are accessed concurrently from GraphQL resolvers. Both use `sync.RWMutex` — read operations take `RLock`, writes take `Lock`.
+- `itemcore.Core` and `agent.Manager` are accessed concurrently from GraphQL resolvers. Both use `sync.RWMutex` — read operations take `RLock`, writes take `Lock`.
 - Subscription channels are buffered (size 1) with non-blocking sends to avoid blocking the mutation path.
 - File watchers run in background goroutines — be careful about accessing shared state from watcher callbacks.
 

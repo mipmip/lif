@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# test-zsh-widget.sh — proves extras/zsh/beans-pick.zsh's widget contract
+# test-zsh-widget.sh — proves extras/zsh/lif-pick.zsh's widget contract
 # end-to-end under a real zsh, without depending on an interactive picker
-# or the real `beans` binary (beans-fcj0).
+# or the real `lif` binary (beans-fcj0).
 #
-# A stub `beans` on PATH records its argv and echoes a fixed ID. `zle` is
+# A stub `lif` on PATH records its argv and echoes a fixed ID. `zle` is
 # stubbed as a no-op before the widget is sourced, since there is no real
 # ZLE outside an interactive zsh line editor.
 #
-# Two cases exercise the branch beans-eeej added to beans-pick-widget: a
-# non-empty $BUFFER forwards --line/--cursor to `beans pick` (this also
+# Two cases exercise the branch beans-eeej added to lif-pick-widget: a
+# non-empty $BUFFER forwards --line/--cursor to `lif pick` (this also
 # regression-covers beans-eeej's Go-side AC5 fix), an empty one calls it
 # flag-less. Both also prove the widget's splice contract: LBUFFER gains
 # "<id> ", RBUFFER is untouched -- so a mutation of `LBUFFER+=` to `BUFFER=`
@@ -17,7 +17,7 @@
 set -euo pipefail
 
 repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-widget="$repo/extras/zsh/beans-pick.zsh"
+widget="$repo/extras/zsh/lif-pick.zsh"
 
 # A missing interpreter must not turn this guard into a silent pass on the
 # path that gates merges: locally a skip is a convenience, on a runner it is
@@ -29,7 +29,7 @@ require() {
 		echo "FAIL: $tool missing on CI ($why) -- the widget guard cannot be skipped here" >&2
 		exit 1
 	fi
-	echo "$tool not installed ($why), skipping beans-pick-widget test"
+	echo "$tool not installed ($why), skipping lif-pick-widget test"
 	exit 0
 }
 
@@ -39,17 +39,17 @@ require python3 "needed for the pty the widget's /dev/tty redirect requires"
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 
-fixed_id="beans-stub1"
+fixed_id="item-stub1"
 argv_log="$tmp/argv.log"
 bin_dir="$tmp/bin"
 mkdir -p "$bin_dir"
 
-cat > "$bin_dir/beans" <<STUB
+cat > "$bin_dir/lif" <<STUB
 #!/usr/bin/env bash
 printf '%s\n' "\$*" >> "$argv_log"
 echo "$fixed_id"
 STUB
-chmod +x "$bin_dir/beans"
+chmod +x "$bin_dir/lif"
 
 export PATH="$bin_dir:$PATH"
 
@@ -58,7 +58,7 @@ failures=0
 # run_case sources the widget in a fresh, non-interactive zsh under a pty
 # (the widget's own command substitution redirects from /dev/tty, so there
 # has to be a controlling terminal), seeds BUFFER/CURSOR/LBUFFER/RBUFFER,
-# invokes beans-pick-widget, and writes the resulting LBUFFER/RBUFFER to
+# invokes lif-pick-widget, and writes the resulting LBUFFER/RBUFFER to
 # result_file so this script can assert on them without parsing terminal
 # noise.
 #
@@ -81,7 +81,7 @@ run_case() {
 		printf 'LBUFFER=%q\n' "$lbuffer"
 		printf 'RBUFFER=%q\n' "$rbuffer"
 		printf 'source %q\n' "$widget"
-		echo "beans-pick-widget"
+		echo "lif-pick-widget"
 		printf '{ printf "LBUFFER=%%s\\n" "$LBUFFER"; printf "RBUFFER=%%s\\n" "$RBUFFER"; } > %q\n' "$result_file"
 	} > "$case_script"
 
@@ -120,7 +120,7 @@ assert_not_contains() {
 
 # Case 1: non-empty buffer with a non-empty prefix AND a non-empty suffix
 # around the cursor -- forwards --line/--cursor.
-prefix="beans list "
+prefix="lif list "
 suffix="extra"
 buffer="$prefix$suffix"
 cursor="${#prefix}"
@@ -134,7 +134,7 @@ assert_eq "non-empty-buffer LBUFFER" "$lbuffer_got" "${prefix}${fixed_id} "
 assert_eq "non-empty-buffer RBUFFER" "$rbuffer_got" "$suffix"
 assert_contains "non-empty-buffer argv" "$argv_got" "--line $buffer --cursor $cursor"
 
-# Case 2: empty buffer -- calls flag-less `beans pick`, no --line forwarded.
+# Case 2: empty buffer -- calls flag-less `lif pick`, no --line forwarded.
 : > "$argv_log"
 run_case "empty" "" "0" "" ""
 argv_got="$(cat "$argv_log" 2>/dev/null || true)"
@@ -146,4 +146,4 @@ if [[ "$failures" -gt 0 ]]; then
 	exit 1
 fi
 
-echo "beans-pick-widget: all assertions passed"
+echo "lif-pick-widget: all assertions passed"

@@ -48,19 +48,19 @@ install-wip: build
     @"{{bin_dir}}/lif-{{wip_suffix}}" version
 
 # Wegwerf-Store plus zsh mit geladener Vervollständigung in einer
-# tmux-Sitzung. Für Hand-Tests der interaktiven Oberfläche; das `beans`
+# tmux-Sitzung. Für Hand-Tests der interaktiven Oberfläche; das `lif`
 # darin kann den echten Store aus keinem Verzeichnis treffen.
 
 # Wurzel der Bühne. Einzige Quelle dieses Werts: das Skript führt keinen
 # eigenen Default, weil der Pfad hinter einem `rm -rf` steht.
-demo_root := env_var_or_default("BEANS_DEMO_ROOT", "/tmp/beans-demo")
+demo_root := env_var_or_default("LIF_DEMO_ROOT", "/tmp/lif-demo")
 
 # Interaktive tmux-Bühne mit Wegwerf-Store starten (beans-ejxf)
-demo SESSION='beans-demo':
+demo SESSION='lif-demo':
     bash scripts/demo-stage.sh "{{ SESSION }}" "{{ demo_root }}"
 
 # Bühne beenden und ihren Wegwerf-Store restlos entfernen
-demo-stop SESSION='beans-demo':
+demo-stop SESSION='lif-demo':
     -tmux kill-session -t "{{ SESSION }}"
     rm -rf "{{ demo_root }}"
 
@@ -75,7 +75,7 @@ gqlgen_pkg := "./internal/graph"
 gqlgen:
     go generate {{gqlgen_pkg}}
 
-# Run the Go test suite, e.g. `just test ./internal/bean/...`
+# Run the Go test suite, e.g. `just test ./pkg/item/...`
 test ARGS='./...':
     go test -count=1 {{ARGS}}
 
@@ -96,7 +96,7 @@ test-e2e ARGS='':
 test-race ARGS='./...':
     go test -race -count=1 {{ARGS}}
 
-# Prove beans-pick-widget's zsh contract against a stubbed beans (beans-fcj0)
+# Prove lif-pick-widget's zsh contract against a stubbed lif (beans-fcj0)
 test-zsh:
     bash scripts/test-zsh-widget.sh
 

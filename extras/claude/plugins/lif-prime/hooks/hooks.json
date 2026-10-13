@@ -1,12 +1,12 @@
 {
-  "description": "Hooks for Beans plugin",
+  "description": "Hooks for Lif plugin",
   "hooks": {
     "SessionStart": [
       {
         "hooks": [
           {
             "type": "command",
-            "command": "beans prime"
+            "command": "lif prime"
           }
         ]
       }
@@ -16,7 +16,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "beans prime"
+            "command": "lif prime"
           }
         ]
       }

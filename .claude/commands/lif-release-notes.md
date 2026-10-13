@@ -66,7 +66,7 @@ Include links to commits or PRs so readers can dig deeper:
 
 3. **Link to PRs** when commits reference them (look for `(#123)` in commit messages):
    ```markdown
-   Simplified bean linking ([#17](https://github.com/owner/repo/pull/17))
+   Simplified item linking ([#17](https://github.com/owner/repo/pull/17))
    ```
 
 When grouping multiple commits into one entry, link to the most significant commit or the PR that introduced the feature.
@@ -77,7 +77,7 @@ Instead of:
 > - feat(tui): add status picker modal with 's' shortcut
 
 Write:
-> **Quick status changes** — Press `s` in the TUI to instantly change a bean's status without leaving the list view. No more navigating to edit mode for simple updates. ([ad3382e](https://github.com/owner/repo/commit/ad3382e))
+> **Quick status changes** — Press `s` in the TUI to instantly change an item's status without leaving the list view. No more navigating to edit mode for simple updates. ([ad3382e](https://github.com/owner/repo/commit/ad3382e))
 
 ### Version Bumping
 
