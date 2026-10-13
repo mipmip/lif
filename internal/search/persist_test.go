@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/blevesearch/bleve/v2"
-	"github.com/xRiErOS/lif/pkg/bean"
+	"github.com/xRiErOS/lif/pkg/item"
 )
 
 func mustOpen(t *testing.T, dir string) *Index {
@@ -20,13 +20,13 @@ func mustOpen(t *testing.T, dir string) *Index {
 	return idx
 }
 
-func beanWith(id, title, body string) *bean.Bean {
-	return &bean.Bean{ID: id, Slug: id, Title: title, Body: body}
+func itemWith(id, title, body string) *item.Item {
+	return &item.Item{ID: id, Slug: id, Title: title, Body: body}
 }
 
 // TestOpen_PersistsAcrossReopen proves the index is actually written to disk
 // (AC-01's precondition): data indexed by one Index survives Close and a
-// fresh Open of the same directory, without resupplying the beans.
+// fresh Open of the same directory, without resupplying the items.
 func TestOpen_PersistsAcrossReopen(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "idx")
 
@@ -34,7 +34,7 @@ func TestOpen_PersistsAcrossReopen(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Open() error = %v", err)
 	}
-	if err := idx1.IndexBean(beanWith("aaa1", "Persisted Title", "content")); err != nil {
+	if err := idx1.IndexItem(itemWith("aaa1", "Persisted Title", "content")); err != nil {
 		t.Fatalf("IndexBean() error = %v", err)
 	}
 	if err := idx1.Close(); err != nil {
@@ -60,7 +60,7 @@ func TestOpen_AbsentIndexRebuildsTransparently(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Open() error = %v", err)
 	}
-	if err := idx1.IndexBean(beanWith("aaa1", "Gone Soon", "x")); err != nil {
+	if err := idx1.IndexItem(itemWith("aaa1", "Gone Soon", "x")); err != nil {
 		t.Fatalf("IndexBean() error = %v", err)
 	}
 	if err := idx1.Close(); err != nil {
@@ -83,7 +83,7 @@ func TestOpen_AbsentIndexRebuildsTransparently(t *testing.T) {
 		t.Fatalf("Search() after deletion = %v, want none (index was rebuilt empty)", results)
 	}
 	// And the rebuilt index is fully functional going forward.
-	if err := idx2.IndexBean(beanWith("bbb2", "Rebuilt", "x")); err != nil {
+	if err := idx2.IndexItem(itemWith("bbb2", "Rebuilt", "x")); err != nil {
 		t.Fatalf("IndexBean() on rebuilt index error = %v", err)
 	}
 	results, err = idx2.Search("Rebuilt", 0)
@@ -112,7 +112,7 @@ func TestOpen_CorruptIndexRebuildsTransparently(t *testing.T) {
 	if !idx.persistent {
 		t.Fatal("Open() on a corrupt directory fell back to in-memory instead of rebuilding the persisted index")
 	}
-	if err := idx.IndexBean(beanWith("aaa1", "Healed", "x")); err != nil {
+	if err := idx.IndexItem(itemWith("aaa1", "Healed", "x")); err != nil {
 		t.Fatalf("IndexBean() on healed index error = %v", err)
 	}
 	results, err := idx.Search("Healed", 0)
@@ -124,28 +124,28 @@ func TestOpen_CorruptIndexRebuildsTransparently(t *testing.T) {
 	}
 }
 
-// TestSync_SkipsBeansWithUnchangedETag proves the core of AC-01/AC-02: a
-// bean whose ETag matches the sidecar is left untouched by Sync. A doc is
+// TestSync_SkipsItemsWithUnchangedETag proves the core of AC-01/AC-02: a
+// item whose ETag matches the sidecar is left untouched by Sync. A doc is
 // hand-planted directly through the underlying Bleve index (bypassing
-// Sync/IndexBean) with content that no bean in the Sync call would ever
+// Sync/IndexItem) with content that no item in the Sync call would ever
 // produce; if Sync reindexed it anyway despite an unchanged ETag, the
 // hand-planted content would be overwritten.
-func TestSync_SkipsBeansWithUnchangedETag(t *testing.T) {
+func TestSync_SkipsItemsWithUnchangedETag(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "idx")
 	idx := mustOpen(t, dir)
 
-	b := beanWith("aaa1", "Stable Title", "stable body")
-	if err := idx.Sync([]*bean.Bean{b}); err != nil {
+	b := itemWith("aaa1", "Stable Title", "stable body")
+	if err := idx.Sync([]*item.Item{b}); err != nil {
 		t.Fatalf("Sync() #1 error = %v", err)
 	}
 
-	// Plant a sentinel directly, bypassing Sync/IndexBean.
-	if err := idx.index.Index("aaa1", beanDocument{ID: "aaa1", Title: "SENTINEL-UNTOUCHED"}); err != nil {
+	// Plant a sentinel directly, bypassing Sync/IndexItem.
+	if err := idx.index.Index("aaa1", itemDocument{ID: "aaa1", Title: "SENTINEL-UNTOUCHED"}); err != nil {
 		t.Fatalf("planting sentinel error = %v", err)
 	}
 
-	// Same bean, same ETag: Sync must not touch "aaa1".
-	if err := idx.Sync([]*bean.Bean{b}); err != nil {
+	// Same item, same ETag: Sync must not touch "aaa1".
+	if err := idx.Sync([]*item.Item{b}); err != nil {
 		t.Fatalf("Sync() #2 error = %v", err)
 	}
 
@@ -164,13 +164,13 @@ func TestSync_ReindexesChangedETag(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "idx")
 	idx := mustOpen(t, dir)
 
-	b := beanWith("aaa1", "Original Title", "original body")
-	if err := idx.Sync([]*bean.Bean{b}); err != nil {
+	b := itemWith("aaa1", "Original Title", "original body")
+	if err := idx.Sync([]*item.Item{b}); err != nil {
 		t.Fatalf("Sync() #1 error = %v", err)
 	}
 
-	changed := beanWith("aaa1", "Changed Title", "changed body")
-	if err := idx.Sync([]*bean.Bean{changed}); err != nil {
+	changed := itemWith("aaa1", "Changed Title", "changed body")
+	if err := idx.Sync([]*item.Item{changed}); err != nil {
 		t.Fatalf("Sync() #2 error = %v", err)
 	}
 
@@ -183,18 +183,18 @@ func TestSync_ReindexesChangedETag(t *testing.T) {
 	}
 }
 
-// TestSync_RemovesDeletedBeans proves Sync retracts beans no longer present.
-func TestSync_RemovesDeletedBeans(t *testing.T) {
+// TestSync_RemovesDeletedItems proves Sync retracts items no longer present.
+func TestSync_RemovesDeletedItems(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "idx")
 	idx := mustOpen(t, dir)
 
-	a := beanWith("aaa1", "Keep Me", "x")
-	b := beanWith("bbb2", "Delete Me", "x")
-	if err := idx.Sync([]*bean.Bean{a, b}); err != nil {
+	a := itemWith("aaa1", "Keep Me", "x")
+	b := itemWith("bbb2", "Delete Me", "x")
+	if err := idx.Sync([]*item.Item{a, b}); err != nil {
 		t.Fatalf("Sync() #1 error = %v", err)
 	}
 
-	if err := idx.Sync([]*bean.Bean{a}); err != nil {
+	if err := idx.Sync([]*item.Item{a}); err != nil {
 		t.Fatalf("Sync() #2 error = %v", err)
 	}
 
@@ -210,15 +210,15 @@ func TestSync_RemovesDeletedBeans(t *testing.T) {
 	}
 }
 
-// TestSync_UsesETagNotUpdatedAt proves AC-03: two bean values with the same
+// TestSync_UsesETagNotUpdatedAt proves AC-03: two item values with the same
 // ETag (identical persisted content) but different UpdatedAt timestamps --
 // as a metadata-only touch that doesn't change file bytes would produce --
 // must be treated as unchanged. A production regression that keyed
 // staleness off UpdatedAt instead of ETag would reindex the second one,
 // overwriting the sentinel this test plants. It uses SetContentETag, the
-// exact mechanism Bean.loadBean uses when parsing a file from disk (bean.go
+// exact mechanism Item.loadItem uses when parsing a file from disk (item.go
 // ETag() returns b.contentETag whenever it is set, never re-rendering from
-// the in-memory struct) -- so two Bean values built from identical file
+// the in-memory struct) -- so two Item values built from identical file
 // bytes carry an identical ETag even when other fields, like UpdatedAt as a
 // metadata-only touch would leave it, differ.
 func TestSync_UsesETagNotUpdatedAt(t *testing.T) {
@@ -227,14 +227,14 @@ func TestSync_UsesETagNotUpdatedAt(t *testing.T) {
 
 	const fileBytes = "identical file bytes as loaded from disk"
 	t1 := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
-	b1 := beanWith("aaa1", "Same Content", "same body")
+	b1 := itemWith("aaa1", "Same Content", "same body")
 	b1.CreatedAt, b1.UpdatedAt = &t1, &t1
 	b1.SetContentETag([]byte(fileBytes))
 
-	if err := idx.Sync([]*bean.Bean{b1}); err != nil {
+	if err := idx.Sync([]*item.Item{b1}); err != nil {
 		t.Fatalf("Sync() #1 error = %v", err)
 	}
-	if err := idx.index.Index("aaa1", beanDocument{ID: "aaa1", Title: "SENTINEL-UNTOUCHED"}); err != nil {
+	if err := idx.index.Index("aaa1", itemDocument{ID: "aaa1", Title: "SENTINEL-UNTOUCHED"}); err != nil {
 		t.Fatalf("planting sentinel error = %v", err)
 	}
 
@@ -242,14 +242,14 @@ func TestSync_UsesETagNotUpdatedAt(t *testing.T) {
 	// shape of a metadata-only touch (e.g. `touch`, or a reload after a
 	// filesystem mtime bump with no byte change), not a content edit.
 	t2 := t1.Add(time.Hour)
-	b2 := beanWith("aaa1", "Same Content", "same body")
+	b2 := itemWith("aaa1", "Same Content", "same body")
 	b2.CreatedAt, b2.UpdatedAt = &t1, &t2
 	b2.SetContentETag([]byte(fileBytes))
 	if b1.ETag() != b2.ETag() {
 		t.Fatalf("test precondition failed: expected identical ETag for identical file bytes, got %q vs %q", b1.ETag(), b2.ETag())
 	}
 
-	if err := idx.Sync([]*bean.Bean{b2}); err != nil {
+	if err := idx.Sync([]*item.Item{b2}); err != nil {
 		t.Fatalf("Sync() #2 error = %v", err)
 	}
 
@@ -268,8 +268,8 @@ func TestSync_UsesETagNotUpdatedAt(t *testing.T) {
 // everything.
 func TestSync_InMemoryIndexRebuildsColdFromScratch(t *testing.T) {
 	idx := setupTestIndex(t)
-	b := beanWith("aaa1", "Title", "body")
-	if err := idx.Sync([]*bean.Bean{b}); err != nil {
+	b := itemWith("aaa1", "Title", "body")
+	if err := idx.Sync([]*item.Item{b}); err != nil {
 		t.Fatalf("Sync() error = %v", err)
 	}
 	results, err := idx.Search("Title", 0)
@@ -281,19 +281,19 @@ func TestSync_InMemoryIndexRebuildsColdFromScratch(t *testing.T) {
 	}
 }
 
-// TestSync_InMemoryIndexRetractsDeletedBeans closes the fallback-path gap a
+// TestSync_InMemoryIndexRetractsDeletedItems closes the fallback-path gap a
 // review found: the in-memory index used under AC-07's contention fallback
-// must retract a bean no longer present on a later Sync (a reload while
+// must retract an item no longer present on a later Sync (a reload while
 // contended is a reachable sequence), exactly like the persistent path.
-func TestSync_InMemoryIndexRetractsDeletedBeans(t *testing.T) {
+func TestSync_InMemoryIndexRetractsDeletedItems(t *testing.T) {
 	idx := setupTestIndex(t)
-	a := beanWith("aaa1", "Keep Me", "x")
-	b := beanWith("bbb2", "Delete Me", "x")
-	if err := idx.Sync([]*bean.Bean{a, b}); err != nil {
+	a := itemWith("aaa1", "Keep Me", "x")
+	b := itemWith("bbb2", "Delete Me", "x")
+	if err := idx.Sync([]*item.Item{a, b}); err != nil {
 		t.Fatalf("Sync() #1 error = %v", err)
 	}
 
-	if err := idx.Sync([]*bean.Bean{a}); err != nil {
+	if err := idx.Sync([]*item.Item{a}); err != nil {
 		t.Fatalf("Sync() #2 error = %v", err)
 	}
 
@@ -315,12 +315,12 @@ func TestSync_InMemoryIndexRetractsDeletedBeans(t *testing.T) {
 func TestSync_SidecarPersistsAcrossReopen(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "idx")
 
-	b := beanWith("aaa1", "Persisted Sync", "content")
+	b := itemWith("aaa1", "Persisted Sync", "content")
 	idx1, err := Open(dir)
 	if err != nil {
 		t.Fatalf("Open() #1 error = %v", err)
 	}
-	if err := idx1.Sync([]*bean.Bean{b}); err != nil {
+	if err := idx1.Sync([]*item.Item{b}); err != nil {
 		t.Fatalf("Sync() #1 error = %v", err)
 	}
 	if err := idx1.Close(); err != nil {
@@ -328,13 +328,13 @@ func TestSync_SidecarPersistsAcrossReopen(t *testing.T) {
 	}
 
 	idx2 := mustOpen(t, dir)
-	if err := idx2.index.Index("aaa1", beanDocument{ID: "aaa1", Title: "SENTINEL-UNTOUCHED"}); err != nil {
+	if err := idx2.index.Index("aaa1", itemDocument{ID: "aaa1", Title: "SENTINEL-UNTOUCHED"}); err != nil {
 		t.Fatalf("planting sentinel error = %v", err)
 	}
 
-	// Same bean, unchanged since before Close: a correctly loaded sidecar
+	// Same item, unchanged since before Close: a correctly loaded sidecar
 	// means Sync recognizes it as current and leaves the sentinel alone.
-	if err := idx2.Sync([]*bean.Bean{b}); err != nil {
+	if err := idx2.Sync([]*item.Item{b}); err != nil {
 		t.Fatalf("Sync() #2 error = %v", err)
 	}
 
@@ -370,8 +370,8 @@ func storedSlug(t *testing.T, idx *Index, id string) string {
 
 // TestSync_ReindexesOnPathChangeEvenWithUnchangedETag proves the fix for the
 // rename hole in AC-02: Slug/Path are excluded from the rendered front
-// matter (`yaml:"-"` in bean.Bean), so a rename alone -- same bytes, new
-// filename, as `beans rename` or a `git checkout` that only renames a file
+// matter (`yaml:"-"` in item.Item), so a rename alone -- same bytes, new
+// filename, as `lif rename` or a `git checkout` that only renames a file
 // produces -- never changes ETag. staleKey folds Path in specifically so
 // this case still reindexes.
 func TestSync_ReindexesOnPathChangeEvenWithUnchangedETag(t *testing.T) {
@@ -379,19 +379,19 @@ func TestSync_ReindexesOnPathChangeEvenWithUnchangedETag(t *testing.T) {
 	idx := mustOpen(t, dir)
 
 	const fileBytes = "identical file bytes, only the filename changes"
-	before := beanWith("aaa1", "Same Title", "same body")
+	before := itemWith("aaa1", "Same Title", "same body")
 	before.Path = "old-slug--aaa1.md"
 	before.Slug = "old-slug"
 	before.SetContentETag([]byte(fileBytes))
 
-	if err := idx.Sync([]*bean.Bean{before}); err != nil {
+	if err := idx.Sync([]*item.Item{before}); err != nil {
 		t.Fatalf("Sync() #1 error = %v", err)
 	}
 	if got := storedSlug(t, idx, "aaa1"); got != "old-slug" {
 		t.Fatalf("test precondition failed: stored slug = %q, want %q", got, "old-slug")
 	}
 
-	after := beanWith("aaa1", "Same Title", "same body")
+	after := itemWith("aaa1", "Same Title", "same body")
 	after.Path = "new-slug--aaa1.md"
 	after.Slug = "new-slug"
 	after.SetContentETag([]byte(fileBytes))
@@ -399,7 +399,7 @@ func TestSync_ReindexesOnPathChangeEvenWithUnchangedETag(t *testing.T) {
 		t.Fatalf("test precondition failed: rename should not change ETag, got %q vs %q", before.ETag(), after.ETag())
 	}
 
-	if err := idx.Sync([]*bean.Bean{after}); err != nil {
+	if err := idx.Sync([]*item.Item{after}); err != nil {
 		t.Fatalf("Sync() #2 error = %v", err)
 	}
 

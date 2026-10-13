@@ -7,9 +7,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/xRiErOS/lif/pkg/bean"
-	"github.com/xRiErOS/lif/pkg/beancore"
-	"github.com/xRiErOS/lif/pkg/beangraph"
+	"github.com/xRiErOS/lif/pkg/item"
+	"github.com/xRiErOS/lif/pkg/itemcore"
+	"github.com/xRiErOS/lif/pkg/itemgraph"
 	"github.com/xRiErOS/lif/internal/output"
 	"github.com/spf13/cobra"
 )
@@ -19,12 +19,12 @@ var (
 	deleteJSON  bool
 )
 
-// beanWithLinks holds a bean, its incoming links and the attachment files
+// itemWithLinks holds an item, its incoming links and the attachment files
 // that go with it, all collected before the first write so the prompt can
 // state the whole consequence.
-type beanWithLinks struct {
-	bean        *bean.Bean
-	links       []beancore.IncomingLink
+type itemWithLinks struct {
+	item        *item.Item
+	links       []itemcore.IncomingLink
 	attachments []string
 }
 
@@ -39,12 +39,12 @@ warned and those references will be removed after confirmation. Use -f to skip a
 	Args: cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
-		resolver := &beangraph.CoreResolver{Core: core}
+		resolver := &itemgraph.CoreResolver{Core: core}
 
-		// Collect all beans and their incoming links upfront (validate before deleting)
-		var targets []beanWithLinks
+		// Collect all items and their incoming links upfront (validate before deleting)
+		var targets []itemWithLinks
 		for _, id := range args {
-			b, err := resolver.Bean(ctx, id)
+			b, err := resolver.Item(ctx, id)
 			if err != nil {
 				return cmdError(deleteJSON, output.ErrNotFound, "failed to find bean: %v", err)
 			}
@@ -55,8 +55,8 @@ warned and those references will be removed after confirmation. Use -f to skip a
 			if err != nil {
 				return cmdError(deleteJSON, output.ErrFileError, "cannot read attachments of %s: %v", b.ID, err)
 			}
-			targets = append(targets, beanWithLinks{
-				bean:        b,
+			targets = append(targets, itemWithLinks{
+				item:        b,
 				links:       core.FindIncomingLinks(b.ID),
 				attachments: atts,
 			})
@@ -70,15 +70,15 @@ warned and those references will be removed after confirmation. Use -f to skip a
 			}
 		}
 
-		// Delete all beans via GraphQL mutation
-		var deleted []*bean.Bean
+		// Delete all items via GraphQL mutation
+		var deleted []*item.Item
 		var totalLinksRemoved int
 		for _, target := range targets {
-			_, err := resolver.DeleteBean(ctx, target.bean.ID)
+			_, err := resolver.DeleteItem(ctx, target.item.ID)
 			if err != nil {
-				return cmdError(deleteJSON, output.ErrFileError, "failed to delete bean %s: %v", target.bean.ID, err)
+				return cmdError(deleteJSON, output.ErrFileError, "failed to delete bean %s: %v", target.item.ID, err)
 			}
-			deleted = append(deleted, target.bean)
+			deleted = append(deleted, target.item)
 			totalLinksRemoved += len(target.links)
 		}
 
@@ -102,32 +102,32 @@ warned and those references will be removed after confirmation. Use -f to skip a
 	},
 }
 
-// confirmDeleteMultiple prompts the user to confirm deletion of one or more beans.
-func confirmDeleteMultiple(targets []beanWithLinks) bool {
-	beansWithLinks := 0
+// confirmDeleteMultiple prompts the user to confirm deletion of one or more items.
+func confirmDeleteMultiple(targets []itemWithLinks) bool {
+	itemsWithLinks := 0
 	totalLinks := 0
 	for _, t := range targets {
 		if len(t.links) > 0 {
-			beansWithLinks++
+			itemsWithLinks++
 			totalLinks += len(t.links)
 		}
 	}
 
-	// Single bean: use simpler format
+	// Single item: use simpler format
 	if len(targets) == 1 {
 		t := targets[0]
 		if len(t.links) > 0 {
-			fmt.Printf("Warning: %d bean(s) link to '%s':\n", len(t.links), t.bean.Title)
+			fmt.Printf("Warning: %d bean(s) link to '%s':\n", len(t.links), t.item.Title)
 			for _, link := range t.links {
-				fmt.Printf("  - %s (%s) via %s\n", link.FromBean.ID, link.FromBean.Title, link.LinkType)
+				fmt.Printf("  - %s (%s) via %s\n", link.FromItem.ID, link.FromItem.Title, link.LinkType)
 			}
 		}
-		// The attachment directory goes with the bean, so the files are
+		// The attachment directory goes with the item, so the files are
 		// named before the question rather than counted after it: they
 		// are the container's documents, and a consent given to "delete
-		// this bean" is not consent to delete those unseen.
+		// this item" is not consent to delete those unseen.
 		if len(t.attachments) > 0 {
-			fmt.Printf("Attachments to be deleted with '%s':\n", t.bean.Title)
+			fmt.Printf("Attachments to be deleted with '%s':\n", t.item.Title)
 			for _, name := range t.attachments {
 				fmt.Printf("  - %s\n", name)
 			}
@@ -135,11 +135,11 @@ func confirmDeleteMultiple(targets []beanWithLinks) bool {
 		if len(t.links) > 0 {
 			fmt.Print("Delete anyway and remove references? [y/N] ")
 		} else {
-			fmt.Printf("Delete '%s' (%s)? [y/N] ", t.bean.Title, t.bean.Path)
+			fmt.Printf("Delete '%s' (%s)? [y/N] ", t.item.Title, t.item.Path)
 		}
 	} else {
-		// Multiple beans: show batch summary. Attachments are counted
-		// here rather than listed -- a batch of twenty beans would bury
+		// Multiple items: show batch summary. Attachments are counted
+		// here rather than listed -- a batch of twenty items would bury
 		// the question under file names.
 		fmt.Printf("About to delete %d bean(s):\n", len(targets))
 		for _, t := range targets {
@@ -148,13 +148,13 @@ func confirmDeleteMultiple(targets []beanWithLinks) bool {
 				suffix = fmt.Sprintf(" + %d attachment(s)", len(t.attachments))
 			}
 			if len(t.links) > 0 {
-				fmt.Printf("  - %s (%s) ← %d incoming link(s)%s\n", t.bean.ID, t.bean.Title, len(t.links), suffix)
+				fmt.Printf("  - %s (%s) ← %d incoming link(s)%s\n", t.item.ID, t.item.Title, len(t.links), suffix)
 			} else {
-				fmt.Printf("  - %s (%s)%s\n", t.bean.ID, t.bean.Title, suffix)
+				fmt.Printf("  - %s (%s)%s\n", t.item.ID, t.item.Title, suffix)
 			}
 		}
-		if beansWithLinks > 0 {
-			fmt.Printf("\nWarning: %d bean(s) have incoming references (%d total) that will be removed.\n", beansWithLinks, totalLinks)
+		if itemsWithLinks > 0 {
+			fmt.Printf("\nWarning: %d bean(s) have incoming references (%d total) that will be removed.\n", itemsWithLinks, totalLinks)
 		}
 		fmt.Print("\nProceed with deletion? [y/N] ")
 	}

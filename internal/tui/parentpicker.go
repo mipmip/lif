@@ -9,30 +9,30 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/xRiErOS/lif/internal/ui"
-	"github.com/xRiErOS/lif/pkg/bean"
-	"github.com/xRiErOS/lif/pkg/beangraph"
 	"github.com/xRiErOS/lif/pkg/candidates"
 	"github.com/xRiErOS/lif/pkg/config"
+	"github.com/xRiErOS/lif/pkg/item"
+	"github.com/xRiErOS/lif/pkg/itemgraph"
 )
 
 // parentSelectedMsg is sent when a parent is selected from the picker
 type parentSelectedMsg struct {
-	beanIDs  []string // the beans being modified
+	itemIDs  []string // the items being modified
 	parentID string   // the new parent ID (empty string to clear parent)
 }
 
 // closeParentPickerMsg is sent when the parent picker is cancelled
 type closeParentPickerMsg struct{}
 
-// parentItem wraps a bean to implement list.Item for the parent picker
+// parentItem wraps an item to implement list.Item for the parent picker
 type parentItem struct {
-	bean *bean.Bean
+	item *item.Item
 	cfg  *config.Config
 }
 
-func (i parentItem) Title() string       { return i.bean.Title }
-func (i parentItem) Description() string { return i.bean.ID }
-func (i parentItem) FilterValue() string { return i.bean.Title + " " + i.bean.ID }
+func (i parentItem) Title() string       { return i.item.Title }
+func (i parentItem) Description() string { return i.item.ID }
+func (i parentItem) FilterValue() string { return i.item.Title + " " + i.item.ID }
 
 // clearParentItem is a special item to clear the parent
 type clearParentItem struct{}
@@ -65,15 +65,15 @@ func (d parentItemDelegate) Render(w io.Writer, m list.Model, index int, listIte
 
 	case parentItem:
 		// Get colors from config
-		colors := d.cfg.GetBeanColors(item.bean.Status, item.bean.Type, item.bean.Priority)
+		colors := d.cfg.GetItemColors(item.item.Status, item.item.Type, item.item.Priority)
 
 		// Format: [type] title (id)
-		typeBadge := ui.RenderTypeText(item.bean.Type, colors.TypeColor)
-		title := item.bean.Title
+		typeBadge := ui.RenderTypeText(item.item.Type, colors.TypeColor)
+		title := item.item.Title
 		if colors.IsArchive {
 			title = ui.Muted.Render(title)
 		}
-		id := ui.Muted.Render(" (" + item.bean.ID + ")")
+		id := ui.Muted.Render(" (" + item.item.ID + ")")
 
 		fmt.Fprint(w, cursor+typeBadge+" "+title+id)
 	}
@@ -82,26 +82,26 @@ func (d parentItemDelegate) Render(w io.Writer, m list.Model, index int, listIte
 // parentPickerModel is the model for the parent picker view
 type parentPickerModel struct {
 	list          list.Model
-	beanIDs       []string // the beans we're setting the parent for
-	beanTitle     string   // display title (single title or "N selected beans")
-	beanTypes     []string // types of the beans (to filter eligible parents)
-	currentParent string   // current parent ID (to highlight, only for single bean)
+	itemIDs       []string // the items we're setting the parent for
+	itemTitle     string   // display title (single title or "N selected items")
+	itemTypes     []string // types of the items (to filter eligible parents)
+	currentParent string   // current parent ID (to highlight, only for single item)
 	width         int
 	height        int
 }
 
-func newParentPickerModel(beanIDs []string, beanTitle string, beanTypes []string, currentParent string, resolver *beangraph.CoreResolver, cfg *config.Config, width, height int) parentPickerModel {
-	eligibleBeans, _ := candidates.ParentCandidates(context.Background(), resolver, cfg, beanIDs, beanTypes)
+func newParentPickerModel(itemIDs []string, itemTitle string, itemTypes []string, currentParent string, resolver *itemgraph.CoreResolver, cfg *config.Config, width, height int) parentPickerModel {
+	eligibleItems, _ := candidates.ParentCandidates(context.Background(), resolver, cfg, itemIDs, itemTypes)
 
 	delegate := parentItemDelegate{cfg: cfg}
 
 	// Build items list - start with "clear parent" option
-	items := make([]list.Item, 0, len(eligibleBeans)+1)
+	items := make([]list.Item, 0, len(eligibleItems)+1)
 	items = append(items, clearParentItem{})
 
 	selectedIndex := 0 // default to "No Parent"
-	for i, b := range eligibleBeans {
-		items = append(items, parentItem{bean: b, cfg: cfg})
+	for i, b := range eligibleItems {
+		items = append(items, parentItem{item: b, cfg: cfg})
 		// If this is the current parent, remember its index (+1 for the clear option)
 		if b.ID == currentParent {
 			selectedIndex = i + 1
@@ -133,9 +133,9 @@ func newParentPickerModel(beanIDs []string, beanTitle string, beanTypes []string
 
 	return parentPickerModel{
 		list:          l,
-		beanIDs:       beanIDs,
-		beanTitle:     beanTitle,
-		beanTypes:     beanTypes,
+		itemIDs:       itemIDs,
+		itemTitle:     itemTitle,
+		itemTypes:     itemTypes,
 		currentParent: currentParent,
 		width:         width,
 		height:        height,
@@ -167,11 +167,11 @@ func (m parentPickerModel) Update(msg tea.Msg) (parentPickerModel, tea.Cmd) {
 				switch item := m.list.SelectedItem().(type) {
 				case clearParentItem:
 					return m, func() tea.Msg {
-						return parentSelectedMsg{beanIDs: m.beanIDs, parentID: ""}
+						return parentSelectedMsg{itemIDs: m.itemIDs, parentID: ""}
 					}
 				case parentItem:
 					return m, func() tea.Msg {
-						return parentSelectedMsg{beanIDs: m.beanIDs, parentID: item.bean.ID}
+						return parentSelectedMsg{itemIDs: m.itemIDs, parentID: item.item.ID}
 					}
 				}
 			case "esc", "backspace":
@@ -192,16 +192,16 @@ func (m parentPickerModel) View() string {
 		return "Loading..."
 	}
 
-	// For multi-select, don't show individual bean ID
-	var beanID string
-	if len(m.beanIDs) == 1 {
-		beanID = m.beanIDs[0]
+	// For multi-select, don't show individual item ID
+	var itemID string
+	if len(m.itemIDs) == 1 {
+		itemID = m.itemIDs[0]
 	}
 
 	return renderPickerModal(pickerModalConfig{
 		Title:       "Select Parent",
-		BeanTitle:   m.beanTitle,
-		BeanID:      beanID,
+		ItemTitle:   m.itemTitle,
+		ItemID:      itemID,
 		ListContent: m.list.View(),
 		Width:       m.width,
 		WidthPct:    60,

@@ -32,7 +32,7 @@ func TestNoArgsCommandsRejectPositionalArguments(t *testing.T) {
 }
 
 // TestCreateDeclaresExplicitArity pins the ninth verb: create's title is an
-// unbounded run of positional words (`beans create foo bar` -> "foo bar"),
+// unbounded run of positional words (`lif create foo bar` -> "foo bar"),
 // so its declared policy is cobra.ArbitraryArgs — an explicit opt-in to
 // "accept any count" rather than an undeclared nil Args left at the same
 // behaviour by accident (SC-01).
@@ -51,7 +51,7 @@ func TestCreateDeclaresExplicitArity(t *testing.T) {
 }
 
 // TestArchiveRejectsPositionalArgumentEndToEnd is the D11/R-06 regression
-// (beans-smwg): `beans archive <id>` used to exit 0 and silently drop the
+// (beans-smwg): `lif archive <id>` used to exit 0 and silently drop the
 // argument. Checking err != nil alone would also pass for an unrelated
 // runtime failure inside RunE, which is not the defect this pins. Instead
 // compare the end-to-end failure against archive's own Args policy run in

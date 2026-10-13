@@ -1,4 +1,4 @@
-// Package worktree manages git worktrees associated with beans.
+// Package worktree manages git worktrees associated with items.
 package worktree
 
 import (
@@ -16,7 +16,7 @@ import (
 	"time"
 
 	"github.com/xRiErOS/lif/internal/gitutil"
-	"github.com/xRiErOS/lif/pkg/bean"
+	"github.com/xRiErOS/lif/pkg/item"
 )
 
 // DefaultFetchTimeout is the default timeout for git fetch operations during
@@ -43,7 +43,7 @@ type Worktree struct {
 	Path         string
 	Name         string      // Human-readable name
 	Description  string      // Auto-generated summary of what this workspace is doing
-	BeanIDs      []string    // Bean IDs detected from changes vs base branch
+	ItemIDs      []string    // Item IDs detected from changes vs base branch
 	Setup        SetupStatus // post-creation setup status (runtime only)
 	SetupError   string      // error message if setup failed
 	LastActiveAt time.Time   // When an agent last completed a turn in this worktree
@@ -198,7 +198,7 @@ func (m *Manager) Unsubscribe(ch chan struct{}) {
 }
 
 // Notify sends a signal to all subscribers. Exported so external watchers
-// (e.g., the worktree bean file watcher) can trigger a refresh.
+// (e.g., the worktree item file watcher) can trigger a refresh.
 func (m *Manager) Notify() {
 	m.notify()
 }
@@ -216,7 +216,7 @@ func (m *Manager) notify() {
 	}
 }
 
-// List returns all active worktrees that were created by beans (branch prefix "beans/").
+// List returns all active worktrees that were created by lif (branch prefix "beans/").
 func (m *Manager) List() ([]Worktree, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -239,7 +239,7 @@ func (m *Manager) List() ([]Worktree, error) {
 				worktrees[i].LastActiveAt = *meta.LastActiveAt
 			}
 		}
-		worktrees[i].BeanIDs = m.DetectBeanIDs(worktrees[i].Path)
+		worktrees[i].ItemIDs = m.DetectItemIDs(worktrees[i].Path)
 		// Attach runtime setup status
 		if st, ok := m.setupStatuses[worktrees[i].ID]; ok {
 			worktrees[i].Setup = st.status
@@ -252,10 +252,10 @@ func (m *Manager) List() ([]Worktree, error) {
 }
 
 // parsePorcelain parses `git worktree list --porcelain` output and returns
-// worktrees whose branch starts with the beans prefix.
+// worktrees whose branch starts with the items prefix.
 // Entries marked as "prunable" (stale/missing directory) are skipped.
-// worktreesDir is the path to the beans worktrees directory (e.g. "~/.beans/worktrees/<project>/"),
-// used to identify beans-managed worktrees that are temporarily detached (e.g. during rebase).
+// worktreesDir is the path to the items worktrees directory (e.g. "~/.beans/worktrees/<project>/"),
+// used to identify lif-managed worktrees that are temporarily detached (e.g. during rebase).
 func parsePorcelain(output string, worktreesDir string) []Worktree {
 	var worktrees []Worktree
 	var currentPath, currentBranch string
@@ -322,10 +322,10 @@ func parsePorcelain(output string, worktreesDir string) []Worktree {
 	return worktrees
 }
 
-// DetectBeanIDs returns bean IDs found in the worktree's diff vs the base branch.
+// DetectItemIDs returns item IDs found in the worktree's diff vs the base branch.
 // It filters for .beans/*.md files, excluding dot-prefixed subdirs (like .worktrees/,
 // .conversations/) and the archive/ directory.
-func (m *Manager) DetectBeanIDs(worktreePath string) []string {
+func (m *Manager) DetectItemIDs(worktreePath string) []string {
 	changes, err := gitutil.AllChangesVsUpstream(worktreePath, m.baseRef)
 	if err != nil {
 		return nil
@@ -357,7 +357,7 @@ func (m *Manager) DetectBeanIDs(worktreePath string) []string {
 			continue
 		}
 
-		id, _ := bean.ParseFilename(rest)
+		id, _ := item.ParseFilename(rest)
 		if id != "" && !seen[id] {
 			seen[id] = true
 			ids = append(ids, id)

@@ -8,49 +8,49 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/xRiErOS/lif/internal/ui"
-	"github.com/xRiErOS/lif/pkg/bean"
-	"github.com/xRiErOS/lif/pkg/beangraph"
 	"github.com/xRiErOS/lif/pkg/config"
+	"github.com/xRiErOS/lif/pkg/item"
+	"github.com/xRiErOS/lif/pkg/itemgraph"
 )
 
 // The label column is sized from the label vocabulary below rather than from
-// the bean at hand: two beans rendered by two separate calls must produce the
+// the item at hand: two items rendered by two separate calls must produce the
 // same geometry, or reading down a column -- the entire point of this view --
 // stops working. An extra front matter key longer than the widest fixed label
 // is the one thing that can still widen the column, so it is measured too,
-// per bean, and that is a deliberate trade: an unusually long key is visible
+// per item, and that is a deliberate trade: an unusually long key is visible
 // and rare, whereas a silently uneven grid is neither.
 var tableLabelVocabulary = []string{
 	"title:", "tags:", "parent:", "blocked by:", "blocking:",
 }
 
 // bandIDWidth budgets the id cell in the top band from the store's own id
-// shape, so "type:" starts at the same cell for every bean of a store
+// shape, so "type:" starts at the same cell for every item of a store
 // without spending cells a store's ids can never use. A constant fitted to
 // "beans-" wasted four cells on a "SPF-" store and would have been too
 // narrow for a longer prefix; an id longer than its own configuration -- a
-// bean carried over from another store -- pushes the band right, which is
+// item carried over from another store -- pushes the band right, which is
 // visible and rare, the same trade the label column makes.
 func bandIDWidth(cfg *config.Config) int {
-	return ui.DisplayWidth(cfg.Beans.Prefix) + cfg.Beans.IDLength
+	return ui.DisplayWidth(cfg.Items.Prefix) + cfg.Items.IDLength
 }
 
-// beanTableLabelWidth is the label column shared by every bean of one call.
+// itemTableLabelWidth is the label column shared by every item of one call.
 //
-// Sizing it per bean broke the view's only promise across several ids: a
-// bean carrying customer_value got a sixteen-cell column and its neighbour
+// Sizing it per item broke the view's only promise across several ids: a
+// item carrying customer_value got a sixteen-cell column and its neighbour
 // an eleven-cell one, so consecutive grids stepped and no column could be
 // followed down the page. The width is therefore the widest label any of
-// the beans carries, never one bean's own.
-func beanTableLabelWidth(beans []*bean.Bean, cfg *config.Config) int {
+// the items carries, never one item's own.
+func itemTableLabelWidth(items []*item.Item, cfg *config.Config) int {
 	width := 0
 	for _, l := range tableLabelVocabulary {
 		if w := ui.DisplayWidth(l); w > width {
 			width = w
 		}
 	}
-	for _, b := range beans {
-		for _, bl := range beanTableBlocks(b, cfg) {
+	for _, b := range items {
+		for _, bl := range itemTableBlocks(b, cfg) {
 			if w := ui.DisplayWidth(bl.label); w > width {
 				width = w
 			}
@@ -77,21 +77,21 @@ type tableBlock struct {
 	bold bool
 }
 
-// renderBeanTable lays out one bean's whole front matter, capped at width
+// renderItemTable lays out one item's whole front matter, capped at width
 // cells including the borders.
 //
-// The arrangement is the PO's: a band across the top carrying what the bean
+// The arrangement is the PO's: a band across the top carrying what the item
 // *is* (id, type, status, and priority against the right edge), a band across
 // the bottom carrying the managed stamps, and between them one horizontally
 // ruled field per line of front matter. The bands separate identity and
 // bookkeeping from content, which is what a flat label column could not do --
 // there, id and created sat in the same shape as the title.
 //
-// It is an arrangement of the same fields renderBeanHeader prints, not a
+// It is an arrangement of the same fields renderItemHeader prints, not a
 // selection of them: dropping one here would reintroduce exactly the defect
 // beans-p1d0 fixed, and TestTableCarriesEveryFrontMatterField pins that.
-func renderBeanTable(b *bean.Bean, cfg *config.Config, width, labelWidth int) string {
-	blocks := beanTableBlocks(b, cfg)
+func renderItemTable(b *item.Item, cfg *config.Config, width, labelWidth int) string {
+	blocks := itemTableBlocks(b, cfg)
 
 	// A field row is "│ " + label + " │ " + value + " │": seven cells of
 	// border and padding on top of the two text columns. A band row is
@@ -202,7 +202,7 @@ func packBand(bl tableBlock, bandWidth int) string {
 }
 
 // fieldValueLines folds a field's value, guaranteeing a second line when the
-// row carries a trailer -- the related bean's id, which is rendered in the
+// row carries a trailer -- the related item's id, which is rendered in the
 // label column beneath the label.
 //
 // The id belongs under its label rather than beside the text: it identifies
@@ -298,9 +298,9 @@ func stripANSI(s string) string {
 	return sb.String()
 }
 
-// beanTableBlocks turns one bean into the sketch's sequence: identity band,
+// itemTableBlocks turns one item into the sketch's sequence: identity band,
 // then one ruled field per front matter entry, then the stamps band.
-func beanTableBlocks(b *bean.Bean, cfg *config.Config) []tableBlock {
+func itemTableBlocks(b *item.Item, cfg *config.Config) []tableBlock {
 	tint := lipgloss.NewStyle()
 	if tc := cfg.GetType(b.Type); tc != nil {
 		tint = tint.Bold(tc.Emphasis)
@@ -399,7 +399,7 @@ func beanTableBlocks(b *bean.Bean, cfg *config.Config) []tableBlock {
 }
 
 // vocabularyWidth is the widest name in a config enum, which is what makes a
-// band's columns a property of the configuration rather than of the bean
+// band's columns a property of the configuration rather than of the item
 // being rendered.
 func vocabularyWidth(names []string) int {
 	w := 0
@@ -411,13 +411,13 @@ func vocabularyWidth(names []string) int {
 	return w
 }
 
-// describeRelated names a related bean by type and title, falling back to the
+// describeRelated names a related item by type and title, falling back to the
 // bare id. A parent from another store, or one that has been deleted, is
 // information the reader still needs -- an empty cell or an error would be
 // worse than the id.
 func describeRelated(id string, cfg *config.Config) (string, string) {
-	resolver := &beangraph.CoreResolver{Core: core}
-	related, err := resolver.Bean(context.Background(), id)
+	resolver := &itemgraph.CoreResolver{Core: core}
+	related, err := resolver.Item(context.Background(), id)
 	if err != nil || related == nil {
 		// Nothing to describe: the id becomes the value itself rather
 		// than a trailer beside an empty cell.

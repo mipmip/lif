@@ -5,15 +5,15 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/xRiErOS/lif/internal/output"
-	"github.com/xRiErOS/lif/internal/ui"
-	"github.com/xRiErOS/lif/pkg/bean"
-	"github.com/xRiErOS/lif/pkg/beancore"
-	"github.com/xRiErOS/lif/pkg/beangraph"
-	"github.com/xRiErOS/lif/pkg/beangraph/model"
-	"github.com/xRiErOS/lif/pkg/candidates"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	"github.com/xRiErOS/lif/internal/output"
+	"github.com/xRiErOS/lif/internal/ui"
+	"github.com/xRiErOS/lif/pkg/candidates"
+	"github.com/xRiErOS/lif/pkg/item"
+	"github.com/xRiErOS/lif/pkg/itemcore"
+	"github.com/xRiErOS/lif/pkg/itemgraph"
+	"github.com/xRiErOS/lif/pkg/itemgraph/model"
 )
 
 var (
@@ -63,7 +63,7 @@ var createCmd = &cobra.Command{
 			return cmdError(createJSON, output.ErrValidation, "%s", err)
 		}
 		createSet = normalizedSet
-		if cmd.Flags().Changed("order") && !bean.IsValidOrderKey(createOrder) {
+		if cmd.Flags().Changed("order") && !item.IsValidOrderKey(createOrder) {
 			return cmdError(createJSON, output.ErrValidation, "invalid order value: %q (must be a non-empty base62 fractional index)", createOrder)
 		}
 
@@ -122,8 +122,8 @@ var createCmd = &cobra.Command{
 		}
 
 		// Create via core resolver
-		resolver := &beangraph.CoreResolver{Core: core}
-		b, err := resolver.CreateBean(context.Background(), input, beancore.WithExtraOps(setMap, nil))
+		resolver := &itemgraph.CoreResolver{Core: core}
+		b, err := resolver.CreateItem(context.Background(), input, itemcore.WithExtraOps(setMap, nil))
 		if err != nil {
 			return cmdError(createJSON, output.ErrFileError, "failed to create bean: %v", err)
 		}
@@ -133,12 +133,12 @@ var createCmd = &cobra.Command{
 		// they're applied and persisted as a second write.
 		needsSecondWrite := len(createUnset) > 0 || cmd.Flags().Changed("order")
 		if needsSecondWrite {
-			// Capture the freshly-created bean's own etag before mutating it,
+			// Capture the freshly-created item's own etag before mutating it,
 			// and pass it as ifMatch below instead of nil: nil bypasses
 			// optimistic concurrency control -- silently ignored under a
 			// normal config, and under require_if_match:true it makes the
-			// write fail outright, leaving the bean on disk without the
-			// order/unset that were just requested. The bean's own current
+			// write fail outright, leaving the item on disk without the
+			// order/unset that were just requested. The item's own current
 			// etag satisfies require_if_match and still catches a genuine
 			// concurrent external write between the two writes.
 			etag := b.ETag()
@@ -200,28 +200,28 @@ func RegisterCreateCmd(root *cobra.Command) {
 	root.AddCommand(createCmd)
 }
 
-// createParentFlagCompletion offers create --parent candidates: beans whose
-// type is a valid parent for the type the new bean will have (--type if
-// already given, else cfg's configured default -- beancore.ValidParentTypes
-// via candidates.ParentCandidates, beans-v725). The bean being created has
-// no ID yet, so there is no self/descendant exclusion (beanIDs is nil,
+// createParentFlagCompletion offers create --parent candidates: items whose
+// type is a valid parent for the type the new item will have (--type if
+// already given, else cfg's configured default -- itemcore.ValidParentTypes
+// via candidates.ParentCandidates, beans-v725). The item being created has
+// no ID yet, so there is no self/descendant exclusion (itemIDs is nil,
 // unlike updateParentFlagCompletion in update.go) -- beans-pkq3 AC-04.
 func createParentFlagCompletion(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-	beanType := createType
-	if beanType == "" {
-		beanType = cfg.GetDefaultType()
+	itemType := createType
+	if itemType == "" {
+		itemType = cfg.GetDefaultType()
 	}
-	resolver := &beangraph.CoreResolver{Core: core}
-	eligible, err := candidates.ParentCandidates(context.Background(), resolver, cfg, nil, []string{beanType})
+	resolver := &itemgraph.CoreResolver{Core: core}
+	eligible, err := candidates.ParentCandidates(context.Background(), resolver, cfg, nil, []string{itemType})
 	if err != nil {
 		return nil, completionDirective
 	}
-	return beanFlagCandidates(eligible), completionDirective
+	return itemFlagCandidates(eligible), completionDirective
 }
 
 // createBlockingLikeFlagCompletion serves create's --blocked-by and
-// --blocking: every bean in the store (candidates.BlockingCandidates,
-// beans-v725), since the bean being created has no ID yet to exclude --
+// --blocking: every item in the store (candidates.BlockingCandidates,
+// beans-v725), since the item being created has no ID yet to exclude --
 // beans-pkq3 AC-04.
 func createBlockingLikeFlagCompletion(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 	return blockingLikeFlagCompletion(nil)
@@ -238,7 +238,7 @@ var createFlagNames []string
 
 // createHint names create's expected title and its primary flags for
 // display as cobra ActiveHelp when the user presses TAB after
-// `beans create ` with no argument yet (beans-u93j AC-01). It is derived
+// `lif create ` with no argument yet (beans-u93j AC-01). It is derived
 // from createFlagNames -- itself pulled live from createCmd's flag
 // definitions via VisitAll, not hand-copied -- so a newly added flag
 // shows up here automatically and a removed one can't linger (AC-03).
@@ -248,9 +248,9 @@ func createHint() string {
 
 // createValidArgs is create's ValidArgsFunction. create's sole positional
 // argument is free-form title text (completionNoFileComp's rationale
-// applies: no bean-ID or file-path meaning), so once any word of the title
+// applies: no item-ID or file-path meaning), so once any word of the title
 // is already typed there is nothing further to suggest. With zero args --
-// the `beans create ` + TAB case the PO asked for -- it surfaces createHint
+// the `lif create ` + TAB case the PO asked for -- it surfaces createHint
 // as ActiveHelp instead of staying silent. cobra.AppendActiveHelp encodes
 // the hint as a "_activeHelp_ "-prefixed pseudo-candidate; the shipped zsh
 // script (zsh_completions.go) renders such lines via `compadd -x`, zsh's

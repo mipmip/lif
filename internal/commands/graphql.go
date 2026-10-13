@@ -16,7 +16,7 @@ import (
 	"github.com/vektah/gqlparser/v2/formatter"
 	"github.com/vektah/gqlparser/v2/gqlerror"
 	"github.com/xRiErOS/lif/internal/graph"
-	"github.com/xRiErOS/lif/pkg/beangraph"
+	"github.com/xRiErOS/lif/pkg/itemgraph"
 )
 
 var (
@@ -134,12 +134,12 @@ func readFromStdin() (string, error) {
 	return strings.TrimSpace(string(data)), nil
 }
 
-// executeQuery runs a GraphQL query against the beans core.
+// executeQuery runs a GraphQL query against the items core.
 // On success, it returns just the data portion of the response.
 // On error, it returns an error so the CLI can handle it appropriately.
 func executeQuery(query string, variables map[string]any, operationName string) ([]byte, error) {
 	es := graph.NewExecutableSchema(graph.Config{
-		Resolvers: &graph.Resolver{CoreResolver: &beangraph.CoreResolver{Core: core}},
+		Resolvers: &graph.Resolver{CoreResolver: &itemgraph.CoreResolver{Core: core}},
 	})
 
 	exec := executor.New(es)
@@ -192,7 +192,7 @@ func printSchema() error {
 // This is exported so it can be used by other commands like prompt.
 func GetGraphQLSchema() string {
 	es := graph.NewExecutableSchema(graph.Config{
-		Resolvers: &graph.Resolver{CoreResolver: &beangraph.CoreResolver{Core: core}},
+		Resolvers: &graph.Resolver{CoreResolver: &itemgraph.CoreResolver{Core: core}},
 	})
 
 	var buf bytes.Buffer

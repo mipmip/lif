@@ -8,17 +8,17 @@ import (
 	"testing"
 
 	"github.com/spf13/cobra"
-	"github.com/xRiErOS/lif/pkg/beancore"
+	"github.com/xRiErOS/lif/pkg/itemcore"
 )
 
 // R-23: the operator has to see the attachment move before consenting. The
-// measured gap was that `--dry-run` listed the bean file move and the config
+// measured gap was that `--dry-run` listed the item file move and the config
 // write but said nothing about the directory it was about to strand.
 func TestRenderRenamePlan_showsAttachmentMoves(t *testing.T) {
 	c := renameTestCore(t, "tp-", map[string]string{
 		"tp-aaaa--a.md": "---\n# tp-aaaa\ntitle: A\nstatus: todo\ntype: task\n---\n",
 	})
-	dir := filepath.Join(c.Root(), beancore.AttachmentsDir, "tp-aaaa")
+	dir := filepath.Join(c.Root(), itemcore.AttachmentsDir, "tp-aaaa")
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		t.Fatal(err)
 	}
@@ -66,13 +66,13 @@ func TestRenderRenamePlan_silentWithoutAttachments(t *testing.T) {
 
 // R-23/T02: check has to see the orphan, otherwise the carry-along
 // invariant is asserted rather than verified. Measured before the fix:
-// "All checks passed" over a directory whose bean had been rebranded away.
+// "All checks passed" over a directory whose item had been rebranded away.
 func TestAttachmentOrphanIssues(t *testing.T) {
 	c := renameTestCore(t, "tp-", map[string]string{
 		"tp-aaaa--a.md": "---\n# tp-aaaa\ntitle: A\nstatus: todo\ntype: task\n---\n",
 	})
 	for _, id := range []string{"tp-aaaa", "tp-9999"} {
-		dir := filepath.Join(c.Root(), beancore.AttachmentsDir, id)
+		dir := filepath.Join(c.Root(), itemcore.AttachmentsDir, id)
 		if err := os.MkdirAll(dir, 0755); err != nil {
 			t.Fatal(err)
 		}

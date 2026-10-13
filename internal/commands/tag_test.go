@@ -8,22 +8,22 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/xRiErOS/lif/pkg/bean"
-	"github.com/xRiErOS/lif/pkg/beancore"
 	"github.com/xRiErOS/lif/pkg/config"
+	"github.com/xRiErOS/lif/pkg/item"
+	"github.com/xRiErOS/lif/pkg/itemcore"
 )
 
 // setupTagTest installs a throwaway core and default config into the package
-// globals tagCmd.RunE reads, and returns a bean already persisted in it.
-func setupTagTest(t *testing.T) *bean.Bean {
+// globals tagCmd.RunE reads, and returns an item already persisted in it.
+func setupTagTest(t *testing.T) *item.Item {
 	t.Helper()
-	beansDir := filepath.Join(t.TempDir(), ".beans")
-	if err := os.MkdirAll(beansDir, 0755); err != nil {
+	itemsDir := filepath.Join(t.TempDir(), ".beans")
+	if err := os.MkdirAll(itemsDir, 0755); err != nil {
 		t.Fatalf("failed to create test .beans dir: %v", err)
 	}
 
 	testCfg := config.Default()
-	testCore := beancore.New(beansDir, testCfg)
+	testCore := itemcore.New(itemsDir, testCfg)
 	if err := testCore.Load(); err != nil {
 		t.Fatalf("failed to load core: %v", err)
 	}
@@ -32,14 +32,14 @@ func setupTagTest(t *testing.T) *bean.Bean {
 	core, cfg = testCore, testCfg
 	t.Cleanup(func() { core, cfg = oldCore, oldCfg })
 
-	return mkTagBean(t, "beans-tgt1", "A test bean", []string{"existing"})
+	return mkTagItem(t, "beans-tgt1", "A test bean", []string{"existing"})
 }
 
-func mkTagBean(t *testing.T, id, title string, tags []string) *bean.Bean {
+func mkTagItem(t *testing.T, id, title string, tags []string) *item.Item {
 	t.Helper()
-	b := &bean.Bean{
+	b := &item.Item{
 		ID:     id,
-		Slug:   bean.Slugify(title),
+		Slug:   item.Slugify(title),
 		Title:  title,
 		Status: "todo",
 		Type:   "task",
@@ -137,11 +137,11 @@ func TestTagAddsAndRemovesInOneCall(t *testing.T) {
 	}
 }
 
-// TestTagTakesMultipleIDs is the reason the verb exists: one call, n beans.
+// TestTagTakesMultipleIDs is the reason the verb exists: one call, n items.
 func TestTagTakesMultipleIDs(t *testing.T) {
 	first := setupTagTest(t)
 	resetTagFlags(t)
-	second := mkTagBean(t, "beans-tgt2", "Second bean", nil)
+	second := mkTagItem(t, "beans-tgt2", "Second bean", nil)
 
 	tagAdd = []string{"cli"}
 	if err := tagCmd.RunE(tagCmd, []string{first.ID, second.ID}); err != nil {
@@ -162,7 +162,7 @@ func TestTagTakesMultipleIDs(t *testing.T) {
 }
 
 // TestTagRequiresAFlag verifies that a call which would change nothing is
-// rejected instead of silently rewriting the beans.
+// rejected instead of silently rewriting the items.
 func TestTagRequiresAFlag(t *testing.T) {
 	b := setupTagTest(t)
 	resetTagFlags(t)
@@ -177,7 +177,7 @@ func TestTagRequiresAFlag(t *testing.T) {
 func TestTagPreflightRejectsUnknownID(t *testing.T) {
 	first := setupTagTest(t)
 	resetTagFlags(t)
-	second := mkTagBean(t, "beans-tgt3", "Second bean", nil)
+	second := mkTagItem(t, "beans-tgt3", "Second bean", nil)
 
 	tagAdd = []string{"cli"}
 	if err := tagCmd.RunE(tagCmd, []string{first.ID, "beans-nope", second.ID}); err == nil {
@@ -193,7 +193,7 @@ func TestTagPreflightRejectsUnknownID(t *testing.T) {
 	}
 }
 
-// TestTagJSONShape verifies the verb starts in the target shape: a bare bean
+// TestTagJSONShape verifies the verb starts in the target shape: a bare item
 // for one ID, a bare array beyond that.
 func TestTagJSONShape(t *testing.T) {
 	t.Run("single gives a bare bean", func(t *testing.T) {
@@ -222,7 +222,7 @@ func TestTagJSONShape(t *testing.T) {
 	t.Run("multiple gives a bare array", func(t *testing.T) {
 		first := setupTagTest(t)
 		resetTagFlags(t)
-		second := mkTagBean(t, "beans-tgt4", "Second bean", nil)
+		second := mkTagItem(t, "beans-tgt4", "Second bean", nil)
 		tagAdd = []string{"cli"}
 		tagJSON = true
 

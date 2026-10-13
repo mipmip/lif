@@ -122,7 +122,7 @@ func TestEveryProfileKeepsOneNameOnOneRank(t *testing.T) {
 	}
 	for name, seen := range ranks {
 		// feature is the one documented exception: classic keeps it on rank 3
-		// because the existing stores carry epic -> feature beans (D16).
+		// because the existing stores carry epic -> feature items (D16).
 		if name == "feature" {
 			continue
 		}
@@ -155,8 +155,8 @@ func TestEveryProfileTypeCarriesADescription(t *testing.T) {
 }
 
 // TestClassicProfileMatchesDefaultTypes pins the product owner's
-// exclusivity decision: `beans init --profile classic` must yield a
-// project indistinguishable from `beans init`. The data was verified field
+// exclusivity decision: `lif init --profile classic` must yield a
+// project indistinguishable from `lif init`. The data was verified field
 // by field in review, but nothing guarded it before this test, and this
 // area's whole failure mode has been hand-transcribed tables drifting.
 // Compare the merged TypeList() of an exclusive classic config against

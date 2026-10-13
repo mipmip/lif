@@ -9,7 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/xRiErOS/lif/internal/output"
-	"github.com/xRiErOS/lif/pkg/bean"
+	"github.com/xRiErOS/lif/pkg/item"
 )
 
 // TestRunPickWithEscIsSilentAndLeavesChromeOffStdout pins beans-gofn: esc
@@ -26,7 +26,7 @@ func TestRunPickWithEscIsSilentAndLeavesChromeOffStdout(t *testing.T) {
 		{"ctrl+c", []byte{0x03}},
 	} {
 		t.Run(key.name, func(t *testing.T) {
-			beans := []*bean.Bean{pickTestBean("beans-esc1", "Escapable")}
+			items := []*item.Item{pickTestItem("beans-esc1", "Escapable")}
 
 			inR, inW, err := os.Pipe()
 			if err != nil {
@@ -39,7 +39,7 @@ func TestRunPickWithEscIsSilentAndLeavesChromeOffStdout(t *testing.T) {
 
 			done := make(chan error, 1)
 			go func() {
-				done <- runPickWith(cmd, beans, inR, &teaOut)
+				done <- runPickWith(cmd, items, inR, &teaOut)
 			}()
 
 			if _, err := inW.Write(key.bytes); err != nil {
@@ -64,11 +64,11 @@ func TestRunPickWithEscIsSilentAndLeavesChromeOffStdout(t *testing.T) {
 }
 
 // TestRunPickWithEnterPrintsIDToCommandStdoutOnly pins beans-gofn: selecting
-// the only candidate with enter returns nil, prints exactly that bean's ID
+// the only candidate with enter returns nil, prints exactly that item's ID
 // to the command's own stdout, and the picker's tea output writer -- which
 // only ever carries rendered chrome -- never receives that print call.
 func TestRunPickWithEnterPrintsIDToCommandStdoutOnly(t *testing.T) {
-	beans := []*bean.Bean{pickTestBean("beans-pick9", "Pick Me")}
+	items := []*item.Item{pickTestItem("beans-pick9", "Pick Me")}
 
 	inR, inW, err := os.Pipe()
 	if err != nil {
@@ -81,7 +81,7 @@ func TestRunPickWithEnterPrintsIDToCommandStdoutOnly(t *testing.T) {
 
 	done := make(chan error, 1)
 	go func() {
-		done <- runPickWith(cmd, beans, inR, &teaOut)
+		done <- runPickWith(cmd, items, inR, &teaOut)
 	}()
 
 	if _, err := inW.Write([]byte{'\r'}); err != nil {

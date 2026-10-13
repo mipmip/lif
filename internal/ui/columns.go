@@ -6,8 +6,8 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/xRiErOS/lif/pkg/bean"
 	"github.com/xRiErOS/lif/pkg/config"
+	"github.com/xRiErOS/lif/pkg/item"
 )
 
 // Progress is a milestone's descendant completion, shown as a bar plus n/m.
@@ -16,7 +16,7 @@ type Progress struct {
 	Total int
 }
 
-// Row is one line of output: a bean plus the tree shape needed to draw it.
+// Row is one line of output: an item plus the tree shape needed to draw it.
 //
 // AncestorsLast records, for each ancestor, whether that ancestor was the last
 // child at its level. That is what decides whether a vertical line continues
@@ -27,7 +27,7 @@ type Progress struct {
 // Invariant: a Row with Depth > 0 must carry AncestorsLast of length Depth —
 // Connector and Stem index AncestorsLast[1:] and panic on a shorter slice.
 type Row struct {
-	Bean          *bean.Bean
+	Item          *item.Item
 	Depth         int
 	AncestorsLast []bool
 	IsLast        bool
@@ -101,7 +101,7 @@ func RowsFromFlatItems(items []FlatItem) []Row {
 		anc := make([]bool, len(ancestry))
 		copy(anc, ancestry)
 		rows = append(rows, Row{
-			Bean:          it.Bean,
+			Item:          it.Item,
 			Depth:         it.Depth,
 			AncestorsLast: anc,
 			IsLast:        it.IsLast,
@@ -111,12 +111,12 @@ func RowsFromFlatItems(items []FlatItem) []Row {
 	return rows
 }
 
-// FlatRows puts every bean at depth 0, which is what the table form needs:
+// FlatRows puts every item at depth 0, which is what the table form needs:
 // dropping the tree rather than hiding it is what makes the rows sortable.
-func FlatRows(beans []*bean.Bean) []Row {
-	rows := make([]Row, 0, len(beans))
-	for _, b := range beans {
-		rows = append(rows, Row{Bean: b, Depth: 0, IsLast: true})
+func FlatRows(items []*item.Item) []Row {
+	rows := make([]Row, 0, len(items))
+	for _, b := range items {
+		rows = append(rows, Row{Item: b, Depth: 0, IsLast: true})
 	}
 	return rows
 }
@@ -193,9 +193,9 @@ func NewColumns(rows []Row, width int, showTags bool, cfg *config.Config) Column
 	// Floors are the header words, so a table header never overflows.
 	wantType, wantStatus, wantPrio := len("TYPE"), len("STATUS"), 0
 	for _, r := range rows {
-		wantType = max(wantType, DisplayWidth(r.Bean.Type))
-		wantStatus = max(wantStatus, DisplayWidth(r.Bean.Status))
-		if p := (Columns{LongPrio: true}).PrioText(r.Bean); p != "" {
+		wantType = max(wantType, DisplayWidth(r.Item.Type))
+		wantStatus = max(wantStatus, DisplayWidth(r.Item.Status))
+		if p := (Columns{LongPrio: true}).PrioText(r.Item); p != "" {
 			wantPrio = max(wantPrio, DisplayWidth(p), len("PRIORITY"))
 		}
 	}
@@ -209,7 +209,7 @@ func NewColumns(rows []Row, width int, showTags bool, cfg *config.Config) Column
 		if r.Depth > maxDepth {
 			maxDepth = r.Depth
 		}
-		if w := DisplayWidth(r.Bean.ID); w > idWidth {
+		if w := DisplayWidth(r.Item.ID); w > idWidth {
 			idWidth = w
 		}
 		if r.Progress != nil {
@@ -314,10 +314,10 @@ func (c *Columns) Rebalance(rows []Row) {
 	neededTitle := 0
 	neededTags := 0
 	for _, r := range rows {
-		if w := DisplayWidth(r.Bean.Title); w > neededTitle {
+		if w := DisplayWidth(r.Item.Title); w > neededTitle {
 			neededTitle = w
 		}
-		if w := DisplayWidth(joinTags(r.Bean.Tags)); w > neededTags {
+		if w := DisplayWidth(joinTags(r.Item.Tags)); w > neededTags {
 			neededTags = w
 		}
 	}
@@ -362,7 +362,7 @@ func (c *Columns) Rebalance(rows []Row) {
 	}
 }
 
-// joinTags renders a bean's tags the way they appear in the tag column.
+// joinTags renders an item's tags the way they appear in the tag column.
 func joinTags(tags []string) string {
 	if len(tags) == 0 {
 		return ""
@@ -375,7 +375,7 @@ func joinTags(tags []string) string {
 }
 
 // TypeText renders the type in the form this layout decided on.
-func (c Columns) TypeText(b *bean.Bean) string {
+func (c Columns) TypeText(b *item.Item) string {
 	if c.LongType {
 		return b.Type
 	}
@@ -383,7 +383,7 @@ func (c Columns) TypeText(b *bean.Bean) string {
 }
 
 // StatusText renders the status in the form this layout decided on.
-func (c Columns) StatusText(b *bean.Bean) string {
+func (c Columns) StatusText(b *item.Item) string {
 	if c.LongStatus {
 		return b.Status
 	}
@@ -392,7 +392,7 @@ func (c Columns) StatusText(b *bean.Bean) string {
 
 // PrioText renders the priority, or "" for normal — an unremarkable priority
 // earns no ink.
-func (c Columns) PrioText(b *bean.Bean) string {
+func (c Columns) PrioText(b *item.Item) string {
 	if b.Priority == "" || b.Priority == "normal" {
 		return ""
 	}

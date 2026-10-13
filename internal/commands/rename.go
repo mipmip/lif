@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/xRiErOS/lif/pkg/beancore"
+	"github.com/xRiErOS/lif/pkg/itemcore"
 )
 
 var (
@@ -132,11 +132,11 @@ func (f renameFlags) modeCount(argCount int) int {
 	return n
 }
 
-// buildRenamePlan maps flags+args to exactly one beancore.RenamePlan mode
+// buildRenamePlan maps flags+args to exactly one itemcore.RenamePlan mode
 // (slug/id/prefix), enforcing mutual exclusivity (I05) and refusing a
 // --suffix on an ID that does not start with the configured prefix (I04)
 // rather than fabricating a corrupt ID.
-func buildRenamePlan(c *beancore.Core, args []string, f renameFlags) (*beancore.RenamePlan, error) {
+func buildRenamePlan(c *itemcore.Core, args []string, f renameFlags) (*itemcore.RenamePlan, error) {
 	if f.modeCount(len(args)) > 1 {
 		return nil, fmt.Errorf("conflicting options: choose exactly one of --slug/--no-slug/--reslug, <new-id>, --suffix, or --prefix")
 	}
@@ -165,7 +165,7 @@ func buildRenamePlan(c *beancore.Core, args []string, f renameFlags) (*beancore.
 	}
 
 	if f.suffixSet {
-		prefix := c.Config().Beans.Prefix
+		prefix := c.Config().Items.Prefix
 		if prefix != "" && !strings.HasPrefix(id, prefix) {
 			return nil, fmt.Errorf("bean %q does not start with the configured prefix %q; cannot apply --suffix", id, prefix)
 		}
@@ -186,7 +186,7 @@ func buildRenamePlan(c *beancore.Core, args []string, f renameFlags) (*beancore.
 // I01 (T07-review prelude): PlanRebrand already runs these guards, but only
 // at plan time. Between building the plan and actually applying it — most
 // notably while an interactive --yes confirm is waiting on the user — a
-// beans-serve process or a worktree can appear, and without a re-check the
+// lif-serve process or a worktree can appear, and without a re-check the
 // cascade swap would proceed regardless (TOCTOU). Re-planning immediately
 // before the apply call closes that window: PlanRebrand recomputes the plan
 // (which re-invokes both guards as its first act) right before the mutating
@@ -196,7 +196,7 @@ func buildRenamePlan(c *beancore.Core, args []string, f renameFlags) (*beancore.
 // server merges file-watcher updates for those non-cascading disk writes
 // per the Worktree State Architecture, so no guard applies) and pass
 // through unchanged.
-func applyRenameWithGuards(c *beancore.Core, plan *beancore.RenamePlan) error {
+func applyRenameWithGuards(c *itemcore.Core, plan *itemcore.RenamePlan) error {
 	if plan.Mode == "prefix" {
 		fresh, err := c.PlanRebrand(plan.NewPrefix)
 		if err != nil {
@@ -209,7 +209,7 @@ func applyRenameWithGuards(c *beancore.Core, plan *beancore.RenamePlan) error {
 
 // renderRenamePlan prints the plan as a human-readable summary, or as JSON
 // with --json.
-func renderRenamePlan(cmd *cobra.Command, plan *beancore.RenamePlan, jsonOut bool) error {
+func renderRenamePlan(cmd *cobra.Command, plan *itemcore.RenamePlan, jsonOut bool) error {
 	w := cmd.OutOrStdout()
 	if jsonOut {
 		enc := json.NewEncoder(w)

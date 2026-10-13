@@ -8,10 +8,10 @@ import (
 	"github.com/xRiErOS/lif/internal/gitutil"
 	"github.com/xRiErOS/lif/internal/output"
 	"github.com/xRiErOS/lif/internal/ui"
-	"github.com/xRiErOS/lif/pkg/bean"
-	"github.com/xRiErOS/lif/pkg/beancore"
-	"github.com/xRiErOS/lif/pkg/beangraph"
-	"github.com/xRiErOS/lif/pkg/beangraph/model"
+	"github.com/xRiErOS/lif/pkg/item"
+	"github.com/xRiErOS/lif/pkg/itemcore"
+	"github.com/xRiErOS/lif/pkg/itemgraph"
+	"github.com/xRiErOS/lif/pkg/itemgraph/model"
 	"github.com/spf13/cobra"
 )
 
@@ -33,7 +33,7 @@ written, so an unknown ID or a policy violation leaves the whole batch alone.`,
 	Args: cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
-		resolver := &beangraph.CoreResolver{Core: core}
+		resolver := &itemgraph.CoreResolver{Core: core}
 
 		targets, code, err := resolveBatchTargets(ctx, resolver, args)
 		if err != nil {
@@ -59,7 +59,7 @@ written, so an unknown ID or a policy violation leaves the whole batch alone.`,
 
 		// Resolve --commit once for the whole batch: ResolveCommit shells
 		// out and reads the working directory, and a ref like HEAD could
-		// otherwise resolve differently for beans later in the loop.
+		// otherwise resolve differently for items later in the loop.
 		if completeCommit != "" {
 			dir, err := os.Getwd()
 			if err != nil {
@@ -82,7 +82,7 @@ written, so an unknown ID or a policy violation leaves the whole batch alone.`,
 
 		// Handle optional summary. Resolved once, before the loop: with "-"
 		// this reads stdin, and stdin can only be drained once — inside the
-		// loop every bean after the first would get an empty section.
+		// loop every item after the first would get an empty section.
 		if completeSummary != "" {
 			appendText, err := resolveAppendContent(completeSummary)
 			if err != nil {
@@ -99,9 +99,9 @@ written, so an unknown ID or a policy violation leaves the whole batch alone.`,
 		}
 
 		// Apply the update
-		done := make([]*bean.Bean, 0, len(targets))
+		done := make([]*item.Item, 0, len(targets))
 		for _, target := range targets {
-			b, err := resolver.UpdateBean(ctx, target.ID, input, beancore.WithExtraOps(setMap, nil))
+			b, err := resolver.UpdateItem(ctx, target.ID, input, itemcore.WithExtraOps(setMap, nil))
 			if err != nil {
 				return emitBatchFailure(completeJSON, done, err)
 			}
@@ -109,8 +109,8 @@ written, so an unknown ID or a policy violation leaves the whole batch alone.`,
 		}
 
 		return emitBatchSuccess(completeJSON, done,
-			func(b *bean.Bean) error { return output.SuccessSingle(b) },
-			func(b *bean.Bean) string {
+			func(b *item.Item) error { return output.SuccessSingle(b) },
+			func(b *item.Item) string {
 				return ui.Success.Render("Completed ") + ui.ID.Render(b.ID) + " " + b.Title
 			})
 	},
@@ -121,9 +121,9 @@ func RegisterCompleteCmd(root *cobra.Command) {
 	completeCmd.Flags().StringVar(&completeCommit, "commit", "", "Git ref (HEAD, branch, tag, SHA) recorded in the configured commit field of every bean in the call")
 	completeCmd.Flags().StringArrayVar(&completeSet, "set", nil, "Set an extra front matter key as key=value on every bean in the call (can be repeated)")
 	completeCmd.Flags().BoolVar(&completeJSON, "json", false, "Output as JSON")
-	// complete excludes archived beans (already completed/scrapped) --
+	// complete excludes archived items (already completed/scrapped) --
 	// completing either again is not a valid action (beans-j5so).
-	completeCmd.ValidArgsFunction = completionUnboundedFiltered(func(b *bean.Bean) bool {
+	completeCmd.ValidArgsFunction = completionUnboundedFiltered(func(b *item.Item) bool {
 		return !isArchivedStatus(b.Status)
 	})
 	root.AddCommand(completeCmd)

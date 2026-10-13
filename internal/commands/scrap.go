@@ -6,9 +6,9 @@ import (
 
 	"github.com/xRiErOS/lif/internal/output"
 	"github.com/xRiErOS/lif/internal/ui"
-	"github.com/xRiErOS/lif/pkg/bean"
-	"github.com/xRiErOS/lif/pkg/beangraph"
-	"github.com/xRiErOS/lif/pkg/beangraph/model"
+	"github.com/xRiErOS/lif/pkg/item"
+	"github.com/xRiErOS/lif/pkg/itemgraph"
+	"github.com/xRiErOS/lif/pkg/itemgraph/model"
 	"github.com/spf13/cobra"
 )
 
@@ -33,7 +33,7 @@ the first bean is written, so an unknown ID leaves the whole batch alone.`,
 	Args: cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
-		resolver := &beangraph.CoreResolver{Core: core}
+		resolver := &itemgraph.CoreResolver{Core: core}
 
 		// Validate reason is not empty
 		if scrapReason == "" {
@@ -72,9 +72,9 @@ the first bean is written, so an unknown ID leaves the whole batch alone.`,
 		}
 
 		// Apply the update
-		done := make([]*bean.Bean, 0, len(targets))
+		done := make([]*item.Item, 0, len(targets))
 		for _, target := range targets {
-			b, err := resolver.UpdateBean(ctx, target.ID, input)
+			b, err := resolver.UpdateItem(ctx, target.ID, input)
 			if err != nil {
 				return emitBatchFailure(scrapJSON, done, err)
 			}
@@ -82,8 +82,8 @@ the first bean is written, so an unknown ID leaves the whole batch alone.`,
 		}
 
 		return emitBatchSuccess(scrapJSON, done,
-			func(b *bean.Bean) error { return output.SuccessSingle(b) },
-			func(b *bean.Bean) string {
+			func(b *item.Item) error { return output.SuccessSingle(b) },
+			func(b *item.Item) string {
 				return ui.Success.Render("Scrapped ") + ui.ID.Render(b.ID) + " " + b.Title
 			})
 	},
@@ -93,10 +93,10 @@ func RegisterScrapCmd(root *cobra.Command) {
 	scrapCmd.Flags().StringVar(&scrapReason, "reason", "", "Reason for scrapping, applied to every bean in the call (required)")
 	scrapCmd.MarkFlagRequired("reason")
 	scrapCmd.Flags().BoolVar(&scrapJSON, "json", false, "Output as JSON")
-	// scrap excludes beans already scrapped -- scrapping again is not a
-	// valid action. A completed bean stays offered: scrap remains a valid
-	// way to close out a completed bean differently (beans-j5so).
-	scrapCmd.ValidArgsFunction = completionUnboundedFiltered(func(b *bean.Bean) bool {
+	// scrap excludes items already scrapped -- scrapping again is not a
+	// valid action. A completed item stays offered: scrap remains a valid
+	// way to close out a completed item differently (beans-j5so).
+	scrapCmd.ValidArgsFunction = completionUnboundedFiltered(func(b *item.Item) bool {
 		return b.Status != scrapTargetStatus
 	})
 	root.AddCommand(scrapCmd)

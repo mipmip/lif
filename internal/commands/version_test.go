@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-// AC1: WHEN beans version runs THE CLI SHALL report whether the binary
+// AC1: WHEN items version runs THE CLI SHALL report whether the binary
 // preserves custom front matter keys.
 func TestVersionCmdTextReportsCustomFrontMatter(t *testing.T) {
 	oldJSON := versionJSON
@@ -28,7 +28,7 @@ func TestVersionCmdTextReportsCustomFrontMatter(t *testing.T) {
 	}
 }
 
-// AC2: WHEN beans version --json runs THE CLI SHALL report the same fact in a
+// AC2: WHEN items version --json runs THE CLI SHALL report the same fact in a
 // machine-readable field.
 func TestVersionCmdJSONReportsCustomFrontMatter(t *testing.T) {
 	oldJSON := versionJSON

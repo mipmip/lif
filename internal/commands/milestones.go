@@ -8,8 +8,8 @@ import (
 
 	"github.com/xRiErOS/lif/internal/output"
 	"github.com/xRiErOS/lif/internal/ui"
-	"github.com/xRiErOS/lif/pkg/bean"
-	"github.com/xRiErOS/lif/pkg/beangraph"
+	"github.com/xRiErOS/lif/pkg/item"
+	"github.com/xRiErOS/lif/pkg/itemgraph"
 	"github.com/spf13/cobra"
 )
 
@@ -21,19 +21,19 @@ var (
 	milestonesTags     bool
 )
 
-// milestoneEntry pairs a milestone bean with its descendant progress
+// milestoneEntry pairs a milestone item with its descendant progress
 // counts, per the descendantProgress percent-complete convention.
 type milestoneEntry struct {
-	Bean      *bean.Bean `json:"bean"`
+	Item      *item.Item `json:"bean"`
 	Completed int        `json:"completed"`
 	Total     int        `json:"total"`
 }
 
-// collectMilestones returns every bean on rank 1 whose type takes part in the
+// collectMilestones returns every item on rank 1 whose type takes part in the
 // aggregate views, filtered by archive status unless all is set.
-func collectMilestones(allBeans []*bean.Bean, all bool) []*bean.Bean {
-	var out []*bean.Bean
-	for _, b := range allBeans {
+func collectMilestones(allItems []*item.Item, all bool) []*item.Item {
+	var out []*item.Item
+	for _, b := range allItems {
 		if cfg.RankOf(b.Type) != 1 {
 			continue
 		}
@@ -53,10 +53,10 @@ func collectMilestones(allBeans []*bean.Bean, all bool) []*bean.Bean {
 // see into a hidden container or anything beneath it: a hidden epic nested
 // under a visible milestone must not contribute to that milestone's progress
 // count.
-func visibleChildrenIndex(children map[string][]*bean.Bean, hidden map[string]bool) map[string][]*bean.Bean {
-	out := make(map[string][]*bean.Bean, len(children))
+func visibleChildrenIndex(children map[string][]*item.Item, hidden map[string]bool) map[string][]*item.Item {
+	out := make(map[string][]*item.Item, len(children))
 	for parent, kids := range children {
-		var visible []*bean.Bean
+		var visible []*item.Item
 		for _, k := range kids {
 			if !hidden[k.ID] {
 				visible = append(visible, k)
@@ -84,25 +84,25 @@ var milestonesCmd = &cobra.Command{
 				"unknown --view %q: expected table or tree", milestonesView)
 		}
 		ctx := context.Background()
-		resolver := &beangraph.CoreResolver{Core: core}
+		resolver := &itemgraph.CoreResolver{Core: core}
 
-		allBeans, err := resolver.Beans(ctx, nil)
+		allItems, err := resolver.Items(ctx, nil)
 		if err != nil {
 			return cmdError(milestonesJSON, output.ErrValidation, "querying beans: %v", err)
 		}
 
-		milestones := collectMilestones(allBeans, milestonesAll)
+		milestones := collectMilestones(allItems, milestonesAll)
 
-		bean.SortByStatusPriorityAndType(milestones, cfg.StatusNames(), cfg.PriorityNames(), cfg.TypeNames())
+		item.SortByStatusPriorityAndType(milestones, cfg.StatusNames(), cfg.PriorityNames(), cfg.TypeNames())
 
-		idx := buildChildrenIndex(allBeans)
-		hidden := hiddenSubtrees(allBeans, idx)
+		idx := buildChildrenIndex(allItems)
+		hidden := hiddenSubtrees(allItems, idx)
 		visibleIdx := visibleChildrenIndex(idx, hidden)
 
 		entries := make([]milestoneEntry, 0, len(milestones))
 		for _, m := range milestones {
 			completed, total := descendantProgress(m.ID, visibleIdx)
-			entries = append(entries, milestoneEntry{Bean: m, Completed: completed, Total: total})
+			entries = append(entries, milestoneEntry{Item: m, Completed: completed, Total: total})
 		}
 
 		if milestonesJSON {
@@ -121,7 +121,7 @@ var milestonesCmd = &cobra.Command{
 		rows := make([]ui.Row, 0, len(entries))
 		for _, e := range entries {
 			rows = append(rows, ui.Row{
-				Bean:     e.Bean,
+				Item:     e.Item,
 				Progress: &ui.Progress{Done: e.Completed, Total: e.Total},
 			})
 		}

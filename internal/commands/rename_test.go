@@ -7,25 +7,25 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/xRiErOS/lif/pkg/beancore"
 	"github.com/xRiErOS/lif/pkg/config"
+	"github.com/xRiErOS/lif/pkg/itemcore"
 )
 
-func renameTestCore(t *testing.T, prefix string, files map[string]string) *beancore.Core {
+func renameTestCore(t *testing.T, prefix string, files map[string]string) *itemcore.Core {
 	t.Helper()
 	repo := t.TempDir()
-	beansDir := filepath.Join(repo, ".beans")
-	if err := os.MkdirAll(beansDir, 0755); err != nil {
+	itemsDir := filepath.Join(repo, ".beans")
+	if err := os.MkdirAll(itemsDir, 0755); err != nil {
 		t.Fatal(err)
 	}
 	for name, content := range files {
-		if err := os.WriteFile(filepath.Join(beansDir, name), []byte(content), 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(itemsDir, name), []byte(content), 0644); err != nil {
 			t.Fatal(err)
 		}
 	}
 	cfg := config.DefaultWithPrefix(prefix)
 	cfg.SetConfigDir(repo)
-	c := beancore.New(beansDir, cfg)
+	c := itemcore.New(itemsDir, cfg)
 	if err := c.Load(); err != nil {
 		t.Fatal(err)
 	}
@@ -113,7 +113,7 @@ func TestApplyRenameWithGuards_reChecksGuardsBeforeApply(t *testing.T) {
 		t.Fatal("expected refusal: guard must be re-checked immediately before apply (I01)")
 	}
 
-	// Bean must NOT have been rebranded on disk (guard closed the TOCTOU window).
+	// Item must NOT have been rebranded on disk (guard closed the TOCTOU window).
 	if _, err := c.Get("op-aaaa"); err == nil {
 		t.Error("apply proceeded despite guard re-check — TOCTOU window not closed")
 	}

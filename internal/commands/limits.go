@@ -15,7 +15,7 @@ const (
 	maxHeaderBytes = 1 << 20 // 1 MB
 
 	// maxRequestBodyBytes caps a single request body. GraphQL documents and
-	// bean bodies are far below this; agent image attachments are the largest
+	// item bodies are far below this; agent image attachments are the largest
 	// legitimate payload.
 	maxRequestBodyBytes = 10 << 20 // 10 MB
 

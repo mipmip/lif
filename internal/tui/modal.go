@@ -10,8 +10,8 @@ import (
 // pickerModalConfig holds configuration for rendering a picker modal
 type pickerModalConfig struct {
 	Title       string // e.g., "Select Status"
-	BeanTitle   string // the bean's title
-	BeanID      string // the bean's ID
+	ItemTitle   string // the item's title
+	ItemID      string // the item's ID
 	ListContent string // the rendered list
 	Description string // optional description shown below list
 	Width       int    // screen width
@@ -33,16 +33,16 @@ func renderPickerModal(cfg pickerModalConfig) string {
 
 	modalWidth := max(40, min(maxWidth, cfg.Width*widthPct/100))
 
-	// Header with bean title (truncated if needed)
+	// Header with item title (truncated if needed)
 	titleWidth := modalWidth - 4
-	beanTitle := cfg.BeanTitle
-	if len(beanTitle) > titleWidth {
-		beanTitle = beanTitle[:titleWidth-3] + "..."
+	itemTitle := cfg.ItemTitle
+	if len(itemTitle) > titleWidth {
+		itemTitle = itemTitle[:titleWidth-3] + "..."
 	}
-	header := lipgloss.NewStyle().Bold(true).Render(beanTitle)
+	header := lipgloss.NewStyle().Bold(true).Render(itemTitle)
 
-	// Subtitle with bean ID
-	subtitle := ui.Muted.Render(cfg.BeanID)
+	// Subtitle with item ID
+	subtitle := ui.Muted.Render(cfg.ItemID)
 
 	// Help footer
 	help := helpKeyStyle.Render("enter") + " " + helpStyle.Render("select") + "  " +

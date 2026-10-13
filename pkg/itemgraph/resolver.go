@@ -1,0 +1,138 @@
+package itemgraph
+
+import (
+	"fmt"
+
+	"github.com/xRiErOS/lif/pkg/item"
+	"github.com/xRiErOS/lif/pkg/itemcore"
+)
+
+// CoreResolver implements the core item GraphQL operations (CRUD, relationships,
+// filtering). It depends only on itemcore.Core and has no UI-specific dependencies
+// (agents, worktrees, terminals, etc.).
+//
+// CLI commands use CoreResolver directly. The serve command's full GraphQL resolver
+// embeds CoreResolver and adds UI-specific operations on top.
+type CoreResolver struct {
+	Core *itemcore.Core
+}
+
+// validateETag checks if the provided ifMatch etag matches the item's current etag.
+// Returns an error if validation fails or if require_if_match is enabled and no etag provided.
+func (r *CoreResolver) validateETag(b *item.Item, ifMatch *string) error {
+	cfg := r.Core.Config()
+	requireIfMatch := cfg != nil && cfg.Items.RequireIfMatch
+
+	// If require_if_match is enabled and no etag provided, reject
+	if requireIfMatch && (ifMatch == nil || *ifMatch == "") {
+		return &itemcore.ETagRequiredError{}
+	}
+
+	// If ifMatch provided, validate it
+	if ifMatch != nil && *ifMatch != "" {
+		currentETag := b.ETag()
+		if currentETag != *ifMatch {
+			return &itemcore.ETagMismatchError{Provided: *ifMatch, Current: currentETag}
+		}
+	}
+
+	return nil
+}
+
+// ValidateAndSetParent validates and sets the parent relationship.
+func (r *CoreResolver) ValidateAndSetParent(b *item.Item, parentID string) error {
+	if parentID == "" {
+		b.Parent = ""
+		return nil
+	}
+
+	// Normalise short ID to full ID
+	normalizedParent, _ := r.Core.NormalizeID(parentID)
+
+	// Validate parent type hierarchy
+	if err := r.Core.ValidateParent(b, normalizedParent); err != nil {
+		return err
+	}
+
+	// Check for cycles
+	if cycle := r.Core.DetectCycle(b.ID, "parent", normalizedParent); cycle != nil {
+		return fmt.Errorf("setting parent would create cycle: %v", cycle)
+	}
+
+	b.Parent = normalizedParent
+	return nil
+}
+
+// ValidateAndAddBlocking validates and adds blocking relationships.
+func (r *CoreResolver) ValidateAndAddBlocking(b *item.Item, targetIDs []string) error {
+	for _, targetID := range targetIDs {
+		// Normalise short ID to full ID
+		normalizedTargetID, ok := r.Core.NormalizeID(targetID)
+
+		// Validate: cannot block itself
+		if normalizedTargetID == b.ID {
+			return fmt.Errorf("bean cannot block itself")
+		}
+
+		// Validate: target must exist
+		if !ok {
+			return fmt.Errorf("blocking target bean not found: %s", targetID)
+		}
+
+		// Check for cycles in both directions
+		if cycle := r.Core.DetectCycle(b.ID, "blocking", normalizedTargetID); cycle != nil {
+			return fmt.Errorf("adding blocking relationship would create cycle: %v", cycle)
+		}
+		if cycle := r.Core.DetectCycle(normalizedTargetID, "blocked_by", b.ID); cycle != nil {
+			return fmt.Errorf("adding blocking relationship would create cycle: %v", cycle)
+		}
+
+		b.AddBlocking(normalizedTargetID)
+	}
+	return nil
+}
+
+// RemoveBlockingRelationships removes blocking relationships.
+func (r *CoreResolver) RemoveBlockingRelationships(b *item.Item, targetIDs []string) {
+	for _, targetID := range targetIDs {
+		normalizedTargetID, _ := r.Core.NormalizeID(targetID)
+		b.RemoveBlocking(normalizedTargetID)
+	}
+}
+
+// ValidateAndAddBlockedBy validates and adds blocked-by relationships.
+func (r *CoreResolver) ValidateAndAddBlockedBy(b *item.Item, targetIDs []string) error {
+	for _, targetID := range targetIDs {
+		// Normalise short ID to full ID
+		normalizedTargetID, ok := r.Core.NormalizeID(targetID)
+
+		// Validate: cannot be blocked by itself
+		if normalizedTargetID == b.ID {
+			return fmt.Errorf("bean cannot be blocked by itself")
+		}
+
+		// Validate: blocker must exist
+		if !ok {
+			return fmt.Errorf("blocker bean not found: %s", targetID)
+		}
+
+		// Check for cycles in both directions
+		if cycle := r.Core.DetectCycle(normalizedTargetID, "blocking", b.ID); cycle != nil {
+			return fmt.Errorf("adding blocked-by relationship would create cycle: %v", cycle)
+		}
+		if cycle := r.Core.DetectCycle(b.ID, "blocked_by", normalizedTargetID); cycle != nil {
+			return fmt.Errorf("adding blocked-by relationship would create cycle: %v", cycle)
+		}
+
+		b.AddBlockedBy(normalizedTargetID)
+	}
+	return nil
+}
+
+// RemoveBlockedByRelationships removes blocked-by relationships.
+func (r *CoreResolver) RemoveBlockedByRelationships(b *item.Item, targetIDs []string) {
+	for _, targetID := range targetIDs {
+		normalizedTargetID, _ := r.Core.NormalizeID(targetID)
+		b.RemoveBlockedBy(normalizedTargetID)
+	}
+}

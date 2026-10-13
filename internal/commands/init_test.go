@@ -21,9 +21,9 @@ func runInitCmd(t *testing.T, profile string, json bool) (dir string, err error)
 	dir = t.TempDir()
 	t.Chdir(dir)
 
-	origProfile, origJSON, origBeansPath := initProfile, initJSON, beansPath
+	origProfile, origJSON, origItemsPath := initProfile, initJSON, beansPath
 	initProfile, initJSON, beansPath = profile, json, ""
-	t.Cleanup(func() { initProfile, initJSON, beansPath = origProfile, origJSON, origBeansPath })
+	t.Cleanup(func() { initProfile, initJSON, beansPath = origProfile, origJSON, origItemsPath })
 
 	err = initCmd.RunE(initCmd, nil)
 	return dir, err
@@ -81,15 +81,15 @@ func TestInitCmdWithKnownProfileWritesTheExpandedTypesToDisk(t *testing.T) {
 	if got := loaded.ShortOf("bucket"); got != "K" {
 		t.Errorf("ShortOf(\"bucket\") = %q, want \"K\"", got)
 	}
-	if loaded.Beans.DefaultType != "task" {
-		t.Errorf("Beans.DefaultType = %q, want \"task\"", loaded.Beans.DefaultType)
+	if loaded.Items.DefaultType != "task" {
+		t.Errorf("Beans.DefaultType = %q, want \"task\"", loaded.Items.DefaultType)
 	}
 	if !loaded.TypesExclusive {
 		t.Error("TypesExclusive = false, want true - a profile must give a project exactly its own types")
 	}
 }
 
-// The path every existing user hits: beans init with no --profile at all
+// The path every existing user hits: lif init with no --profile at all
 // must not be affected by any of this task's changes - no types: block, no
 // types_exclusive key, same file as before this task existed.
 func TestInitCmdWithoutProfileWritesNoTypesBlock(t *testing.T) {

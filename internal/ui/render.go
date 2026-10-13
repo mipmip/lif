@@ -6,8 +6,8 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/xRiErOS/lif/pkg/bean"
 	"github.com/xRiErOS/lif/pkg/config"
+	"github.com/xRiErOS/lif/pkg/item"
 )
 
 // cellStyle is the colour and weight a row carries. Type word, id and title
@@ -18,10 +18,10 @@ type cellStyle struct {
 	hasColor bool
 }
 
-// styleFor resolves a bean's type into a colour and a weight. It is a thin
+// styleFor resolves an item's type into a colour and a weight. It is a thin
 // wrapper over typeStyle so cell rendering and the Legend derive the exact
 // same colour rule from the exact same function — see typeStyle.
-func styleFor(b *bean.Bean, cfg *config.Config) cellStyle {
+func styleFor(b *item.Item, cfg *config.Config) cellStyle {
 	return typeStyle(cfg.GetType(b.Type))
 }
 
@@ -52,7 +52,7 @@ func (s cellStyle) render(text string) string {
 
 // statusCell renders the status in the decided form. Archive statuses are not
 // bold: they are done, and done recedes.
-func statusCell(b *bean.Bean, c Columns, cfg *config.Config) string {
+func statusCell(b *item.Item, c Columns, cfg *config.Config) string {
 	text := PadRight(c.StatusText(b), c.Status)
 	colour := "overlay1"
 	archive := true
@@ -64,7 +64,7 @@ func statusCell(b *bean.Bean, c Columns, cfg *config.Config) string {
 }
 
 // prioCell renders the priority, or blank cells for normal.
-func prioCell(b *bean.Bean, c Columns, cfg *config.Config) string {
+func prioCell(b *item.Item, c Columns, cfg *config.Config) string {
 	text := c.PrioText(b)
 	if text == "" {
 		return strings.Repeat(" ", c.Prio)
@@ -188,7 +188,7 @@ func renderTable(rows []Row, title string, width int, showTags bool, cfg *config
 	// Flat: the tree is dropped, not hidden, so the columns mean what they say.
 	flat := make([]Row, 0, len(rows))
 	for _, r := range rows {
-		flat = append(flat, Row{Bean: r.Bean, Depth: 0, IsLast: true, Section: r.Section, Progress: r.Progress})
+		flat = append(flat, Row{Item: r.Item, Depth: 0, IsLast: true, Section: r.Section, Progress: r.Progress})
 	}
 
 	c := NewColumns(flat, width, showTags, cfg)
@@ -207,22 +207,22 @@ func renderTable(rows []Row, title string, width int, showTags bool, cfg *config
 		if r.Section != "" {
 			sb.WriteString("\n" + Muted.Render(r.Section) + "\n")
 		}
-		st := styleFor(r.Bean, cfg)
-		parts := WrapText(r.Bean.Title, c.Title)
+		st := styleFor(r.Item, cfg)
+		parts := WrapText(r.Item.Title, c.Title)
 
 		cells := []string{
-			st.render(PadRight(c.TypeText(r.Bean), c.Type)),
-			st.render(PadRight(r.Bean.ID, c.ID)),
+			st.render(PadRight(c.TypeText(r.Item), c.Type)),
+			st.render(PadRight(r.Item.ID, c.ID)),
 			st.render(parts[0]) + strings.Repeat(" ", max(0, c.Title-DisplayWidth(parts[0]))),
-			statusCell(r.Bean, c, cfg),
-			prioCell(r.Bean, c, cfg),
+			statusCell(r.Item, c, cfg),
+			prioCell(r.Item, c, cfg),
 		}
 		if c.ProgressWidth > 0 {
 			cells = append(cells, progressCell(r.Progress, c))
 		}
 		line := strings.Join(cells, gap)
 		if c.Tags > 0 {
-			if tc := tagCell(r.Bean.Tags, c.Tags); tc != "" {
+			if tc := tagCell(r.Item.Tags, c.Tags); tc != "" {
 				line += gap + tc
 			}
 		}
@@ -278,20 +278,20 @@ func renderTree(rows []Row, title string, width int, showTags bool, cfg *config.
 		if r.Section != "" {
 			sb.WriteString("\n" + Muted.Render(r.Section) + "\n")
 		}
-		st := styleFor(r.Bean, cfg)
+		st := styleFor(r.Item, cfg)
 		conn := r.Connector()
-		word := c.TypeText(r.Bean)
+		word := c.TypeText(r.Item)
 
 		lead := TreeLine.Render(conn) + st.render(word) +
 			strings.Repeat(" ", max(0, leadWidth-DisplayWidth(conn)-DisplayWidth(word)))
 
-		parts := WrapText(r.Bean.Title, body)
+		parts := WrapText(r.Item.Title, body)
 		// The ID is padded to c.ID, the width rightWidth() already charges
 		// the title for. Rendering it unpadded spent the title's cells and
 		// left everything after a short ID ragged (renderTable pads it).
 		// The line is TrimRight'ed below, so a trailing pad costs nothing.
-		right := statusCell(r.Bean, c, cfg) + gap + prioCell(r.Bean, c, cfg) + gap +
-			st.render(PadRight(r.Bean.ID, c.ID))
+		right := statusCell(r.Item, c, cfg) + gap + prioCell(r.Item, c, cfg) + gap +
+			st.render(PadRight(r.Item.ID, c.ID))
 		if c.ProgressWidth > 0 {
 			right += gap + progressCell(r.Progress, c)
 		}
@@ -299,7 +299,7 @@ func renderTree(rows []Row, title string, width int, showTags bool, cfg *config.
 		line := lead + st.render(parts[0]) +
 			strings.Repeat(" ", max(0, body-DisplayWidth(parts[0]))) + gap + right
 		if c.Tags > 0 {
-			if tc := tagCell(r.Bean.Tags, c.Tags); tc != "" {
+			if tc := tagCell(r.Item.Tags, c.Tags); tc != "" {
 				line += gap + tc
 			}
 		}

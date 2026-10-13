@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/xRiErOS/lif/internal/agent"
-	"github.com/xRiErOS/lif/pkg/beangraph/model"
+	"github.com/xRiErOS/lif/pkg/itemgraph/model"
 )
 
 // recvWithin returns the next value from ch, or fails the test.
@@ -75,10 +75,10 @@ func TestAgentSessionChangedResetsAfterClear(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	const beanID = "bean-cleared"
-	mgr.AddInfoMessage(beanID, "something happened")
+	const itemID = "bean-cleared"
+	mgr.AddInfoMessage(itemID, "something happened")
 
-	ch, err := sr.AgentSessionChanged(ctx, beanID)
+	ch, err := sr.AgentSessionChanged(ctx, itemID)
 	if err != nil {
 		t.Fatalf("AgentSessionChanged() error = %v", err)
 	}
@@ -88,7 +88,7 @@ func TestAgentSessionChangedResetsAfterClear(t *testing.T) {
 		t.Fatalf("initial state has %d messages, want 1", len(first.Messages))
 	}
 
-	if err := mgr.ClearSession(beanID); err != nil {
+	if err := mgr.ClearSession(itemID); err != nil {
 		t.Fatalf("ClearSession() error = %v", err)
 	}
 
@@ -96,8 +96,8 @@ func TestAgentSessionChangedResetsAfterClear(t *testing.T) {
 	if after == nil {
 		t.Fatal("received a nil session after the clear")
 	}
-	if after.BeanID != beanID {
-		t.Errorf("BeanID = %q, want %q", after.BeanID, beanID)
+	if after.BeanID != itemID {
+		t.Errorf("BeanID = %q, want %q", after.BeanID, itemID)
 	}
 	if after.Status != model.AgentSessionStatusIdle {
 		t.Errorf("Status = %v, want %v", after.Status, model.AgentSessionStatusIdle)
@@ -137,15 +137,15 @@ func TestSubscriptionsStopOnContextCancel(t *testing.T) {
 		sr := resolver.Subscription()
 		ctx, cancel := context.WithCancel(context.Background())
 
-		const beanID = "bean-cancel"
-		ch, err := sr.AgentSessionChanged(ctx, beanID)
+		const itemID = "bean-cancel"
+		ch, err := sr.AgentSessionChanged(ctx, itemID)
 		if err != nil {
 			t.Fatalf("AgentSessionChanged() error = %v", err)
 		}
 
 		cancel()
 		// Nudge the goroutine so it observes the cancelled context.
-		mgr.AddInfoMessage(beanID, "after cancel")
+		mgr.AddInfoMessage(itemID, "after cancel")
 
 		for {
 			v, ok := recvWithin(t, ch, 2*time.Second, "the channel to close")
@@ -157,21 +157,21 @@ func TestSubscriptionsStopOnContextCancel(t *testing.T) {
 	})
 }
 
-// TestBeanChangedResyncsAfterOverflow covers the recovery path for a client
-// that fell behind: beancore drops its events, marks it for resync, and the
+// TestItemChangedResyncsAfterOverflow covers the recovery path for a client
+// that fell behind: itemcore drops its events, marks it for resync, and the
 // resolver answers with a fresh full snapshot instead of leaving the client on
 // an incomplete history.
-func TestBeanChangedResyncsAfterOverflow(t *testing.T) {
+func TestItemChangedResyncsAfterOverflow(t *testing.T) {
 	resolver, core := setupTestResolver(t)
 	sr := resolver.Subscription()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// Enough beans that archiving them all outruns both buffers (16 in
-	// beancore, 64 in the resolver).
-	const beanCount = 200
-	for i := range beanCount {
-		createTestBean(t, core, fmt.Sprintf("overflow-%03d", i), fmt.Sprintf("Bean %d", i), "todo")
+	// Enough items that archiving them all outruns both buffers (16 in
+	// itemcore, 64 in the resolver).
+	const itemCount = 200
+	for i := range itemCount {
+		createTestItem(t, core, fmt.Sprintf("overflow-%03d", i), fmt.Sprintf("Bean %d", i), "todo")
 	}
 
 	ch, err := sr.BeanChanged(ctx, nil)
@@ -180,7 +180,7 @@ func TestBeanChangedResyncsAfterOverflow(t *testing.T) {
 	}
 
 	// Produce events without reading any of them.
-	for i := range beanCount {
+	for i := range itemCount {
 		if err := core.Archive(fmt.Sprintf("overflow-%03d", i)); err != nil {
 			t.Fatalf("Archive() error = %v", err)
 		}

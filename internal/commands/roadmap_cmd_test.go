@@ -13,23 +13,23 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/xRiErOS/lif/internal/output"
 	"github.com/xRiErOS/lif/internal/ui"
-	"github.com/xRiErOS/lif/pkg/bean"
-	"github.com/xRiErOS/lif/pkg/beancore"
 	"github.com/xRiErOS/lif/pkg/config"
+	"github.com/xRiErOS/lif/pkg/item"
+	"github.com/xRiErOS/lif/pkg/itemcore"
 )
 
 // setupRoadmapCmdTest installs a throwaway core+config into the package
-// globals roadmapCmd.RunE reads and returns the core for bean creation.
-func setupRoadmapCmdTest(t *testing.T) *beancore.Core {
+// globals roadmapCmd.RunE reads and returns the core for item creation.
+func setupRoadmapCmdTest(t *testing.T) *itemcore.Core {
 	t.Helper()
 	tmpDir := t.TempDir()
-	beansDir := filepath.Join(tmpDir, ".beans")
-	if err := os.MkdirAll(beansDir, 0755); err != nil {
+	itemsDir := filepath.Join(tmpDir, ".beans")
+	if err := os.MkdirAll(itemsDir, 0755); err != nil {
 		t.Fatalf("failed to create test .beans dir: %v", err)
 	}
 
 	testCfg := config.Default()
-	testCore := beancore.New(beansDir, testCfg)
+	testCore := itemcore.New(itemsDir, testCfg)
 	if err := testCore.Load(); err != nil {
 		t.Fatalf("failed to load core: %v", err)
 	}
@@ -67,15 +67,15 @@ func TestRoadmapCmdJSONScopesToEpicRoot(t *testing.T) {
 	testCore := setupRoadmapCmdTest(t)
 	resetRoadmapFlags(t)
 
-	epic := &bean.Bean{ID: "beans-epic1", Slug: bean.Slugify("Auth"), Title: "Auth", Status: "todo", Type: "epic"}
+	epic := &item.Item{ID: "beans-epic1", Slug: item.Slugify("Auth"), Title: "Auth", Status: "todo", Type: "epic"}
 	if err := testCore.Create(epic); err != nil {
 		t.Fatalf("core.Create(epic) error = %v", err)
 	}
-	task := &bean.Bean{ID: "beans-task1", Slug: bean.Slugify("Login"), Title: "Login", Status: "todo", Type: "task", Parent: epic.ID}
+	task := &item.Item{ID: "beans-task1", Slug: item.Slugify("Login"), Title: "Login", Status: "todo", Type: "task", Parent: epic.ID}
 	if err := testCore.Create(task); err != nil {
 		t.Fatalf("core.Create(task) error = %v", err)
 	}
-	milestone := &bean.Bean{ID: "beans-mile1", Slug: bean.Slugify("v1"), Title: "v1", Status: "todo", Type: "milestone"}
+	milestone := &item.Item{ID: "beans-mile1", Slug: item.Slugify("v1"), Title: "v1", Status: "todo", Type: "milestone"}
 	if err := testCore.Create(milestone); err != nil {
 		t.Fatalf("core.Create(milestone) error = %v", err)
 	}
@@ -107,15 +107,15 @@ func TestRoadmapCmdJSONScopesToMilestoneRoot(t *testing.T) {
 	testCore := setupRoadmapCmdTest(t)
 	resetRoadmapFlags(t)
 
-	milestone := &bean.Bean{ID: "beans-mile1", Slug: bean.Slugify("v1"), Title: "v1", Status: "todo", Type: "milestone"}
+	milestone := &item.Item{ID: "beans-mile1", Slug: item.Slugify("v1"), Title: "v1", Status: "todo", Type: "milestone"}
 	if err := testCore.Create(milestone); err != nil {
 		t.Fatalf("core.Create(milestone) error = %v", err)
 	}
-	task := &bean.Bean{ID: "beans-task1", Slug: bean.Slugify("Docs"), Title: "Docs", Status: "todo", Type: "task", Parent: milestone.ID}
+	task := &item.Item{ID: "beans-task1", Slug: item.Slugify("Docs"), Title: "Docs", Status: "todo", Type: "task", Parent: milestone.ID}
 	if err := testCore.Create(task); err != nil {
 		t.Fatalf("core.Create(task) error = %v", err)
 	}
-	otherMilestone := &bean.Bean{ID: "beans-mile2", Slug: bean.Slugify("v2"), Title: "v2", Status: "todo", Type: "milestone"}
+	otherMilestone := &item.Item{ID: "beans-mile2", Slug: item.Slugify("v2"), Title: "v2", Status: "todo", Type: "milestone"}
 	if err := testCore.Create(otherMilestone); err != nil {
 		t.Fatalf("core.Create(otherMilestone) error = %v", err)
 	}
@@ -144,7 +144,7 @@ func TestRoadmapCmdRejectsNonContainerRootType(t *testing.T) {
 	testCore := setupRoadmapCmdTest(t)
 	resetRoadmapFlags(t)
 
-	task := &bean.Bean{ID: "beans-task1", Slug: bean.Slugify("Just a task"), Title: "Just a task", Status: "todo", Type: "task"}
+	task := &item.Item{ID: "beans-task1", Slug: item.Slugify("Just a task"), Title: "Just a task", Status: "todo", Type: "task"}
 	if err := testCore.Create(task); err != nil {
 		t.Fatalf("core.Create(task) error = %v", err)
 	}
@@ -175,7 +175,7 @@ func TestRoadmapCmdRejectsStatusFlagWithRootID(t *testing.T) {
 	testCore := setupRoadmapCmdTest(t)
 	resetRoadmapFlags(t)
 
-	milestone := &bean.Bean{ID: "beans-mile1", Slug: bean.Slugify("v1"), Title: "v1", Status: "todo", Type: "milestone"}
+	milestone := &item.Item{ID: "beans-mile1", Slug: item.Slugify("v1"), Title: "v1", Status: "todo", Type: "milestone"}
 	if err := testCore.Create(milestone); err != nil {
 		t.Fatalf("core.Create(milestone) error = %v", err)
 	}
@@ -300,17 +300,17 @@ func TestRoadmapCmdTableViewRendersHeaderNoConnectors(t *testing.T) {
 // what carries the grouping across that flattening, per ui/columns.go).
 func roadmapGroupingFixture() *roadmapData {
 	now := time.Now()
-	m1 := &bean.Bean{ID: "beans-m1", Type: "milestone", Title: "v1.0", Status: "todo", CreatedAt: &now, Path: "m1--v10.md"}
-	m2 := &bean.Bean{ID: "beans-m2", Type: "milestone", Title: "v2.0", Status: "todo", CreatedAt: &now, Path: "m2--v20.md"}
-	t1 := &bean.Bean{ID: "beans-t1", Type: "task", Title: "In v1", Status: "todo", Path: "t1--in-v1.md"}
-	t2 := &bean.Bean{ID: "beans-t2", Type: "task", Title: "In v2", Status: "todo", Path: "t2--in-v2.md"}
-	orphan := &bean.Bean{ID: "beans-o1", Type: "task", Title: "Orphan", Status: "todo", Path: "o1--orphan.md"}
+	m1 := &item.Item{ID: "beans-m1", Type: "milestone", Title: "v1.0", Status: "todo", CreatedAt: &now, Path: "m1--v10.md"}
+	m2 := &item.Item{ID: "beans-m2", Type: "milestone", Title: "v2.0", Status: "todo", CreatedAt: &now, Path: "m2--v20.md"}
+	t1 := &item.Item{ID: "beans-t1", Type: "task", Title: "In v1", Status: "todo", Path: "t1--in-v1.md"}
+	t2 := &item.Item{ID: "beans-t2", Type: "task", Title: "In v2", Status: "todo", Path: "t2--in-v2.md"}
+	orphan := &item.Item{ID: "beans-o1", Type: "task", Title: "Orphan", Status: "todo", Path: "o1--orphan.md"}
 	return &roadmapData{
 		Milestones: []milestoneGroup{
-			{Milestone: m1, Other: []*bean.Bean{t1}},
-			{Milestone: m2, Other: []*bean.Bean{t2}},
+			{Milestone: m1, Other: []*item.Item{t1}},
+			{Milestone: m2, Other: []*item.Item{t2}},
 		},
-		Unscheduled: &unscheduledGroup{Other: []*bean.Bean{orphan}},
+		Unscheduled: &unscheduledGroup{Other: []*item.Item{orphan}},
 	}
 }
 
@@ -348,16 +348,16 @@ func TestRoadmapCmdMilestoneGroupingSurvivesTableFlattening(t *testing.T) {
 // titles and tags so the column budget is actually under pressure here.
 func TestRoadmapOutputNoLineExceedsWidth(t *testing.T) {
 	now := time.Now()
-	m := &bean.Bean{ID: "beans-m1", Type: "milestone", Title: "A moderately long milestone title", Status: "todo", CreatedAt: &now, Tags: []string{"backend", "urgent"}, Path: "m1.md"}
-	e := &bean.Bean{ID: "beans-e1", Type: "epic", Title: "A moderately long epic title", Status: "todo", Tags: []string{"auth"}, Path: "e1.md"}
-	f := &bean.Bean{ID: "beans-f1", Type: "feature", Title: "A moderately long feature title", Status: "todo", Priority: "high", Path: "f1.md"}
-	leaf := &bean.Bean{ID: "beans-t1", Type: "task", Title: "A moderately long leaf title", Status: "in-progress", Priority: "critical", Tags: []string{"blocked"}, Path: "t1.md"}
+	m := &item.Item{ID: "beans-m1", Type: "milestone", Title: "A moderately long milestone title", Status: "todo", CreatedAt: &now, Tags: []string{"backend", "urgent"}, Path: "m1.md"}
+	e := &item.Item{ID: "beans-e1", Type: "epic", Title: "A moderately long epic title", Status: "todo", Tags: []string{"auth"}, Path: "e1.md"}
+	f := &item.Item{ID: "beans-f1", Type: "feature", Title: "A moderately long feature title", Status: "todo", Priority: "high", Path: "f1.md"}
+	leaf := &item.Item{ID: "beans-t1", Type: "task", Title: "A moderately long leaf title", Status: "in-progress", Priority: "critical", Tags: []string{"blocked"}, Path: "t1.md"}
 	data := &roadmapData{
 		Milestones: []milestoneGroup{
 			{
 				Milestone: m,
 				Containers: []roadmapContainer{
-					{Epic: &epicGroup{Epic: e, Features: []featureGroup{{Feature: f, Items: []*bean.Bean{leaf}}}}},
+					{Epic: &epicGroup{Epic: e, Features: []featureGroup{{Feature: f, Items: []*item.Item{leaf}}}}},
 				},
 			},
 		},
@@ -471,30 +471,30 @@ func depthOnlyCmd(t *testing.T) *cobra.Command {
 
 // roadmapJSONErrorCases enumerates every RunE failure path (beans-9vqb
 // Acceptance: "every failure path ... emits the standard JSON error
-// envelope"), not only the two the bean's Guard section names as the
+// envelope"), not only the two the item's Guard section names as the
 // minimum. Each row's wantCode also fixes the error-code convention this
-// fix must follow: ErrNotFound for a missing root bean (matching
+// fix must follow: ErrNotFound for a missing root item (matching
 // progress.go/update.go/delete.go/order.go's "bean not found" handling),
 // ErrValidation for every flag/shape validation (matching
-// list.go/milestones.go/next.go/progress.go's "querying beans" and
+// list.go/milestones.go/next.go/progress.go's "querying items" and
 // unknown-flag-value handling). cmd defaults to roadmapCmd when nil; only
 // the depth case needs an isolated command (see depthOnlyCmd).
 func roadmapJSONErrorCases(t *testing.T) []struct {
 	name     string
 	cmd      func(t *testing.T) *cobra.Command
-	args     func(core *beancore.Core) []string
+	args     func(core *itemcore.Core) []string
 	wantCode string
 } {
 	t.Helper()
 	return []struct {
 		name     string
 		cmd      func(t *testing.T) *cobra.Command
-		args     func(core *beancore.Core) []string
+		args     func(core *itemcore.Core) []string
 		wantCode string
 	}{
 		{
 			name: "invalid view",
-			args: func(core *beancore.Core) []string {
+			args: func(core *itemcore.Core) []string {
 				roadmapView = "bogus"
 				return nil
 			},
@@ -502,7 +502,7 @@ func roadmapJSONErrorCases(t *testing.T) []struct {
 		},
 		{
 			name: "invalid format",
-			args: func(core *beancore.Core) []string {
+			args: func(core *itemcore.Core) []string {
 				roadmapFormat = "bogus"
 				return nil
 			},
@@ -511,15 +511,15 @@ func roadmapJSONErrorCases(t *testing.T) []struct {
 		{
 			name: "invalid depth",
 			cmd:  depthOnlyCmd,
-			args: func(core *beancore.Core) []string {
+			args: func(core *itemcore.Core) []string {
 				return nil
 			},
 			wantCode: output.ErrValidation,
 		},
 		{
 			name: "status mutex with root id",
-			args: func(core *beancore.Core) []string {
-				root := &bean.Bean{ID: "beans-mutex1", Slug: bean.Slugify("Root"), Title: "Root", Status: "todo", Type: "milestone"}
+			args: func(core *itemcore.Core) []string {
+				root := &item.Item{ID: "beans-mutex1", Slug: item.Slugify("Root"), Title: "Root", Status: "todo", Type: "milestone"}
 				if err := core.Create(root); err != nil {
 					t.Fatalf("core.Create(root) error = %v", err)
 				}
@@ -530,15 +530,15 @@ func roadmapJSONErrorCases(t *testing.T) []struct {
 		},
 		{
 			name: "unknown root id",
-			args: func(core *beancore.Core) []string {
+			args: func(core *itemcore.Core) []string {
 				return []string{"beans-doesnotexist"}
 			},
 			wantCode: output.ErrNotFound,
 		},
 		{
 			name: "invalid root type",
-			args: func(core *beancore.Core) []string {
-				task := &bean.Bean{ID: "beans-badroot1", Slug: bean.Slugify("Just a task"), Title: "Just a task", Status: "todo", Type: "task"}
+			args: func(core *itemcore.Core) []string {
+				task := &item.Item{ID: "beans-badroot1", Slug: item.Slugify("Just a task"), Title: "Just a task", Status: "todo", Type: "task"}
 				if err := core.Create(task); err != nil {
 					t.Fatalf("core.Create(task) error = %v", err)
 				}

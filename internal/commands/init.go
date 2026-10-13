@@ -10,8 +10,8 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/xRiErOS/lif/internal/gitutil"
 	"github.com/xRiErOS/lif/internal/output"
-	"github.com/xRiErOS/lif/pkg/beancore"
 	"github.com/xRiErOS/lif/pkg/config"
+	"github.com/xRiErOS/lif/pkg/itemcore"
 )
 
 var initJSON bool
@@ -24,7 +24,7 @@ var initCmd = &cobra.Command{
 	Long:  `Creates a .beans directory and .beans.yml config file in the current directory.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		var projectDir string
-		var beansDir string
+		var itemsDir string
 		var dirName string
 
 		if beansPath != "" && initProfile != "" {
@@ -35,7 +35,7 @@ var initCmd = &cobra.Command{
 			return errors.New(msg)
 		}
 
-		// Resolve the profile before any side effect (beancore.Init creates
+		// Resolve the profile before any side effect (itemcore.Init creates
 		// .beans/ and its .gitignore): a typo must not leave a half-initialised
 		// project behind.
 		var profileTypes []config.TypeOverride
@@ -52,10 +52,10 @@ var initCmd = &cobra.Command{
 		}
 
 		if beansPath != "" {
-			// Use explicit path for beans directory
-			beansDir = beansPath
+			// Use explicit path for items directory
+			itemsDir = beansPath
 			// Create the directory using Core.Init to set up .gitignore
-			core := beancore.New(beansDir, nil)
+			core := itemcore.New(itemsDir, nil)
 			if err := core.Init(); err != nil {
 				if initJSON {
 					return output.Error(output.ErrFileError, err.Error())
@@ -75,7 +75,7 @@ var initCmd = &cobra.Command{
 				return err
 			}
 
-			if err := beancore.Init(dir); err != nil {
+			if err := itemcore.Init(dir); err != nil {
 				if initJSON {
 					return output.Error(output.ErrFileError, err.Error())
 				}
@@ -83,7 +83,7 @@ var initCmd = &cobra.Command{
 			}
 
 			projectDir = dir
-			beansDir = filepath.Join(dir, ".beans")
+			itemsDir = filepath.Join(dir, ".beans")
 			dirName = filepath.Base(dir)
 
 			// Create default config file with directory name as prefix
@@ -97,7 +97,7 @@ var initCmd = &cobra.Command{
 				defaultCfg.TypesExclusive = true
 				// The default type must exist in the chosen profile: todo has no
 				// milestone, complex has no plain feature leaf.
-				defaultCfg.Beans.DefaultType = "task"
+				defaultCfg.Items.DefaultType = "task"
 			}
 			defaultCfg.SetConfigDir(projectDir)
 
@@ -114,7 +114,7 @@ var initCmd = &cobra.Command{
 		}
 
 		if initJSON {
-			return output.SuccessInit(beansDir)
+			return output.SuccessInit(itemsDir)
 		}
 
 		fmt.Println("Initialized beans project")

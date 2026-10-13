@@ -11,7 +11,7 @@ import (
 
 // initTestRepo creates a temporary git repo with an initial commit,
 // a .beans directory inside it, and a separate worktree root directory.
-func initTestRepo(t *testing.T) (repoDir, beansDir, worktreeRoot string) {
+func initTestRepo(t *testing.T) (repoDir, itemsDir, worktreeRoot string) {
 	t.Helper()
 	dir := t.TempDir()
 
@@ -466,11 +466,11 @@ func TestSubscription(t *testing.T) {
 	}
 }
 
-func TestDetectBeanIDs(t *testing.T) {
-	repoDir, beansDir, wtRoot := initTestRepo(t)
+func TestDetectItemIDs(t *testing.T) {
+	repoDir, itemsDir, wtRoot := initTestRepo(t)
 
 	// Commit a file in .beans so the directory exists on main
-	if err := os.WriteFile(filepath.Join(beansDir, ".gitkeep"), []byte(""), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(itemsDir, ".gitkeep"), []byte(""), 0644); err != nil {
 		t.Fatalf("WriteFile: %v", err)
 	}
 	gitRun(t, repoDir, "add", ".beans/.gitkeep")
@@ -484,24 +484,24 @@ func TestDetectBeanIDs(t *testing.T) {
 		t.Fatalf("Create: %v", err)
 	}
 
-	// Create bean files in the worktree's .beans/ directory
-	wtBeansDir := filepath.Join(wt.Path, ".beans")
-	if err := os.MkdirAll(wtBeansDir, 0755); err != nil {
+	// Create item files in the worktree's .beans/ directory
+	wtItemsDir := filepath.Join(wt.Path, ".beans")
+	if err := os.MkdirAll(wtItemsDir, 0755); err != nil {
 		t.Fatalf("MkdirAll: %v", err)
 	}
 
-	// Add a bean file
-	if err := os.WriteFile(filepath.Join(wtBeansDir, "beans-abc1--my-task.md"), []byte("---\ntitle: My Task\n---\n"), 0644); err != nil {
+	// Add an item file
+	if err := os.WriteFile(filepath.Join(wtItemsDir, "beans-abc1--my-task.md"), []byte("---\ntitle: My Task\n---\n"), 0644); err != nil {
 		t.Fatalf("WriteFile: %v", err)
 	}
 
-	// Add another bean file
-	if err := os.WriteFile(filepath.Join(wtBeansDir, "beans-def2--another-task.md"), []byte("---\ntitle: Another Task\n---\n"), 0644); err != nil {
+	// Add another item file
+	if err := os.WriteFile(filepath.Join(wtItemsDir, "beans-def2--another-task.md"), []byte("---\ntitle: Another Task\n---\n"), 0644); err != nil {
 		t.Fatalf("WriteFile: %v", err)
 	}
 
 	// Add a file in .beans/.worktrees/ (should be excluded)
-	wtSubDir := filepath.Join(wtBeansDir, ".worktrees")
+	wtSubDir := filepath.Join(wtItemsDir, ".worktrees")
 	if err := os.MkdirAll(wtSubDir, 0755); err != nil {
 		t.Fatalf("MkdirAll: %v", err)
 	}
@@ -510,7 +510,7 @@ func TestDetectBeanIDs(t *testing.T) {
 	}
 
 	// Add a file in .beans/archive/ (should be excluded)
-	archiveDir := filepath.Join(wtBeansDir, "archive")
+	archiveDir := filepath.Join(wtItemsDir, "archive")
 	if err := os.MkdirAll(archiveDir, 0755); err != nil {
 		t.Fatalf("MkdirAll: %v", err)
 	}
@@ -519,17 +519,17 @@ func TestDetectBeanIDs(t *testing.T) {
 	}
 
 	// Add a non-.md file (should be excluded)
-	if err := os.WriteFile(filepath.Join(wtBeansDir, "config.yaml"), []byte("key: val"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(wtItemsDir, "config.yaml"), []byte("key: val"), 0644); err != nil {
 		t.Fatalf("WriteFile: %v", err)
 	}
 
-	// Stage and commit the bean files
+	// Stage and commit the item files
 	gitRun(t, wt.Path, "add", "-A")
 	gitRun(t, wt.Path, "commit", "-m", "add beans")
 
-	ids := mgr.DetectBeanIDs(wt.Path)
+	ids := mgr.DetectItemIDs(wt.Path)
 
-	// Should find exactly the two bean files, sorted
+	// Should find exactly the two item files, sorted
 	if len(ids) != 2 {
 		t.Fatalf("got %d IDs, want 2: %v", len(ids), ids)
 	}
@@ -541,27 +541,27 @@ func TestDetectBeanIDs(t *testing.T) {
 	}
 }
 
-func TestDetectBeanIDs_NoChanges(t *testing.T) {
+func TestDetectItemIDs_NoChanges(t *testing.T) {
 	repoDir, _, wtRoot := initTestRepo(t)
 	mgr := NewManager(repoDir, wtRoot, "main", "")
 
-	// Create a worktree with no bean changes
+	// Create a worktree with no item changes
 	wt, err := mgr.Create("no-changes")
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
 
-	ids := mgr.DetectBeanIDs(wt.Path)
+	ids := mgr.DetectItemIDs(wt.Path)
 	if len(ids) != 0 {
 		t.Errorf("expected 0 IDs for worktree with no changes, got %d: %v", len(ids), ids)
 	}
 }
 
-func TestDetectBeanIDs_UncommittedChanges(t *testing.T) {
-	repoDir, beansDir, wtRoot := initTestRepo(t)
+func TestDetectItemIDs_UncommittedChanges(t *testing.T) {
+	repoDir, itemsDir, wtRoot := initTestRepo(t)
 
 	// Commit a file in .beans so the directory exists on main
-	if err := os.WriteFile(filepath.Join(beansDir, ".gitkeep"), []byte(""), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(itemsDir, ".gitkeep"), []byte(""), 0644); err != nil {
 		t.Fatalf("WriteFile: %v", err)
 	}
 	gitRun(t, repoDir, "add", ".beans/.gitkeep")
@@ -574,18 +574,18 @@ func TestDetectBeanIDs_UncommittedChanges(t *testing.T) {
 		t.Fatalf("Create: %v", err)
 	}
 
-	// Add an untracked bean file (not committed)
-	wtBeansDir := filepath.Join(wt.Path, ".beans")
-	if err := os.MkdirAll(wtBeansDir, 0755); err != nil {
+	// Add an untracked item file (not committed)
+	wtItemsDir := filepath.Join(wt.Path, ".beans")
+	if err := os.MkdirAll(wtItemsDir, 0755); err != nil {
 		t.Fatalf("MkdirAll: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(wtBeansDir, "beans-xyz9--untracked.md"), []byte("---\ntitle: Untracked\n---\n"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(wtItemsDir, "beans-xyz9--untracked.md"), []byte("---\ntitle: Untracked\n---\n"), 0644); err != nil {
 		t.Fatalf("WriteFile: %v", err)
 	}
 
-	ids := mgr.DetectBeanIDs(wt.Path)
+	ids := mgr.DetectItemIDs(wt.Path)
 
-	// Should detect untracked bean files too
+	// Should detect untracked item files too
 	if len(ids) != 1 {
 		t.Fatalf("got %d IDs, want 1: %v", len(ids), ids)
 	}
@@ -594,11 +594,11 @@ func TestDetectBeanIDs_UncommittedChanges(t *testing.T) {
 	}
 }
 
-func TestDetectBeanIDs_DeletedFile(t *testing.T) {
-	repoDir, beansDir, wtRoot := initTestRepo(t)
+func TestDetectItemIDs_DeletedFile(t *testing.T) {
+	repoDir, itemsDir, wtRoot := initTestRepo(t)
 
-	// Create a bean on main
-	if err := os.WriteFile(filepath.Join(beansDir, "beans-del1--to-delete.md"), []byte("---\ntitle: To Delete\nstatus: todo\ntype: task\n---\n"), 0644); err != nil {
+	// Create an item on main
+	if err := os.WriteFile(filepath.Join(itemsDir, "beans-del1--to-delete.md"), []byte("---\ntitle: To Delete\nstatus: todo\ntype: task\n---\n"), 0644); err != nil {
 		t.Fatalf("WriteFile: %v", err)
 	}
 	gitRun(t, repoDir, "add", "-A")
@@ -611,17 +611,17 @@ func TestDetectBeanIDs_DeletedFile(t *testing.T) {
 		t.Fatalf("Create: %v", err)
 	}
 
-	// Delete the bean file in the worktree
-	wtBeanFile := filepath.Join(wt.Path, ".beans", "beans-del1--to-delete.md")
-	if err := os.Remove(wtBeanFile); err != nil {
+	// Delete the item file in the worktree
+	wtItemFile := filepath.Join(wt.Path, ".beans", "beans-del1--to-delete.md")
+	if err := os.Remove(wtItemFile); err != nil {
 		t.Fatalf("Remove: %v", err)
 	}
 	gitRun(t, wt.Path, "add", "-A")
 	gitRun(t, wt.Path, "commit", "-m", "delete bean")
 
-	ids := mgr.DetectBeanIDs(wt.Path)
+	ids := mgr.DetectItemIDs(wt.Path)
 
-	// Should NOT include the deleted bean
+	// Should NOT include the deleted item
 	if len(ids) != 0 {
 		t.Errorf("expected 0 IDs for deleted bean, got %d: %v", len(ids), ids)
 	}

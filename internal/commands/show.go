@@ -11,10 +11,10 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/xRiErOS/lif/internal/output"
 	"github.com/xRiErOS/lif/internal/ui"
-	"github.com/xRiErOS/lif/pkg/bean"
-	"github.com/xRiErOS/lif/pkg/beangraph"
-	"github.com/xRiErOS/lif/pkg/beangraph/model"
 	"github.com/xRiErOS/lif/pkg/config"
+	"github.com/xRiErOS/lif/pkg/item"
+	"github.com/xRiErOS/lif/pkg/itemgraph"
+	"github.com/xRiErOS/lif/pkg/itemgraph/model"
 	"golang.org/x/term"
 	"gopkg.in/yaml.v3"
 )
@@ -70,10 +70,10 @@ filter that leaves nothing to show is an error.`,
 		return nil
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		resolver := &beangraph.CoreResolver{Core: core}
+		resolver := &itemgraph.CoreResolver{Core: core}
 
-		// Collect all beans
-		var beans []*bean.Bean
+		// Collect all items
+		var items []*item.Item
 		ids := args
 		if showParent != "" {
 			children, err := showChildIDs(resolver, showParent)
@@ -91,7 +91,7 @@ filter that leaves nothing to show is an error.`,
 				continue
 			}
 			seen[id] = true
-			b, err := resolver.Bean(context.Background(), id)
+			b, err := resolver.Item(context.Background(), id)
 			if err != nil {
 				if showJSON {
 					return output.Error(output.ErrNotFound, err.Error())
@@ -104,15 +104,15 @@ filter that leaves nothing to show is an error.`,
 				}
 				return fmt.Errorf("bean not found: %s", id)
 			}
-			beans = append(beans, b)
+			items = append(items, b)
 		}
-		beans = beangraph.ApplyFilter(beans, &model.BeanFilter{
+		items = itemgraph.ApplyFilter(items, &model.BeanFilter{
 			Status: showStatus, ExcludeStatus: showNoStatus,
 			Type: showType, ExcludeType: showNoType,
 			Priority: showPriority, ExcludePriority: showNoPriority,
 			Tags: showTag, ExcludeTags: showNoTag,
 		}, core)
-		if len(beans) == 0 {
+		if len(items) == 0 {
 			if showJSON {
 				return output.Error(output.ErrNotFound, "no bean matches the filters")
 			}
@@ -121,15 +121,15 @@ filter that leaves nothing to show is an error.`,
 
 		// JSON output
 		if showJSON {
-			if len(beans) == 1 {
-				return output.SuccessSingle(beans[0])
+			if len(items) == 1 {
+				return output.SuccessSingle(items[0])
 			}
-			return output.SuccessMultiple(beans)
+			return output.SuccessMultiple(items)
 		}
 
 		// Raw markdown output (frontmatter + body)
 		if showRaw {
-			for i, b := range beans {
+			for i, b := range items {
 				if i > 0 {
 					fmt.Print("\n---\n\n")
 				}
@@ -144,7 +144,7 @@ filter that leaves nothing to show is an error.`,
 
 		// Body only (no header, no styling)
 		if showBodyOnly {
-			for i, b := range beans {
+			for i, b := range items {
 				if i > 0 {
 					fmt.Print("\n---\n\n")
 				}
@@ -155,7 +155,7 @@ filter that leaves nothing to show is an error.`,
 
 		// ETag only (for easy extraction in scripts)
 		if showETagOnly {
-			for i, b := range beans {
+			for i, b := range items {
 				if i > 0 {
 					fmt.Println()
 				}
@@ -171,8 +171,8 @@ filter that leaves nothing to show is an error.`,
 		// raw markdown on a terminal: an explicit arrangement flag outranks
 		// the representation stdout would otherwise pick.
 		if showTable {
-			labelWidth := beanTableLabelWidth(beans, cfg)
-			for i, b := range beans {
+			labelWidth := itemTableLabelWidth(items, cfg)
+			for i, b := range items {
 				if i > 0 {
 					fmt.Println()
 				}
@@ -186,7 +186,7 @@ filter that leaves nothing to show is an error.`,
 		}
 
 		// Default: styled for a terminal, raw markdown for a pipe or a file
-		out, err := showOutputAll(beans, isTTY, showMeta, width)
+		out, err := showOutputAll(items, isTTY, showMeta, width)
 		if err != nil {
 			return err
 		}
@@ -196,12 +196,12 @@ filter that leaves nothing to show is an error.`,
 	},
 }
 
-// showOutput returns the text for a single bean, choosing the representation
+// showOutput returns the text for a single item, choosing the representation
 // from whether stdout is a terminal. metaOnly drops the body from either
 // representation, leaving the front matter -- styled off the header for a
 // terminal, and the source YAML block for a pipe, which still parses as a
-// bean file with an empty body.
-func showOutput(b *bean.Bean, isTTY, metaOnly bool, width int) (string, error) {
+// item file with an empty body.
+func showOutput(b *item.Item, isTTY, metaOnly bool, width int) (string, error) {
 	if !isTTY {
 		source := b
 		if metaOnly {
@@ -215,35 +215,35 @@ func showOutput(b *bean.Bean, isTTY, metaOnly bool, width int) (string, error) {
 		return string(content), nil
 	}
 	if metaOnly {
-		return renderBeanHeader(b, cfg, width), nil
+		return renderItemHeader(b, cfg, width), nil
 	}
-	return styledBeanOutput(b, width)
+	return styledItemOutput(b, width)
 }
 
-// showOutputAll joins the output of several beans with the separator that
+// showOutputAll joins the output of several items with the separator that
 // belongs to the chosen representation.
 //
 // Piped --meta output needs no separator: each block already ends with the
 // front matter's own closing "---" plus a blank line, and adding the raw
 // separator on top of that produced an empty third document between every
-// pair of beans.
+// pair of items.
 // showChildIDs resolves --parent to its children's ids, in the order the
 // resolver sorts them, so the page matches `list --parent` and `roadmap`
 // rather than inventing a third order. It goes through
-// CoreResolver.BeanChildren instead of re-deriving the parent link, which
+// CoreResolver.ItemChildren instead of re-deriving the parent link, which
 // keeps one definition of "child" in the codebase.
 //
 // Both empty cases are errors: an unknown parent is a typo, and a childless
 // one would render an empty page that reads like a broken command.
-func showChildIDs(resolver *beangraph.CoreResolver, parentID string) ([]string, error) {
-	parent, err := resolver.Bean(context.Background(), parentID)
+func showChildIDs(resolver *itemgraph.CoreResolver, parentID string) ([]string, error) {
+	parent, err := resolver.Item(context.Background(), parentID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find --parent bean: %w", err)
 	}
 	if parent == nil {
 		return nil, fmt.Errorf("bean not found: %s", parentID)
 	}
-	children, err := resolver.BeanChildren(context.Background(), parent, nil)
+	children, err := resolver.ItemChildren(context.Background(), parent, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve children of %s: %w", parentID, err)
 	}
@@ -257,7 +257,7 @@ func showChildIDs(resolver *beangraph.CoreResolver, parentID string) ([]string, 
 	return ids, nil
 }
 
-func showOutputAll(beans []*bean.Bean, isTTY, metaOnly bool, width int) (string, error) {
+func showOutputAll(items []*item.Item, isTTY, metaOnly bool, width int) (string, error) {
 	separator := "\n---\n\n"
 	switch {
 	case isTTY:
@@ -267,7 +267,7 @@ func showOutputAll(beans []*bean.Bean, isTTY, metaOnly bool, width int) (string,
 	}
 
 	var out strings.Builder
-	for i, b := range beans {
+	for i, b := range items {
 		if i > 0 {
 			out.WriteString(separator)
 		}
@@ -280,18 +280,18 @@ func showOutputAll(beans []*bean.Bean, isTTY, metaOnly bool, width int) (string,
 	return out.String(), nil
 }
 
-// showOutputTable renders one bean as the label/value grid. metaOnly keeps
+// showOutputTable renders one item as the label/value grid. metaOnly keeps
 // the grid alone; otherwise the body follows, separated by the same rule the
 // styled detail view uses.
 //
 // The width is resolved by the caller through resolveWidth, so --max-width,
 // display.max_width and the built-in default rank exactly as they do for
-// beans list -- one width policy for the whole CLI rather than a second one
+// lif list -- one width policy for the whole CLI rather than a second one
 // here. Taking it as a parameter also keeps this function out of showCmd's
 // initialisation cycle, which a flag lookup from here would create.
-func showOutputTable(b *bean.Bean, metaOnly bool, width, labelWidth int) (string, error) {
+func showOutputTable(b *item.Item, metaOnly bool, width, labelWidth int) (string, error) {
 	var sb strings.Builder
-	sb.WriteString(renderBeanTable(b, cfg, width, labelWidth))
+	sb.WriteString(renderItemTable(b, cfg, width, labelWidth))
 	if metaOnly {
 		return sb.String(), nil
 	}
@@ -302,24 +302,24 @@ func showOutputTable(b *bean.Bean, metaOnly bool, width, labelWidth int) (string
 	return sb.String(), nil
 }
 
-// styledBeanOutput builds the styled representation of a single bean at the
+// styledItemOutput builds the styled representation of a single item at the
 // width the caller resolved. It used to resolve its own width from
 // resolveWidth(0, false, cfg), which ignored --max-width unless --table was
 // also given -- a flag that works in one combination and not in another.
-func styledBeanOutput(b *bean.Bean, width int) (string, error) {
-	return renderBeanDetail(b, cfg, width), nil
+func styledItemOutput(b *item.Item, width int) (string, error) {
+	return renderItemDetail(b, cfg, width), nil
 }
 
-// renderBeanDetail lays out one bean for the terminal: the attribute header,
+// renderItemDetail lays out one item for the terminal: the attribute header,
 // then the rendered body.
 //
 // The body goes through ui.RenderMarkdown (Task 16) instead of glamour: that
 // renderer emits no trailing padding and no painted backgrounds, which is
 // exactly what glamour got wrong.
-func renderBeanDetail(b *bean.Bean, cfg *config.Config, width int) string {
+func renderItemDetail(b *item.Item, cfg *config.Config, width int) string {
 	var sb strings.Builder
 
-	sb.WriteString(renderBeanHeader(b, cfg, width))
+	sb.WriteString(renderItemHeader(b, cfg, width))
 	sb.WriteString(ui.TreeLine.Render(strings.Repeat("─", width)) + "\n\n")
 
 	if body := ui.RenderMarkdown(b.Body, min(width, 90)); body != "" {
@@ -328,17 +328,17 @@ func renderBeanDetail(b *bean.Bean, cfg *config.Config, width int) string {
 	return sb.String()
 }
 
-// renderBeanHeader renders every front matter field the bean carries, so the
+// renderItemHeader renders every front matter field the item carries, so the
 // styled view withholds nothing the file holds: the attribute header reads
-// the same order vertically that the beans table reads horizontally -- type,
+// the same order vertically that the items table reads horizontally -- type,
 // id, then title, then status and priority -- so type, id and title carry the
 // type's colour and weight and the header reads as one unit.
 //
-// Tags sit in the header rather than after the body, where a long bean hid
+// Tags sit in the header rather than after the body, where a long item hid
 // them below a screenful of markdown. Relationships, unknown ("extra") front
 // matter keys, order and the timestamps follow, each labelled, which is what
 // makes this the whole front matter and not a selection of it.
-func renderBeanHeader(b *bean.Bean, cfg *config.Config, width int) string {
+func renderItemHeader(b *item.Item, cfg *config.Config, width int) string {
 	var sb strings.Builder
 
 	tint := ""
@@ -354,7 +354,7 @@ func renderBeanHeader(b *bean.Bean, cfg *config.Config, width int) string {
 	first := head.Render(b.ID)
 	if b.Type != "" {
 		// An unconditional separator would leave a stray two-space lead
-		// before the id when a bean has no type.
+		// before the id when an item has no type.
 		first = head.Render(b.Type) + "  " + first
 	}
 	sb.WriteString(first + "\n")
@@ -367,7 +367,7 @@ func renderBeanHeader(b *bean.Bean, cfg *config.Config, width int) string {
 	// the raw value is exactly what a reader needs to see in that case, not
 	// less of it. "normal" priority is not filtered here: hiding it is a
 	// table-only density decision (Task 10's prioCell), not a detail-view
-	// one -- a detail view shows one bean and has no density to buy.
+	// one -- a detail view shows one item and has no density to buy.
 	statusColor, statusBold := "gray", true
 	if sc := cfg.GetStatus(b.Status); sc != nil {
 		statusColor, statusBold = sc.Color, !sc.Archive
@@ -409,7 +409,7 @@ func renderBeanHeader(b *bean.Bean, cfg *config.Config, width int) string {
 	}
 
 	// Extra keys are front matter the schema does not name -- policy fields
-	// like branch, commit or release. They are part of the bean, so they are
+	// like branch, commit or release. They are part of the item, so they are
 	// part of its detail view; sorted, because a map has no order and a
 	// reader needs a stable one.
 	if len(b.Extra) > 0 {
@@ -424,7 +424,7 @@ func renderBeanHeader(b *bean.Bean, cfg *config.Config, width int) string {
 	}
 
 	// Attachments sit with the extra keys rather than with the stamps:
-	// they are content the bean carries, not bookkeeping the tool wrote.
+	// they are content the item carries, not bookkeeping the tool wrote.
 	if att := attachmentValue(b.ID); att != "" {
 		sb.WriteString(ui.Muted.Render("attachments:") + " " + att + "\n")
 	}
@@ -528,9 +528,9 @@ func setFlowStyle(n *yaml.Node) {
 
 // formatRelationships formats parent, blocking and blocked_by for display.
 // blocked_by is the direction a reader acts on -- what has to finish before
-// this bean can move -- and was the one relationship the detail view left
+// this item can move -- and was the one relationship the detail view left
 // out.
-func formatRelationships(b *bean.Bean) string {
+func formatRelationships(b *item.Item) string {
 	var parts []string
 
 	if b.Parent != "" {
@@ -554,11 +554,11 @@ func formatRelationships(b *bean.Bean) string {
 }
 
 // attachmentValue is the displayed value of the attachments row: the file
-// names in .beans/attachments/<id>/, space-separated, empty when the bean
+// names in .beans/attachments/<id>/, space-separated, empty when the item
 // has none.
 //
 // It reads the directory on every render instead of a front matter key.
-// The directory is already keyed by the bean id, so a key would be a second
+// The directory is already keyed by the item id, so a key would be a second
 // list of the same files that goes stale at the first edit outside the CLI
 // -- derived, not asserted. A read failure is shown rather than swallowed,
 // the same choice attachmentOrphanIssues makes: an unreadable directory is
@@ -601,7 +601,7 @@ func RegisterShowCmd(root *cobra.Command) {
 	showCmd.MarkFlagsMutuallyExclusive("json", "raw", "body-only", "etag-only", "meta")
 	showCmd.MarkFlagsMutuallyExclusive("json", "raw", "body-only", "etag-only", "table")
 	showCmd.ValidArgsFunction = completionUnbounded
-	// --parent matches any existing bean ID, like list --parent and unlike
+	// --parent matches any existing item ID, like list --parent and unlike
 	// create/update --parent, which offer type-eligible new parents.
 	_ = showCmd.RegisterFlagCompletionFunc("parent", listParentFlagCompletion)
 	root.AddCommand(showCmd)
