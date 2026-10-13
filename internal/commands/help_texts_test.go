@@ -23,12 +23,10 @@ func TestHelpTextsNameLifAndItem(t *testing.T) {
 	assertHelpNamesLifAndItem(t, sharedTestRoot(t))
 }
 
-// The `tui` and `serve` commands live in their own binaries (lif-tui,
-// lif-serve); the lif root only carries placeholders for them, so their own
-// help texts need their own walk.
-func TestHelpTextsOfTheTuiAndServeCommandsNameLifAndItem(t *testing.T) {
+// The `serve` command lives in its own binary (lif-serve); the lif root only
+// carries a placeholder for it, so its own help text needs its own walk.
+func TestHelpTextOfTheServeCommandNamesLifAndItem(t *testing.T) {
 	root := NewRootCmd()
-	RegisterTuiCmd(root)
 	if serveCmd.Flags().Lookup("port") == nil {
 		RegisterServeCmd(root)
 	} else {

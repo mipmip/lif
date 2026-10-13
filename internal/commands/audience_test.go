@@ -78,7 +78,7 @@ func TestAudienceClassifiesThePlumbingSet(t *testing.T) {
 	}
 }
 
-// TestAudienceCoversDeprecatedStubs pins AC3: the hidden serve/tui stubs
+// TestAudienceCoversDeprecatedStubs pins AC3: the hidden serve stub
 // answer the audience query through the same marker mechanism as real
 // commands (a queryable Annotations entry) rather than being left out of
 // it. AC2 does not name them plumbing, so — like every verb it does not
@@ -86,7 +86,7 @@ func TestAudienceClassifiesThePlumbingSet(t *testing.T) {
 // classification exists and is asked the same way, not that it differs.
 func TestAudienceCoversDeprecatedStubs(t *testing.T) {
 	root := sharedTestRoot(t)
-	for _, name := range []string{"serve", "tui"} {
+	for _, name := range []string{"serve"} {
 		cmd, _, err := root.Find([]string{name})
 		if err != nil {
 			t.Fatalf("finding %q: %v", name, err)
@@ -100,16 +100,17 @@ func TestAudienceCoversDeprecatedStubs(t *testing.T) {
 	}
 }
 
-// TestBootstrapSkipMarksExactlyInitPrimeVersion pins beans-bv90 AC-2/AC-3
+// TestBootstrapSkipMarksExactlyInitPrimeVersionTui pins beans-bv90 AC-2/AC-3
 // (SC-01): the bootstrap-skip marker is set if and only if the command is
-// init, prime, or version -- the exact set PersistentPreRunE used to decide
+// init, prime, version, or tui -- the exact set PersistentPreRunE used to decide
 // by comparing cmd.Name() against a literal string set.
-func TestBootstrapSkipMarksExactlyInitPrimeVersion(t *testing.T) {
+func TestBootstrapSkipMarksExactlyInitPrimeVersionTui(t *testing.T) {
 	root := sharedTestRoot(t)
 	skip := map[string]bool{
 		"init":    true,
 		"prime":   true,
 		"version": true,
+		"tui":     true, // the Lobby outside a repo has no store to load
 	}
 	for _, cmd := range root.Commands() {
 		want := skip[cmd.Name()]

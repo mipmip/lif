@@ -4,7 +4,7 @@ This directory is the canonical documentation for Lif, maintained at xRiErOS/lif
 
 ## Start here
 
-- [Installation](installation.md) — build and install Lif and its three binaries.
+- [Installation](installation.md) — build and install Lif and its two binaries.
 - [Quick start](quick-start.md) — initialize a project, create work, and render the first roadmap.
 - [Feature overview](feature-overview.md) — understand the product surface without reading command help.
 - [Project profiles](project-profiles.md) — choose between `classic`, `todo`, `simple`, and `complex`.
@@ -31,12 +31,12 @@ This directory is the canonical documentation for Lif, maintained at xRiErOS/lif
 - [Planning and reporting](commands/planning-and-reporting.md) — `roadmap`, `milestones`, `progress`, and `graph`.
 - [Querying and automation](commands/querying-and-automation.md) — `graphql`, JSON output, and structured errors.
 - [Validation and maintenance](commands/validation-and-maintenance.md) — `check`, `promote`, policies, and integrity checks.
-- [Separate applications](commands/separate-binaries.md) — `lif-serve` and the `lif-tui` binary.
+- [Separate applications](commands/separate-binaries.md) — the `lif-serve` binary.
 
 ## Use visual interfaces
 
 - [Web UI and API](web-ui-and-api.md) — run the planning workspace, board, and GraphQL service.
-- [TUI companion](tui-companion.md) — distinguish the bundled `lif-tui` from the separate `bt` companion.
+- [Terminal UI](tui-companion.md) — run `lif tui`, the built-in terminal UI.
 
 ## Solve problems
 

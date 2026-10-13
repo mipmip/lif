@@ -107,14 +107,18 @@ func RegisterCoreCommands(root *cobra.Command) {
 
 	// Deprecated placeholders for commands that moved to separate binaries
 	registerDeprecatedCmd(root, "serve", "lif-serve")
-	registerDeprecatedCmd(root, "tui", "lif-tui")
+
+	// tui is a real command; like init it must run without a loaded store
+	// (the Lobby outside a repo has none), so it skips the bootstrap.
+	RegisterTuiCmd(root)
+	markBootstrapSkip(tuiCmd)
 
 	// Cobra's own help and completion commands are plumbing exactly like
 	// init/path/version (AC2), but classifying them by name would itself
 	// be the curated verb-name list SC-03 forbids — just spelled as two
 	// `cmd.Name() ==` comparisons instead of a slice. Classify them by
 	// origin instead: snapshot every command already on the root (the 24
-	// core verbs plus the 2 stubs), materialise cobra's built-ins, then
+	// core verbs plus the serve stub), materialise cobra's built-ins, then
 	// mark plumbing whatever is new. "Added by cobra's own bootstrap,
 	// not by an explicit Register*Cmd call above" is a structural fact,
 	// not a name literal, and survives cobra renaming or adding a third
@@ -132,7 +136,7 @@ func RegisterCoreCommands(root *cobra.Command) {
 	}
 
 	// Every verb this loop has not already marked plumbing above —
-	// including the 24 real commands and the serve/tui stubs — is
+	// including the 24 real commands and the serve stub — is
 	// user-facing per AC2's "every other registered verb" default.
 	for _, cmd := range root.Commands() {
 		if cmd.Annotations[audienceAnnotationKey] == "" {

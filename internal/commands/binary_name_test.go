@@ -7,7 +7,7 @@ import (
 )
 
 // The compiled root binary is named lif: `version` leads with the product
-// name and the deprecated serve/tui stubs name the lif-* replacements.
+// name and the deprecated serve stub names the lif-serve replacement.
 func TestVersionLineStartsWithLif(t *testing.T) {
 	out, err := exec.Command(completionTestBinary, "version").Output()
 	if err != nil {
@@ -24,7 +24,7 @@ func TestDeprecatedStubsNameLifBinaries(t *testing.T) {
 	if out, err := exec.Command(completionTestBinary, "init", "--lif-path", dir+"/.beans").CombinedOutput(); err != nil {
 		t.Fatalf("lif init: %v\n%s", err, out)
 	}
-	for verb, want := range map[string]string{"serve": "lif-serve", "tui": "lif-tui"} {
+	for verb, want := range map[string]string{"serve": "lif-serve"} {
 		cmd := exec.Command(completionTestBinary, "--lif-path", dir+"/.beans", verb)
 		out, err := cmd.CombinedOutput()
 		ee, ok := err.(*exec.ExitError)

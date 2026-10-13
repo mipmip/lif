@@ -1,6 +1,6 @@
 # Installation
 
-This page covers the four ways to install Lif and explains the difference between its three binaries. If you already run an install from an earlier release, follow the [upgrade guide](compatibility-and-upgrading.md) first.
+This page covers the four ways to install Lif and explains the difference between its two binaries. If you already run an install from an earlier release, follow the [upgrade guide](compatibility-and-upgrading.md) first.
 
 ## Origin
 
@@ -8,7 +8,7 @@ Lif is maintained at [xRiErOS/lif](https://github.com/xRiErOS/lif), and its Go m
 
 ## Installation channels
 
-All four channels install the same three binaries described below. Pick one:
+All four channels install the same two binaries described below. Pick one:
 
 ### Homebrew (macOS)
 
@@ -30,7 +30,6 @@ Configurable via environment variables: `LIF_VERSION` (default: latest release),
 
 ```sh
 go install github.com/xRiErOS/lif/cmd/lif@latest
-go install github.com/xRiErOS/lif/cmd/lif-tui@latest
 ```
 
 A `lif-serve` built this way embeds no web assets — the repository tracks only a placeholder (`internal/web/dist/.gitkeep`) so the `//go:embed` directive in `internal/web/embed.go` compiles, but the actual frontend build is not part of the module source. Requesting `/` returns 404. Use Homebrew, the install script, or a release archive for a working `lif-serve`.
@@ -39,17 +38,17 @@ A binary installed this way still reports the correct release version (`lif vers
 
 ### GitHub Releases
 
-Download the `linux`/`darwin`/`windows` × `amd64`/`arm64` (`i386` on Linux only) archive for your platform from the [Releases page](https://github.com/xRiErOS/lif/releases), verify against the accompanying `checksums.txt`, and extract `lif`, `lif-serve`, `lif-tui` onto your `PATH`.
+Download the `linux`/`darwin`/`windows` × `amd64`/`arm64` (`i386` on Linux only) archive for your platform from the [Releases page](https://github.com/xRiErOS/lif/releases), verify against the accompanying `checksums.txt`, and extract `lif` and `lif-serve` onto your `PATH`.
 
 ## Prerequisites (build from source only)
 
 Install [mise](https://mise.jdx.dev/getting-started.html) first. The repository's `mise.toml` declares the Go, Node.js, and pnpm toolchains the build needs and installs them; the current Go module requires Go 1.26.
 
-## The three binaries
+## The two binaries
 
-The fork builds three separate binaries, one per entrypoint under `cmd/`: `lif` (`cmd/lif`, the CLI you use for day-to-day issue tracking), `lif-serve` (`cmd/lif-serve`, the standalone web UI and GraphQL API server), and `lif-tui` (`cmd/lif-tui`, the interactive terminal UI carried over from upstream).
+The fork builds two separate binaries, one per entrypoint under `cmd/`: `lif` (`cmd/lif`, the CLI you use for day-to-day issue tracking and the home of the terminal UI, started with `lif tui`) and `lif-serve` (`cmd/lif-serve`, the standalone web UI and GraphQL API server).
 
-Each binary is independent; you only need `lif-serve` if you want the web UI, and `lif-tui` if you want the retained terminal UI, alongside the required `lif` CLI.
+Each binary is independent; you only need `lif-serve` if you want the web UI. The terminal UI needs no extra install: `lif tui` is a subcommand of `lif`.
 
 ## Building from source
 
@@ -66,11 +65,11 @@ mise run build
 
 The build pipeline compiles the Svelte frontend into `internal/web/dist` before building the Go entrypoints, and stamps version, commit, and build date into the binaries. A plain `go build ./cmd/lif` also compiles, because the repository tracks a placeholder in `internal/web/dist` that satisfies the embed directive, but it produces an unstamped binary, and a `lif-serve` built that way embeds no web assets and serves 404 for the browser UI.
 
-`mise run build` writes the stamped `lif`, `lif-serve`, and `lif-tui` binaries to the repository root. Install them in a user-owned directory on `PATH`:
+`mise run build` writes the stamped `lif` and `lif-serve` binaries to the repository root. Install them in a user-owned directory on `PATH`:
 
 ```sh
 install -d "$HOME/.local/bin"
-install -m 755 lif lif-serve lif-tui "$HOME/.local/bin/"
+install -m 755 lif lif-serve "$HOME/.local/bin/"
 export PATH="$HOME/.local/bin:$PATH"
 ```
 
@@ -97,7 +96,7 @@ The fork is distributed under the Apache License 2.0, the same license as the up
 - [Configuration](configuration.md)
 - [Separate Binaries](commands/separate-binaries.md)
 - [Web UI and API](web-ui-and-api.md)
-- [TUI Companion](tui-companion.md)
+- [Terminal UI](tui-companion.md)
 - [Fork Lineage](fork-lineage.md)
 - [Compatibility and Upgrading](compatibility-and-upgrading.md)
 - [Troubleshooting](troubleshooting.md)

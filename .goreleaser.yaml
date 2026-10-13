@@ -40,21 +40,6 @@ builds:
       - -X github.com/xRiErOS/lif/internal/version.Commit={{.ShortCommit}}
       - -X github.com/xRiErOS/lif/internal/version.Date={{.Date}}
 
-  - id: lif-tui
-    main: ./cmd/lif-tui
-    binary: lif-tui
-    env:
-      - CGO_ENABLED=0
-    goos:
-      - linux
-      - windows
-      - darwin
-    ldflags:
-      - -s -w
-      - -X github.com/xRiErOS/lif/internal/version.Version={{.Version}}
-      - -X github.com/xRiErOS/lif/internal/version.Commit={{.ShortCommit}}
-      - -X github.com/xRiErOS/lif/internal/version.Date={{.Date}}
-
 archives:
   - formats: [tar.gz]
     name_template: >-
@@ -76,7 +61,6 @@ homebrew_casks:
     binaries:
       - lif
       - lif-serve
-      - lif-tui
     repository:
       owner: xRiErOS
       name: homebrew-lif
@@ -91,7 +75,6 @@ homebrew_casks:
           if OS.mac?
             system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/lif"]
             system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/lif-serve"]
-            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/lif-tui"]
           end
 
 changelog:
