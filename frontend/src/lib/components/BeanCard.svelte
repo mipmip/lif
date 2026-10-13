@@ -6,7 +6,7 @@
   import { ui } from '$lib/uiState.svelte';
   import { statusColors, typeColors, typeBorders, priorityIndicators } from '$lib/styles';
   import { client } from '$lib/graphqlClient';
-  import { ArchiveBeanDocument } from '$lib/graphql/generated';
+  import { ArchiveItemDocument } from '$lib/graphql/generated';
 
   interface Props {
     bean: Bean;
@@ -40,7 +40,7 @@
   async function handleArchive(e: MouseEvent) {
     e.stopPropagation();
     archiving = true;
-    await client.mutation(ArchiveBeanDocument, { id: bean.id }).toPromise();
+    await client.mutation(ArchiveItemDocument, { id: bean.id }).toPromise();
     archiving = false;
   }
 

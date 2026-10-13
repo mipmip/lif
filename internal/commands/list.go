@@ -79,7 +79,7 @@ Search Syntax (--search/-S):
 		}
 
 		// Build GraphQL filter from CLI flags
-		filter := &model.BeanFilter{
+		filter := &model.ItemFilter{
 			Status:          listStatus,
 			ExcludeStatus:   listNoStatus,
 			Type:            listType,
@@ -149,7 +149,7 @@ Search Syntax (--search/-S):
 		}
 
 		// --where filters on extra front matter keys after the graph query,
-		// since BeanFilter (a generated GraphQL type) does not carry them (AC1/AC2).
+		// since ItemFilter (a generated GraphQL type) does not carry them (AC1/AC2).
 		items = filterByWhere(items, listWhere)
 
 		// Sort items
@@ -234,7 +234,7 @@ Search Syntax (--search/-S):
 // *model.ItemFilter (e.g. one that already carries --type/--status flags)
 // rather than constructing a fresh one, so callers keep whatever filters
 // they set beforehand.
-func applyReadyFilter(filter *model.BeanFilter, cfg *config.Config) {
+func applyReadyFilter(filter *model.ItemFilter, cfg *config.Config) {
 	isBlocked := false
 	excludeImplicitTerminal := true
 	filter.IsBlocked = &isBlocked

@@ -176,7 +176,7 @@ func TestMutationResolverResultIsDetached(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("UpdateBean", func(t *testing.T) {
-		got, err := r.UpdateItem(ctx, "beans-c1", model.UpdateBeanInput{Title: strPtr("first")})
+		got, err := r.UpdateItem(ctx, "beans-c1", model.UpdateItemInput{Title: strPtr("first")})
 		if err != nil {
 			t.Fatalf("UpdateBean() error = %v", err)
 		}
@@ -265,7 +265,7 @@ func TestMutationIsRaceFreeAgainstAll(t *testing.T) {
 			if i%2 == 1 {
 				title = "odd"
 			}
-			if _, err := r.UpdateItem(ctx, "beans-c1", model.UpdateBeanInput{Title: strPtr(title)}); err != nil {
+			if _, err := r.UpdateItem(ctx, "beans-c1", model.UpdateItemInput{Title: strPtr(title)}); err != nil {
 				return
 			}
 		}

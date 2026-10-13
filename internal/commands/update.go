@@ -130,8 +130,8 @@ etag, so it accepts exactly one ID.`,
 }
 
 // buildUpdateInput constructs the GraphQL input from flags and returns which fields changed.
-func buildUpdateInput(cmd *cobra.Command) (model.UpdateBeanInput, []string, error) {
-	var input model.UpdateBeanInput
+func buildUpdateInput(cmd *cobra.Command) (model.UpdateItemInput, []string, error) {
+	var input model.UpdateItemInput
 	var changes []string
 
 	if cmd.Flags().Changed("status") {
@@ -244,7 +244,7 @@ func buildUpdateInput(cmd *cobra.Command) (model.UpdateBeanInput, []string, erro
 // preflightParent runs, for every target and before the first write, the
 // parent check UpdateItem runs per item: a batch whose items differ in type
 // can pass for one and fail for the next.
-func preflightParent(resolver *itemgraph.CoreResolver, targets []*item.Item, input model.UpdateBeanInput) error {
+func preflightParent(resolver *itemgraph.CoreResolver, targets []*item.Item, input model.UpdateItemInput) error {
 	if input.Parent == nil {
 		return nil
 	}

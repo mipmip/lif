@@ -76,7 +76,7 @@ written, so an unknown ID or a policy violation leaves the whole batch alone.`,
 
 		// Build the update input
 		status := "completed"
-		input := model.UpdateBeanInput{
+		input := model.UpdateItemInput{
 			Status: &status,
 		}
 

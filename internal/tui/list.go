@@ -170,9 +170,9 @@ func (m listModel) Init() tea.Cmd {
 
 func (m listModel) loadItems() tea.Msg {
 	// Build filter if tag filter is set
-	var filter *model.BeanFilter
+	var filter *model.ItemFilter
 	if m.tagFilter != "" {
-		filter = &model.BeanFilter{Tags: []string{m.tagFilter}}
+		filter = &model.ItemFilter{Tags: []string{m.tagFilter}}
 	}
 
 	// Query filtered items

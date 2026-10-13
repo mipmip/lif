@@ -46,7 +46,7 @@ func (r *CoreResolver) ItemBlockedByIds(ctx context.Context, obj *item.Item) ([]
 // ItemBlockedBy resolves the full list of items blocking this one.
 // Combines both directions: the item's own blocked_by field AND incoming
 // blocking links (other items that list this item in their blocking field).
-func (r *CoreResolver) ItemBlockedBy(ctx context.Context, obj *item.Item, filter *model.BeanFilter) ([]*item.Item, error) {
+func (r *CoreResolver) ItemBlockedBy(ctx context.Context, obj *item.Item, filter *model.ItemFilter) ([]*item.Item, error) {
 	seen := make(map[string]bool)
 	var result []*item.Item
 
@@ -76,7 +76,7 @@ func (r *CoreResolver) ItemBlockedBy(ctx context.Context, obj *item.Item, filter
 }
 
 // ItemBlocking resolves the items this item is blocking.
-func (r *CoreResolver) ItemBlocking(ctx context.Context, obj *item.Item, filter *model.BeanFilter) ([]*item.Item, error) {
+func (r *CoreResolver) ItemBlocking(ctx context.Context, obj *item.Item, filter *model.ItemFilter) ([]*item.Item, error) {
 	var result []*item.Item
 	for _, targetID := range obj.Blocking {
 		// Filter out broken links
@@ -104,7 +104,7 @@ func (r *CoreResolver) ItemParent(ctx context.Context, obj *item.Item) (*item.It
 }
 
 // ItemChildren resolves the child items.
-func (r *CoreResolver) ItemChildren(ctx context.Context, obj *item.Item, filter *model.BeanFilter) ([]*item.Item, error) {
+func (r *CoreResolver) ItemChildren(ctx context.Context, obj *item.Item, filter *model.ItemFilter) ([]*item.Item, error) {
 	incoming := r.Core.FindIncomingLinks(obj.ID)
 	var result []*item.Item
 	for _, link := range incoming {

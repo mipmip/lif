@@ -120,13 +120,13 @@ class AgentSessionBuilder {
     if (this.planMode) {
       await gql(
         this.baseURL,
-        `mutation { setAgentPlanMode(beanId: "${this.beanId}", planMode: true) }`
+        `mutation { setAgentPlanMode(itemId: "${this.beanId}", planMode: true) }`
       );
     }
     if (this.actMode) {
       await gql(
         this.baseURL,
-        `mutation { setAgentActMode(beanId: "${this.beanId}", actMode: true) }`
+        `mutation { setAgentActMode(itemId: "${this.beanId}", actMode: true) }`
       );
     }
     if (this.pendingInteraction) {
@@ -135,7 +135,7 @@ class AgentSessionBuilder {
         : '';
       await gql(
         this.baseURL,
-        `mutation { setAgentPendingInteraction(beanId: "${this.beanId}", type: ${this.pendingInteraction.type}${planArg}) }`
+        `mutation { setAgentPendingInteraction(itemId: "${this.beanId}", type: ${this.pendingInteraction.type}${planArg}) }`
       );
     }
   }

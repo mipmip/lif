@@ -22,7 +22,7 @@ class AgentStatusesStore {
           const statuses = result.data?.activeAgentStatuses;
           if (statuses) {
             this.runningBeanIds = new Set(
-              statuses.filter((s) => s.status === AgentSessionStatus.Running).map((s) => s.beanId)
+              statuses.filter((s) => s.status === AgentSessionStatus.Running).map((s) => s.itemId)
             );
           }
         }

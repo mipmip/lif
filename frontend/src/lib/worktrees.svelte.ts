@@ -12,13 +12,13 @@ import {
 export const MAIN_WORKSPACE_ID = '__central__';
 
 /** Public Worktree type: codegen fragment with beanIds derived from nested beans. */
-export interface Worktree extends Omit<WorktreeFieldsFragment, 'beans'> {
+export interface Worktree extends Omit<WorktreeFieldsFragment, 'items'> {
   beanIds: string[];
 }
 
 function mapWorktree(raw: WorktreeFieldsFragment): Worktree {
-  const { beans, ...rest } = raw;
-  return { ...rest, beanIds: beans.map((b) => b.id) };
+  const { items, ...rest } = raw;
+  return { ...rest, beanIds: items.map((b) => b.id) };
 }
 
 export interface WorktreeStatus {

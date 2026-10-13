@@ -35,7 +35,7 @@ query can be moved between the two commands unchanged.`,
 
 		// Same flag names and semantics as list, so that narrowing a query
 		// does not require translating it between the two commands.
-		filter := &model.BeanFilter{
+		filter := &model.ItemFilter{
 			Type: nextType,
 			Tags: nextTag,
 		}

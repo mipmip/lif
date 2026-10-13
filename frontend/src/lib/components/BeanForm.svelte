@@ -2,7 +2,7 @@
   import type { Bean } from '$lib/beans.svelte';
   import { beansStore } from '$lib/beans.svelte';
   import { client } from '$lib/graphqlClient';
-  import { CreateBeanDocument, UpdateBeanDocument, type CreateBeanInput, type UpdateBeanInput } from '$lib/graphql/generated';
+  import { CreateItemDocument, UpdateItemDocument, type CreateItemInput, type UpdateItemInput } from '$lib/graphql/generated';
 
   interface Props {
     bean?: Bean | null;
@@ -82,17 +82,17 @@
 
     let saved: Bean | null = null;
     if (isEdit && bean) {
-      const input: UpdateBeanInput = fields;
-      const result = await client.mutation(UpdateBeanDocument, { id: bean.id, input }).toPromise();
+      const input: UpdateItemInput = fields;
+      const result = await client.mutation(UpdateItemDocument, { id: bean.id, input }).toPromise();
       submitting = false;
       if (result.error) { error = result.error.message; return; }
-      saved = result.data?.updateBean ?? null;
+      saved = result.data?.updateItem ?? null;
     } else {
-      const input: CreateBeanInput = fields;
-      const result = await client.mutation(CreateBeanDocument, { input }).toPromise();
+      const input: CreateItemInput = fields;
+      const result = await client.mutation(CreateItemDocument, { input }).toPromise();
       submitting = false;
       if (result.error) { error = result.error.message; return; }
-      saved = result.data?.createBean ?? null;
+      saved = result.data?.createItem ?? null;
     }
     if (saved) {
       onSaved?.(saved);

@@ -19,7 +19,7 @@ func (r *CoreResolver) Item(ctx context.Context, id string) (*item.Item, error) 
 }
 
 // Items returns a filtered, sorted list of items.
-func (r *CoreResolver) Items(ctx context.Context, filter *model.BeanFilter) ([]*item.Item, error) {
+func (r *CoreResolver) Items(ctx context.Context, filter *model.ItemFilter) ([]*item.Item, error) {
 	var items []*item.Item
 
 	// If search filter is provided, start with search results

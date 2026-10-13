@@ -73,7 +73,7 @@ var createCmd = &cobra.Command{
 		}
 
 		// Build GraphQL input
-		input := model.CreateBeanInput{Title: title}
+		input := model.CreateItemInput{Title: title}
 		if createStatus != "" {
 			input.Status = &createStatus
 		} else {

@@ -308,7 +308,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case statusSelectedMsg:
 		// Update all items' status via GraphQL mutations
 		for _, itemID := range msg.itemIDs {
-			_, err := a.resolver.UpdateItem(context.Background(), itemID, model.UpdateBeanInput{
+			_, err := a.resolver.UpdateItem(context.Background(), itemID, model.UpdateItemInput{
 				Status: &msg.status,
 			})
 			if err != nil {
@@ -342,7 +342,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case typeSelectedMsg:
 		// Update all items' type via GraphQL mutations
 		for _, itemID := range msg.itemIDs {
-			_, err := a.resolver.UpdateItem(context.Background(), itemID, model.UpdateBeanInput{
+			_, err := a.resolver.UpdateItem(context.Background(), itemID, model.UpdateItemInput{
 				Type: &msg.itemType,
 			})
 			if err != nil {
@@ -376,7 +376,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case prioritySelectedMsg:
 		// Update all items' priority via GraphQL mutations
 		for _, itemID := range msg.itemIDs {
-			_, err := a.resolver.UpdateItem(context.Background(), itemID, model.UpdateBeanInput{
+			_, err := a.resolver.UpdateItem(context.Background(), itemID, model.UpdateItemInput{
 				Priority: &msg.priority,
 			})
 			if err != nil {
@@ -456,7 +456,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case itemCreatedMsg:
 		// Create the item via GraphQL mutation with draft status
 		draftStatus := "draft"
-		createdItem, err := a.resolver.CreateItem(context.Background(), model.CreateBeanInput{
+		createdItem, err := a.resolver.CreateItem(context.Background(), model.CreateItemInput{
 			Title:  msg.title,
 			Status: &draftStatus,
 		})

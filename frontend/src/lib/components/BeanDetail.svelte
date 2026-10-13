@@ -6,7 +6,7 @@
   import { ui } from '$lib/uiState.svelte';
   import { statusColors, typeColors, priorityColors } from '$lib/styles';
   import { client } from '$lib/graphqlClient';
-  import { SendAgentMessageDocument, UpdateBeanStatusDocument, ArchiveBeanDocument } from '$lib/graphql/generated';
+  import { SendAgentMessageDocument, UpdateItemStatusDocument, ArchiveItemDocument } from '$lib/graphql/generated';
   import BeanCard from './BeanCard.svelte';
   import RenderedMarkdown from './RenderedMarkdown.svelte';
 
@@ -44,7 +44,7 @@
 
   async function archiveBean() {
     archiving = true;
-    const result = await client.mutation(ArchiveBeanDocument, { id: bean.id }).toPromise();
+    const result = await client.mutation(ArchiveItemDocument, { id: bean.id }).toPromise();
     if (result.error) {
       worktreeError = result.error.message;
     }
@@ -79,7 +79,7 @@
     const oldStatus = bean.status;
     beansStore.optimisticUpdate(bean.id, { status: newStatus });
     const result = await client
-      .mutation(UpdateBeanStatusDocument, { id: bean.id, input: { status: newStatus } })
+      .mutation(UpdateItemStatusDocument, { id: bean.id, input: { status: newStatus } })
       .toPromise();
     if (result.error) {
       beansStore.optimisticUpdate(bean.id, { status: oldStatus });
@@ -101,7 +101,7 @@
     // Send initial prompt to the agent in the new worktree
     await client
       .mutation(SendAgentMessageDocument, {
-        beanId: wt.id,
+        itemId: wt.id,
         message: `Start working on bean ${bean.id}`
       })
       .toPromise();

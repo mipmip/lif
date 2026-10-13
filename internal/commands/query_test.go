@@ -61,7 +61,7 @@ func TestExecuteQuery(t *testing.T) {
 	createQueryTestItem(t, testCore, "test-3", "Third Bean", "completed")
 
 	t.Run("basic query all beans", func(t *testing.T) {
-		query := `{ beans { id title status } }`
+		query := `{ items { id title status } }`
 		result, err := executeQuery(query, nil, "")
 		if err != nil {
 			t.Fatalf("executeQuery() error = %v", err)
@@ -72,7 +72,7 @@ func TestExecuteQuery(t *testing.T) {
 				ID     string `json:"id"`
 				Title  string `json:"title"`
 				Status string `json:"status"`
-			} `json:"beans"`
+			} `json:"items"`
 		}
 
 		if err := json.Unmarshal(result, &data); err != nil {
@@ -85,7 +85,7 @@ func TestExecuteQuery(t *testing.T) {
 	})
 
 	t.Run("query single bean by id", func(t *testing.T) {
-		query := `{ bean(id: "test-1") { id title } }`
+		query := `{ item(id: "test-1") { id title } }`
 		result, err := executeQuery(query, nil, "")
 		if err != nil {
 			t.Fatalf("executeQuery() error = %v", err)
@@ -95,7 +95,7 @@ func TestExecuteQuery(t *testing.T) {
 			Item struct {
 				ID    string `json:"id"`
 				Title string `json:"title"`
-			} `json:"bean"`
+			} `json:"item"`
 		}
 
 		if err := json.Unmarshal(result, &data); err != nil {
@@ -111,7 +111,7 @@ func TestExecuteQuery(t *testing.T) {
 	})
 
 	t.Run("query with filter", func(t *testing.T) {
-		query := `{ beans(filter: { status: ["todo"] }) { id } }`
+		query := `{ items(filter: { status: ["todo"] }) { id } }`
 		result, err := executeQuery(query, nil, "")
 		if err != nil {
 			t.Fatalf("executeQuery() error = %v", err)
@@ -120,7 +120,7 @@ func TestExecuteQuery(t *testing.T) {
 		var data struct {
 			Items []struct {
 				ID string `json:"id"`
-			} `json:"beans"`
+			} `json:"items"`
 		}
 
 		if err := json.Unmarshal(result, &data); err != nil {
@@ -136,11 +136,11 @@ func TestExecuteQuery(t *testing.T) {
 	})
 
 	t.Run("query with variables", func(t *testing.T) {
-		query := `query GetBean($id: ID!) { bean(id: $id) { id title } }`
+		query := `query GetItem($id: ID!) { item(id: $id) { id title } }`
 		variables := map[string]any{
 			"id": "test-2",
 		}
-		result, err := executeQuery(query, variables, "GetBean")
+		result, err := executeQuery(query, variables, "GetItem")
 		if err != nil {
 			t.Fatalf("executeQuery() error = %v", err)
 		}
@@ -149,7 +149,7 @@ func TestExecuteQuery(t *testing.T) {
 			Item struct {
 				ID    string `json:"id"`
 				Title string `json:"title"`
-			} `json:"bean"`
+			} `json:"item"`
 		}
 
 		if err := json.Unmarshal(result, &data); err != nil {
@@ -162,7 +162,7 @@ func TestExecuteQuery(t *testing.T) {
 	})
 
 	t.Run("query nonexistent bean returns null", func(t *testing.T) {
-		query := `{ bean(id: "nonexistent") { id } }`
+		query := `{ item(id: "nonexistent") { id } }`
 		result, err := executeQuery(query, nil, "")
 		if err != nil {
 			t.Fatalf("executeQuery() error = %v", err)
@@ -171,7 +171,7 @@ func TestExecuteQuery(t *testing.T) {
 		var data struct {
 			Item *struct {
 				ID string `json:"id"`
-			} `json:"bean"`
+			} `json:"item"`
 		}
 
 		if err := json.Unmarshal(result, &data); err != nil {
@@ -235,7 +235,7 @@ func TestExecuteQueryWithRelationships(t *testing.T) {
 	}
 
 	t.Run("query parent relationship", func(t *testing.T) {
-		query := `{ bean(id: "child-1") { id parent { id title } } }`
+		query := `{ item(id: "child-1") { id parent { id title } } }`
 		result, err := executeQuery(query, nil, "")
 		if err != nil {
 			t.Fatalf("executeQuery() error = %v", err)
@@ -248,7 +248,7 @@ func TestExecuteQueryWithRelationships(t *testing.T) {
 					ID    string `json:"id"`
 					Title string `json:"title"`
 				} `json:"parent"`
-			} `json:"bean"`
+			} `json:"item"`
 		}
 
 		if err := json.Unmarshal(result, &data); err != nil {
@@ -264,7 +264,7 @@ func TestExecuteQueryWithRelationships(t *testing.T) {
 	})
 
 	t.Run("query children relationship", func(t *testing.T) {
-		query := `{ bean(id: "parent-1") { id children { id title } } }`
+		query := `{ item(id: "parent-1") { id children { id title } } }`
 		result, err := executeQuery(query, nil, "")
 		if err != nil {
 			t.Fatalf("executeQuery() error = %v", err)
@@ -277,7 +277,7 @@ func TestExecuteQueryWithRelationships(t *testing.T) {
 					ID    string `json:"id"`
 					Title string `json:"title"`
 				} `json:"children"`
-			} `json:"bean"`
+			} `json:"item"`
 		}
 
 		if err := json.Unmarshal(result, &data); err != nil {
@@ -293,7 +293,7 @@ func TestExecuteQueryWithRelationships(t *testing.T) {
 	})
 
 	t.Run("query blockedBy relationship", func(t *testing.T) {
-		query := `{ bean(id: "child-1") { id blockedBy { id title } } }`
+		query := `{ item(id: "child-1") { id blockedBy { id title } } }`
 		result, err := executeQuery(query, nil, "")
 		if err != nil {
 			t.Fatalf("executeQuery() error = %v", err)
@@ -306,7 +306,7 @@ func TestExecuteQueryWithRelationships(t *testing.T) {
 					ID    string `json:"id"`
 					Title string `json:"title"`
 				} `json:"blockedBy"`
-			} `json:"bean"`
+			} `json:"item"`
 		}
 
 		if err := json.Unmarshal(result, &data); err != nil {
@@ -322,7 +322,7 @@ func TestExecuteQueryWithRelationships(t *testing.T) {
 	})
 
 	t.Run("query blocking relationship", func(t *testing.T) {
-		query := `{ bean(id: "blocker-1") { id blocking { id title } } }`
+		query := `{ item(id: "blocker-1") { id blocking { id title } } }`
 		result, err := executeQuery(query, nil, "")
 		if err != nil {
 			t.Fatalf("executeQuery() error = %v", err)
@@ -335,7 +335,7 @@ func TestExecuteQueryWithRelationships(t *testing.T) {
 					ID    string `json:"id"`
 					Title string `json:"title"`
 				} `json:"blocking"`
-			} `json:"bean"`
+			} `json:"item"`
 		}
 
 		if err := json.Unmarshal(result, &data); err != nil {
@@ -389,7 +389,7 @@ func TestExecuteQueryWithFilters(t *testing.T) {
 	testCore.Create(b3)
 
 	t.Run("filter by type", func(t *testing.T) {
-		query := `{ beans(filter: { type: ["bug"] }) { id type } }`
+		query := `{ items(filter: { type: ["bug"] }) { id type } }`
 		result, err := executeQuery(query, nil, "")
 		if err != nil {
 			t.Fatalf("executeQuery() error = %v", err)
@@ -399,7 +399,7 @@ func TestExecuteQueryWithFilters(t *testing.T) {
 			Items []struct {
 				ID   string `json:"id"`
 				Type string `json:"type"`
-			} `json:"beans"`
+			} `json:"items"`
 		}
 
 		if err := json.Unmarshal(result, &data); err != nil {
@@ -412,7 +412,7 @@ func TestExecuteQueryWithFilters(t *testing.T) {
 	})
 
 	t.Run("filter by priority", func(t *testing.T) {
-		query := `{ beans(filter: { priority: ["critical", "high"] }) { id priority } }`
+		query := `{ items(filter: { priority: ["critical", "high"] }) { id priority } }`
 		result, err := executeQuery(query, nil, "")
 		if err != nil {
 			t.Fatalf("executeQuery() error = %v", err)
@@ -422,7 +422,7 @@ func TestExecuteQueryWithFilters(t *testing.T) {
 			Items []struct {
 				ID       string `json:"id"`
 				Priority string `json:"priority"`
-			} `json:"beans"`
+			} `json:"items"`
 		}
 
 		if err := json.Unmarshal(result, &data); err != nil {
@@ -435,7 +435,7 @@ func TestExecuteQueryWithFilters(t *testing.T) {
 	})
 
 	t.Run("filter by tags", func(t *testing.T) {
-		query := `{ beans(filter: { tags: ["frontend"] }) { id tags } }`
+		query := `{ items(filter: { tags: ["frontend"] }) { id tags } }`
 		result, err := executeQuery(query, nil, "")
 		if err != nil {
 			t.Fatalf("executeQuery() error = %v", err)
@@ -445,7 +445,7 @@ func TestExecuteQueryWithFilters(t *testing.T) {
 			Items []struct {
 				ID   string   `json:"id"`
 				Tags []string `json:"tags"`
-			} `json:"beans"`
+			} `json:"items"`
 		}
 
 		if err := json.Unmarshal(result, &data); err != nil {
@@ -458,7 +458,7 @@ func TestExecuteQueryWithFilters(t *testing.T) {
 	})
 
 	t.Run("exclude by status", func(t *testing.T) {
-		query := `{ beans(filter: { excludeStatus: ["completed"] }) { id status } }`
+		query := `{ items(filter: { excludeStatus: ["completed"] }) { id status } }`
 		result, err := executeQuery(query, nil, "")
 		if err != nil {
 			t.Fatalf("executeQuery() error = %v", err)
@@ -468,7 +468,7 @@ func TestExecuteQueryWithFilters(t *testing.T) {
 			Items []struct {
 				ID     string `json:"id"`
 				Status string `json:"status"`
-			} `json:"beans"`
+			} `json:"items"`
 		}
 
 		if err := json.Unmarshal(result, &data); err != nil {
@@ -486,7 +486,7 @@ func TestExecuteQueryWithFilters(t *testing.T) {
 	})
 
 	t.Run("combined filters", func(t *testing.T) {
-		query := `{ beans(filter: { status: ["todo", "in-progress"], type: ["bug", "feature"] }) { id } }`
+		query := `{ items(filter: { status: ["todo", "in-progress"], type: ["bug", "feature"] }) { id } }`
 		result, err := executeQuery(query, nil, "")
 		if err != nil {
 			t.Fatalf("executeQuery() error = %v", err)
@@ -495,7 +495,7 @@ func TestExecuteQueryWithFilters(t *testing.T) {
 		var data struct {
 			Items []struct {
 				ID string `json:"id"`
-			} `json:"beans"`
+			} `json:"items"`
 		}
 
 		if err := json.Unmarshal(result, &data); err != nil {
@@ -517,8 +517,8 @@ func TestGetGraphQLSchema(t *testing.T) {
 	// Verify schema contains expected types
 	expectedTypes := []string{
 		"type Query",
-		"type Bean",
-		"input BeanFilter",
+		"type Item",
+		"input ItemFilter",
 	}
 
 	for _, expected := range expectedTypes {
@@ -529,8 +529,8 @@ func TestGetGraphQLSchema(t *testing.T) {
 
 	// Verify schema contains expected fields
 	expectedFields := []string{
-		"bean(id: ID!)",
-		"beans(filter: BeanFilter)",
+		"item(id: ID!)",
+		"items(filter: ItemFilter)",
 		"blockedBy",
 		"blocking",
 		"parent",

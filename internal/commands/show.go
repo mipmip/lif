@@ -106,7 +106,7 @@ filter that leaves nothing to show is an error.`,
 			}
 			items = append(items, b)
 		}
-		items = itemgraph.ApplyFilter(items, &model.BeanFilter{
+		items = itemgraph.ApplyFilter(items, &model.ItemFilter{
 			Status: showStatus, ExcludeStatus: showNoStatus,
 			Type: showType, ExcludeType: showNoType,
 			Priority: showPriority, ExcludePriority: showNoPriority,

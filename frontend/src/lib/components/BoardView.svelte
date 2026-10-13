@@ -7,7 +7,7 @@
   import { ui } from '$lib/uiState.svelte';
   import { typeBorders } from '$lib/styles';
   import { fade } from 'svelte/transition';
-  import { ArchiveBeanDocument } from '$lib/graphql/generated';
+  import { ArchiveItemDocument } from '$lib/graphql/generated';
   import BeanCard from './BeanCard.svelte';
   import ConfirmModal from './ConfirmModal.svelte';
 
@@ -25,7 +25,7 @@
     archivingAll = true;
     const completedBeans = beansForStatus('completed');
     for (const bean of completedBeans) {
-      await client.mutation(ArchiveBeanDocument, { id: bean.id }).toPromise();
+      await client.mutation(ArchiveItemDocument, { id: bean.id }).toPromise();
     }
     archivingAll = false;
     confirmingArchiveAll = false;

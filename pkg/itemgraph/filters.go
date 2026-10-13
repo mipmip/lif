@@ -8,7 +8,7 @@ import (
 
 // ApplyFilter applies BeanFilter to a slice of items and returns filtered results.
 // This is used by both the top-level items query and relationship field resolvers.
-func ApplyFilter(items []*item.Item, filter *model.BeanFilter, core *itemcore.Core) []*item.Item {
+func ApplyFilter(items []*item.Item, filter *model.ItemFilter, core *itemcore.Core) []*item.Item {
 	if filter == nil {
 		return items
 	}

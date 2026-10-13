@@ -49,7 +49,7 @@ export class AgentChatStore {
     this.#beanId = beanId;
 
     const { unsubscribe } = pipe(
-      client.subscription(AgentSessionChangedDocument, { beanId }),
+      client.subscription(AgentSessionChangedDocument, { itemId: beanId }),
       subscribe((result) => {
         if (result.error) {
           console.error('Agent session subscription error:', result.error);
@@ -131,7 +131,7 @@ export class AgentChatStore {
 
     const result = await client
       .mutation(SendAgentMessageDocument, {
-        beanId,
+        itemId: beanId,
         message,
         images: images ?? null,
         attachments: attachments?.length ? attachments : null
@@ -149,7 +149,7 @@ export class AgentChatStore {
   }
 
   async stop(beanId: string): Promise<boolean> {
-    const result = await client.mutation(StopAgentDocument, { beanId }).toPromise();
+    const result = await client.mutation(StopAgentDocument, { itemId: beanId }).toPromise();
 
     if (result.error) {
       this.error = result.error.message;
@@ -160,7 +160,7 @@ export class AgentChatStore {
   }
 
   async setPlanMode(beanId: string, planMode: boolean): Promise<boolean> {
-    const result = await client.mutation(SetAgentPlanModeDocument, { beanId, planMode }).toPromise();
+    const result = await client.mutation(SetAgentPlanModeDocument, { itemId: beanId, planMode }).toPromise();
 
     if (result.error) {
       this.error = result.error.message;
@@ -171,7 +171,7 @@ export class AgentChatStore {
   }
 
   async setActMode(beanId: string, actMode: boolean): Promise<boolean> {
-    const result = await client.mutation(SetAgentActModeDocument, { beanId, actMode }).toPromise();
+    const result = await client.mutation(SetAgentActModeDocument, { itemId: beanId, actMode }).toPromise();
 
     if (result.error) {
       this.error = result.error.message;
@@ -183,7 +183,7 @@ export class AgentChatStore {
 
   async setEffort(beanId: string, effort: string): Promise<boolean> {
     const result = await client
-      .mutation(SetAgentEffortDocument, { beanId, effort })
+      .mutation(SetAgentEffortDocument, { itemId: beanId, effort })
       .toPromise();
 
     if (result.error) {
@@ -195,7 +195,7 @@ export class AgentChatStore {
   }
 
   async clearSession(beanId: string): Promise<boolean> {
-    const result = await client.mutation(ClearAgentSessionDocument, { beanId }).toPromise();
+    const result = await client.mutation(ClearAgentSessionDocument, { itemId: beanId }).toPromise();
 
     if (result.error) {
       this.error = result.error.message;

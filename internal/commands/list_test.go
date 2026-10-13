@@ -466,7 +466,7 @@ func TestApplyReadyFilterExcludesCustomArchiveStatus(t *testing.T) {
 		},
 	}
 
-	filter := &model.BeanFilter{}
+	filter := &model.ItemFilter{}
 	applyReadyFilter(filter, testCfg)
 
 	found := false

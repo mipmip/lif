@@ -47,7 +47,7 @@ ID is resolved before the first bean is written.`,
 
 		// Build the update input
 		status := startTargetStatus
-		input := model.UpdateBeanInput{
+		input := model.UpdateItemInput{
 			Status: &status,
 		}
 

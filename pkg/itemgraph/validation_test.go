@@ -17,7 +17,7 @@ func strptr(s string) *string { return &s }
 func TestCreateItemRejectsUnknownStatus(t *testing.T) {
 	r := newTestResolver(t)
 
-	_, err := r.CreateItem(context.Background(), model.CreateBeanInput{
+	_, err := r.CreateItem(context.Background(), model.CreateItemInput{
 		Title:  "Bad status",
 		Status: strptr("nonsense"),
 	})
@@ -32,7 +32,7 @@ func TestCreateItemRejectsUnknownStatus(t *testing.T) {
 func TestCreateItemRejectsUnknownType(t *testing.T) {
 	r := newTestResolver(t)
 
-	_, err := r.CreateItem(context.Background(), model.CreateBeanInput{
+	_, err := r.CreateItem(context.Background(), model.CreateItemInput{
 		Title: "Bad type",
 		Type:  strptr("nonsense"),
 	})
@@ -47,7 +47,7 @@ func TestCreateItemRejectsUnknownType(t *testing.T) {
 func TestCreateItemRejectsUnknownPriority(t *testing.T) {
 	r := newTestResolver(t)
 
-	_, err := r.CreateItem(context.Background(), model.CreateBeanInput{
+	_, err := r.CreateItem(context.Background(), model.CreateItemInput{
 		Title:    "Bad priority",
 		Priority: strptr("nonsense"),
 	})
@@ -68,7 +68,7 @@ func TestCreateItemAcceptsConfiguredEnumValues(t *testing.T) {
 
 	for _, status := range cfg.StatusNames() {
 		for _, typeName := range cfg.TypeNames() {
-			b, err := r.CreateItem(context.Background(), model.CreateBeanInput{
+			b, err := r.CreateItem(context.Background(), model.CreateItemInput{
 				Title:  "Configured " + status + " " + typeName,
 				Status: strptr(status),
 				Type:   strptr(typeName),
@@ -82,7 +82,7 @@ func TestCreateItemAcceptsConfiguredEnumValues(t *testing.T) {
 		}
 	}
 	for _, priority := range cfg.PriorityNames() {
-		if _, err := r.CreateItem(context.Background(), model.CreateBeanInput{
+		if _, err := r.CreateItem(context.Background(), model.CreateItemInput{
 			Title:    "Configured priority " + priority,
 			Priority: strptr(priority),
 		}); err != nil {
@@ -94,7 +94,7 @@ func TestCreateItemAcceptsConfiguredEnumValues(t *testing.T) {
 func TestCreateItemRejectsOverlongTitle(t *testing.T) {
 	r := newTestResolver(t)
 
-	_, err := r.CreateItem(context.Background(), model.CreateBeanInput{
+	_, err := r.CreateItem(context.Background(), model.CreateItemInput{
 		Title: strings.Repeat("a", MaxTitleLength+1),
 	})
 	if err == nil {
@@ -110,7 +110,7 @@ func TestCreateItemRejectsOverlongTitle(t *testing.T) {
 func TestCreateItemAcceptsTitleAtLimit(t *testing.T) {
 	r := newTestResolver(t)
 
-	if _, err := r.CreateItem(context.Background(), model.CreateBeanInput{
+	if _, err := r.CreateItem(context.Background(), model.CreateItemInput{
 		Title: strings.Repeat("a", MaxTitleLength),
 	}); err != nil {
 		t.Fatalf("CreateBean rejected a title at the limit: %v", err)
@@ -120,7 +120,7 @@ func TestCreateItemAcceptsTitleAtLimit(t *testing.T) {
 func TestCreateItemRejectsEmptyTitle(t *testing.T) {
 	r := newTestResolver(t)
 
-	if _, err := r.CreateItem(context.Background(), model.CreateBeanInput{Title: "  "}); err == nil {
+	if _, err := r.CreateItem(context.Background(), model.CreateItemInput{Title: "  "}); err == nil {
 		t.Fatal("CreateBean accepted a blank title")
 	}
 }
@@ -128,7 +128,7 @@ func TestCreateItemRejectsEmptyTitle(t *testing.T) {
 func TestCreateItemRejectsOversizedBody(t *testing.T) {
 	r := newTestResolver(t)
 
-	_, err := r.CreateItem(context.Background(), model.CreateBeanInput{
+	_, err := r.CreateItem(context.Background(), model.CreateItemInput{
 		Title: "Huge body",
 		Body:  strptr(strings.Repeat("x", MaxBodyBytes+1)),
 	})
@@ -146,7 +146,7 @@ func TestCreateItemRejectsOversizedBody(t *testing.T) {
 func TestCreateItemRejectsInvalidTag(t *testing.T) {
 	r := newTestResolver(t)
 
-	_, err := r.CreateItem(context.Background(), model.CreateBeanInput{
+	_, err := r.CreateItem(context.Background(), model.CreateItemInput{
 		Title: "Bad tag",
 		Tags:  []string{"fine", "Not A Tag"},
 	})
@@ -167,7 +167,7 @@ func TestCreateItemRejectsInvalidTag(t *testing.T) {
 func TestCreateItemRejectsPathTraversalPrefix(t *testing.T) {
 	for _, prefix := range []string{"../../etc/", "a/b", `a\b`, "a.b", "1lead", "a b", "-lead", "a--b"} {
 		r := newTestResolver(t)
-		_, err := r.CreateItem(context.Background(), model.CreateBeanInput{
+		_, err := r.CreateItem(context.Background(), model.CreateItemInput{
 			Title:  "Bad prefix",
 			Prefix: strptr(prefix),
 		})
@@ -187,7 +187,7 @@ func TestCreateItemRejectsPathTraversalPrefix(t *testing.T) {
 func TestCreateItemAcceptsHyphenatedPrefix(t *testing.T) {
 	for _, prefix := range []string{"beans-", "b", "my-project-", "proj2-", "SYNC-TASK-"} {
 		r := newTestResolver(t)
-		b, err := r.CreateItem(context.Background(), model.CreateBeanInput{
+		b, err := r.CreateItem(context.Background(), model.CreateItemInput{
 			Title:  "Good prefix",
 			Prefix: strptr(prefix),
 		})
@@ -204,7 +204,7 @@ func TestUpdateItemRejectsUnknownStatus(t *testing.T) {
 	r := newTestResolver(t)
 	b := mustCreate(t, r, "Update target")
 
-	if _, err := r.UpdateItem(context.Background(), b.ID, model.UpdateBeanInput{
+	if _, err := r.UpdateItem(context.Background(), b.ID, model.UpdateItemInput{
 		Status: strptr("nonsense"),
 	}); err == nil {
 		t.Fatal("UpdateBean accepted an unknown status")
@@ -215,7 +215,7 @@ func TestUpdateItemRejectsOverlongTitle(t *testing.T) {
 	r := newTestResolver(t)
 	b := mustCreate(t, r, "Update target")
 
-	if _, err := r.UpdateItem(context.Background(), b.ID, model.UpdateBeanInput{
+	if _, err := r.UpdateItem(context.Background(), b.ID, model.UpdateItemInput{
 		Title: strptr(strings.Repeat("a", MaxTitleLength+1)),
 	}); err == nil {
 		t.Fatal("UpdateBean accepted a title above the limit")
@@ -226,7 +226,7 @@ func TestUpdateItemRejectsInvalidAddedTag(t *testing.T) {
 	r := newTestResolver(t)
 	b := mustCreate(t, r, "Update target")
 
-	if _, err := r.UpdateItem(context.Background(), b.ID, model.UpdateBeanInput{
+	if _, err := r.UpdateItem(context.Background(), b.ID, model.UpdateItemInput{
 		AddTags: []string{"Not A Tag"},
 	}); err == nil {
 		t.Fatal("UpdateBean accepted an invalid tag")
@@ -240,7 +240,7 @@ func TestUpdateItemRejectsOversizedBodyMod(t *testing.T) {
 	r := newTestResolver(t)
 	b := mustCreate(t, r, "Update target")
 
-	if _, err := r.UpdateItem(context.Background(), b.ID, model.UpdateBeanInput{
+	if _, err := r.UpdateItem(context.Background(), b.ID, model.UpdateItemInput{
 		BodyMod: &model.BodyModification{Append: strptr(strings.Repeat("x", MaxBodyBytes+1))},
 	}); err == nil {
 		t.Fatal("UpdateBean accepted a bodyMod growing the body past the limit")
@@ -264,7 +264,7 @@ func TestUpdateItemLeavesUntouchedInvalidFieldsAlone(t *testing.T) {
 		t.Fatalf("core.Create: %v", err)
 	}
 
-	got, err := r.UpdateItem(context.Background(), legacy.ID, model.UpdateBeanInput{
+	got, err := r.UpdateItem(context.Background(), legacy.ID, model.UpdateItemInput{
 		Body: strptr("still editable"),
 	})
 	if err != nil {
@@ -281,7 +281,7 @@ func TestCreateItemRejectionWritesNothing(t *testing.T) {
 	r := newTestResolver(t)
 
 	before := len(r.Core.All())
-	if _, err := r.CreateItem(context.Background(), model.CreateBeanInput{
+	if _, err := r.CreateItem(context.Background(), model.CreateItemInput{
 		Title:  "Rejected",
 		Status: strptr("nonsense"),
 	}); err == nil {
@@ -295,7 +295,7 @@ func TestCreateItemRejectionWritesNothing(t *testing.T) {
 
 func mustCreate(t *testing.T, r *CoreResolver, title string) *item.Item {
 	t.Helper()
-	b, err := r.CreateItem(context.Background(), model.CreateBeanInput{Title: title})
+	b, err := r.CreateItem(context.Background(), model.CreateItemInput{Title: title})
 	if err != nil {
 		t.Fatalf("CreateBean(%q): %v", title, err)
 	}

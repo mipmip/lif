@@ -46,7 +46,7 @@ func TestUpdateItemWritesTagsInDeterministicOrder(t *testing.T) {
 		t.Fatalf("core.Create: %v", err)
 	}
 
-	got, err := r.UpdateItem(ctx, b.ID, model.UpdateBeanInput{
+	got, err := r.UpdateItem(ctx, b.ID, model.UpdateItemInput{
 		AddTags:    []string{"alpha", "omega"},
 		RemoveTags: []string{"mu"},
 	})

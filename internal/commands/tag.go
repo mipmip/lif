@@ -42,7 +42,7 @@ resolved before the first bean is written.`,
 		// Built here rather than through buildUpdateInput: that helper reads
 		// the update* globals, which would let a previous update in the same
 		// process leak into a tag call.
-		input := model.UpdateBeanInput{
+		input := model.UpdateItemInput{
 			AddTags:    tagAdd,
 			RemoveTags: tagRemove,
 		}
