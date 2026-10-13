@@ -12,7 +12,7 @@ Every terminal UI described on this page is a client of the `lif` CLI and its un
 
 ## Layer 3: `bt`, the separate PO cockpit
 
-A separate project, maintained independently of this repository, provides the `bt` executable: a keyboard-first, mouse-friendly Product Owner cockpit that works on item data. It ships and versions independently, with its own README, changelog and releases, and it is licensed Apache-2.0 like Lif. Its repository and name are listed on the [fork lineage](fork-lineage.md) page.
+A separate project, maintained independently of this repository, provides the `bt` executable: a keyboard-first, mouse-friendly Product Owner cockpit that works on item data. It ships and versions independently, with its own README, changelog and releases, and it is licensed Apache-2.0 like Lif. Its repository is [xRiErOS/beans-tui](https://github.com/xRiErOS/beans-tui); see also [fork lineage](fork-lineage.md).
 
 Which data names a given `bt` release reads, and which Lif release it targets, is stated in its own documentation; this repository does not verify it. Before pointing `bt` at a project that uses the current names (`.lif/`, `.lif.yml`), read its release notes.
 

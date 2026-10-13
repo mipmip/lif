@@ -194,7 +194,7 @@ Network binding, CORS, routes, and authentication posture matter before exposing
 
 ## Terminal interfaces
 
-Lif builds the original upstream terminal UI as the separate `lif-tui` binary. It opens an interactive view for browsing and managing items. Active development of a richer terminal cockpit happens in a separate companion project; see the fork lineage for its name and status.
+Lif builds the original upstream terminal UI as the separate `lif-tui` binary. It opens an interactive view for browsing and managing items. A richer Product Owner cockpit, launched as `bt`, is developed in a separate companion project, [xRiErOS/beans-tui](https://github.com/xRiErOS/beans-tui).
 
 [Understand the terminal paths](wiki/tui-companion.md) · [Review all separate binaries](wiki/commands/separate-binaries.md)
 
