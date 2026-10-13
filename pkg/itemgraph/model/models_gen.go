@@ -11,10 +11,10 @@ import (
 	"github.com/xRiErOS/lif/pkg/item"
 )
 
-// Lightweight status for tracking which beans have running agents
+// Lightweight status for tracking which items have running agents
 type ActiveAgentStatus struct {
-	// Bean ID with an active agent
-	BeanID string `json:"beanId"`
+	// Item ID with an active agent
+	ItemID string `json:"itemId"`
 	// Current agent status
 	Status AgentSessionStatus `json:"status"`
 }
@@ -57,8 +57,8 @@ type AgentMessageImage struct {
 
 // An agent chat session within a worktree
 type AgentSession struct {
-	// Bean ID (worktree identifier)
-	BeanID string `json:"beanId"`
+	// Item ID (worktree identifier)
+	ItemID string `json:"itemId"`
 	// Agent type (e.g., 'claude')
 	AgentType string `json:"agentType"`
 	// Current session status
@@ -105,78 +105,6 @@ type AskUserQuestion struct {
 	Options []*AskUserOption `json:"options"`
 }
 
-// Represents a change to a bean
-type BeanChangeEvent struct {
-	// Type of change that occurred
-	Type ChangeType `json:"type"`
-	// The bean that changed (null for INITIAL_SNAPSHOT and DELETED events)
-	Bean *item.Item `json:"bean,omitempty"`
-	// All beans as a batch (only present for INITIAL_SNAPSHOT events)
-	Beans []*item.Item `json:"beans,omitempty"`
-	// ID of the bean that changed (empty for INITIAL_SNAPSHOT events)
-	BeanID string `json:"beanId"`
-}
-
-// Filter options for querying beans
-type BeanFilter struct {
-	// Full-text search across slug, title, and body using Bleve query syntax.
-	//
-	// Examples:
-	// - "login" - exact term match
-	// - "login~" - fuzzy match (1 edit distance)
-	// - "login~2" - fuzzy match (2 edit distance)
-	// - "log*" - wildcard prefix
-	// - "\"user login\"" - exact phrase
-	// - "user AND login" - both terms required
-	// - "user OR login" - either term
-	// - "slug:auth" - search only slug field
-	// - "title:login" - search only title field
-	// - "body:auth" - search only body field
-	Search *string `json:"search,omitempty"`
-	// Include only beans with these statuses (OR logic)
-	Status []string `json:"status,omitempty"`
-	// Exclude beans with these statuses
-	ExcludeStatus []string `json:"excludeStatus,omitempty"`
-	// Include only beans with these types (OR logic)
-	Type []string `json:"type,omitempty"`
-	// Exclude beans with these types
-	ExcludeType []string `json:"excludeType,omitempty"`
-	// Include only beans with these priorities (OR logic)
-	Priority []string `json:"priority,omitempty"`
-	// Exclude beans with these priorities
-	ExcludePriority []string `json:"excludePriority,omitempty"`
-	// Include only beans with any of these tags (OR logic)
-	Tags []string `json:"tags,omitempty"`
-	// Exclude beans with any of these tags
-	ExcludeTags []string `json:"excludeTags,omitempty"`
-	// Include only beans with a parent
-	HasParent *bool `json:"hasParent,omitempty"`
-	// Include only beans with this specific parent ID
-	ParentID *string `json:"parentId,omitempty"`
-	// Include only beans that are blocking other beans
-	HasBlocking *bool `json:"hasBlocking,omitempty"`
-	// Include only beans that are blocking this specific bean ID
-	BlockingID *string `json:"blockingId,omitempty"`
-	// Include beans that are blocked — explicitly (direct blockers) or implicitly (ancestor is blocked)
-	IsBlocked *bool `json:"isBlocked,omitempty"`
-	// Filter beans that are explicitly blocked (have direct active blockers)
-	IsExplicitlyBlocked *bool `json:"isExplicitlyBlocked,omitempty"`
-	// Filter beans that are implicitly blocked (an ancestor in the parent chain is blocked)
-	IsImplicitlyBlocked *bool `json:"isImplicitlyBlocked,omitempty"`
-	// Include only beans that have explicit blocked-by entries
-	HasBlockedBy *bool `json:"hasBlockedBy,omitempty"`
-	// Include only beans blocked by this specific bean ID (via blocked_by field)
-	BlockedByID *string `json:"blockedById,omitempty"`
-	// Exclude beans that have a parent
-	NoParent *bool `json:"noParent,omitempty"`
-	// Exclude beans that are blocking other beans
-	NoBlocking *bool `json:"noBlocking,omitempty"`
-	// Exclude beans that have explicit blocked-by entries
-	NoBlockedBy *bool `json:"noBlockedBy,omitempty"`
-	// Exclude beans that inherit a terminal status (scrapped or completed) from an ancestor
-	ExcludeImplicitTerminal *bool `json:"excludeImplicitTerminal,omitempty"`
-}
-
 // Structured body modifications applied atomically.
 // Operations are applied in order: all replacements sequentially, then append.
 // If any operation fails, the entire mutation fails (transactional).
@@ -197,11 +125,11 @@ type BranchStatus struct {
 	HasConflicts bool `json:"hasConflicts"`
 }
 
-// Input for creating a new bean
-type CreateBeanInput struct {
-	// Bean title (required)
+// Input for creating a new item
+type CreateItemInput struct {
+	// Item title (required)
 	Title string `json:"title"`
-	// Bean type (defaults to 'task')
+	// Item type (defaults to 'task')
 	Type *string `json:"type,omitempty"`
 	// Status (defaults to 'todo')
 	Status *string `json:"status,omitempty"`
@@ -211,13 +139,13 @@ type CreateBeanInput struct {
 	Tags []string `json:"tags,omitempty"`
 	// Markdown body content
 	Body *string `json:"body,omitempty"`
-	// Parent bean ID (validated against type hierarchy)
+	// Parent item ID (validated against type hierarchy)
 	Parent *string `json:"parent,omitempty"`
-	// Bean IDs this bean is blocking
+	// Item IDs this item is blocking
 	Blocking []string `json:"blocking,omitempty"`
-	// Bean IDs that are blocking this bean
+	// Item IDs that are blocking this item
 	BlockedBy []string `json:"blockedBy,omitempty"`
-	// Custom ID prefix (overrides config prefix for this bean)
+	// Custom ID prefix (overrides config prefix for this item)
 	Prefix *string `json:"prefix,omitempty"`
 }
 
@@ -253,6 +181,78 @@ type ImageInput struct {
 	Data string `json:"data"`
 	// MIME type (image/jpeg, image/png, image/gif, image/webp)
 	MediaType string `json:"mediaType"`
+}
+
+// Represents a change to an item
+type ItemChangeEvent struct {
+	// Type of change that occurred
+	Type ChangeType `json:"type"`
+	// The item that changed (null for INITIAL_SNAPSHOT and DELETED events)
+	Item *item.Item `json:"item,omitempty"`
+	// All items as a batch (only present for INITIAL_SNAPSHOT events)
+	Items []*item.Item `json:"items,omitempty"`
+	// ID of the item that changed (empty for INITIAL_SNAPSHOT events)
+	ItemID string `json:"itemId"`
+}
+
+// Filter options for querying items
+type ItemFilter struct {
+	// Full-text search across slug, title, and body using Bleve query syntax.
+	//
+	// Examples:
+	// - "login" - exact term match
+	// - "login~" - fuzzy match (1 edit distance)
+	// - "login~2" - fuzzy match (2 edit distance)
+	// - "log*" - wildcard prefix
+	// - "\"user login\"" - exact phrase
+	// - "user AND login" - both terms required
+	// - "user OR login" - either term
+	// - "slug:auth" - search only slug field
+	// - "title:login" - search only title field
+	// - "body:auth" - search only body field
+	Search *string `json:"search,omitempty"`
+	// Include only items with these statuses (OR logic)
+	Status []string `json:"status,omitempty"`
+	// Exclude items with these statuses
+	ExcludeStatus []string `json:"excludeStatus,omitempty"`
+	// Include only items with these types (OR logic)
+	Type []string `json:"type,omitempty"`
+	// Exclude items with these types
+	ExcludeType []string `json:"excludeType,omitempty"`
+	// Include only items with these priorities (OR logic)
+	Priority []string `json:"priority,omitempty"`
+	// Exclude items with these priorities
+	ExcludePriority []string `json:"excludePriority,omitempty"`
+	// Include only items with any of these tags (OR logic)
+	Tags []string `json:"tags,omitempty"`
+	// Exclude items with any of these tags
+	ExcludeTags []string `json:"excludeTags,omitempty"`
+	// Include only items with a parent
+	HasParent *bool `json:"hasParent,omitempty"`
+	// Include only items with this specific parent ID
+	ParentID *string `json:"parentId,omitempty"`
+	// Include only items that are blocking other items
+	HasBlocking *bool `json:"hasBlocking,omitempty"`
+	// Include only items that are blocking this specific item ID
+	BlockingID *string `json:"blockingId,omitempty"`
+	// Include items that are blocked — explicitly (direct blockers) or implicitly (ancestor is blocked)
+	IsBlocked *bool `json:"isBlocked,omitempty"`
+	// Filter items that are explicitly blocked (have direct active blockers)
+	IsExplicitlyBlocked *bool `json:"isExplicitlyBlocked,omitempty"`
+	// Filter items that are implicitly blocked (an ancestor in the parent chain is blocked)
+	IsImplicitlyBlocked *bool `json:"isImplicitlyBlocked,omitempty"`
+	// Include only items that have explicit blocked-by entries
+	HasBlockedBy *bool `json:"hasBlockedBy,omitempty"`
+	// Include only items blocked by this specific item ID (via blocked_by field)
+	BlockedByID *string `json:"blockedById,omitempty"`
+	// Exclude items that have a parent
+	NoParent *bool `json:"noParent,omitempty"`
+	// Exclude items that are blocking other items
+	NoBlocking *bool `json:"noBlocking,omitempty"`
+	// Exclude items that have explicit blocked-by entries
+	NoBlockedBy *bool `json:"noBlockedBy,omitempty"`
+	// Exclude items that inherit a terminal status (scrapped or completed) from an ancestor
+	ExcludeImplicitTerminal *bool `json:"excludeImplicitTerminal,omitempty"`
 }
 
 type Mutation struct {
@@ -314,8 +314,8 @@ type SubagentActivity struct {
 type Subscription struct {
 }
 
-// Input for updating an existing bean
-type UpdateBeanInput struct {
+// Input for updating an existing item
+type UpdateItemInput struct {
 	// New title
 	Title *string `json:"title,omitempty"`
 	// New status
@@ -334,15 +334,15 @@ type UpdateBeanInput struct {
 	Body *string `json:"body,omitempty"`
 	// Structured body modifications (mutually exclusive with body)
 	BodyMod *BodyModification `json:"bodyMod,omitempty"`
-	// Set parent bean ID (null/empty to clear, validates type hierarchy)
+	// Set parent item ID (null/empty to clear, validates type hierarchy)
 	Parent *string `json:"parent,omitempty"`
-	// Add beans to blocking list (validates cycles and existence)
+	// Add items to blocking list (validates cycles and existence)
 	AddBlocking []string `json:"addBlocking,omitempty"`
-	// Remove beans from blocking list
+	// Remove items from blocking list
 	RemoveBlocking []string `json:"removeBlocking,omitempty"`
-	// Add beans to blocked-by list (validates cycles and existence)
+	// Add items to blocked-by list (validates cycles and existence)
 	AddBlockedBy []string `json:"addBlockedBy,omitempty"`
-	// Remove beans from blocked-by list
+	// Remove items from blocked-by list
 	RemoveBlockedBy []string `json:"removeBlockedBy,omitempty"`
 	// Fractional index for manual ordering (used by board drag-and-drop)
 	Order *string `json:"order,omitempty"`
@@ -360,7 +360,7 @@ type WorkspaceStatus struct {
 	HasUnmergedCommits bool `json:"hasUnmergedCommits"`
 }
 
-// A git worktree, either associated with a bean or standalone
+// A git worktree, either associated with an item or standalone
 type Worktree struct {
 	// Unique worktree identifier
 	ID string `json:"id"`
@@ -372,8 +372,8 @@ type Worktree struct {
 	Branch string `json:"branch"`
 	// Filesystem path to the worktree
 	Path string `json:"path"`
-	// Beans detected from changes in this worktree vs the base branch
-	Beans []*item.Item `json:"beans"`
+	// Items detected from changes in this worktree vs the base branch
+	Items []*item.Item `json:"items"`
 	// Whether the worktree has uncommitted changes or untracked files
 	HasChanges bool `json:"hasChanges"`
 	// Whether the worktree has commits not yet merged into the base branch
@@ -508,11 +508,11 @@ func (e AgentSessionStatus) MarshalJSON() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// Type of change that occurred to a bean
+// Type of change that occurred to an item
 type ChangeType string
 
 const (
-	// All existing beans sent as a single batch when subscription starts (emitted when includeInitial=true)
+	// All existing items sent as a single batch when subscription starts (emitted when includeInitial=true)
 	ChangeTypeInitialSnapshot ChangeType = "INITIAL_SNAPSHOT"
 	ChangeTypeCreated         ChangeType = "CREATED"
 	ChangeTypeUpdated         ChangeType = "UPDATED"

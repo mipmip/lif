@@ -2,15 +2,15 @@ import { pipe, subscribe } from 'wonka';
 import { SvelteMap } from 'svelte/reactivity';
 import { client } from './graphqlClient';
 import {
-  BeanChangedDocument,
-  type BeanFieldsFragment,
-  type BeanChangedSubscription,
+  ItemChangedDocument,
+  type ItemFieldsFragment,
+  type ItemChangedSubscription,
 } from './graphql/generated';
 
 /**
  * Bean type matching the GraphQL schema (re-exported from codegen)
  */
-export type Bean = BeanFieldsFragment;
+export type Bean = ItemFieldsFragment;
 
 /**
  * Svelte 5 runes-style stateful store for beans.
@@ -60,7 +60,7 @@ export class BeansStore {
     this.#initialSyncDone = false;
 
     const { unsubscribe } = pipe(
-      client.subscription(BeanChangedDocument, { includeInitial: true }),
+      client.subscription(ItemChangedDocument, { includeInitial: true }),
       subscribe((result) => {
         if (result.error) {
           console.error('Subscription error:', result.error);
@@ -72,14 +72,14 @@ export class BeansStore {
 
         this.connected = true;
 
-        const event = result.data?.beanChanged;
+        const event = result.data?.itemChanged;
         if (!event) return;
 
         switch (event.type) {
           case 'INITIAL_SNAPSHOT':
-            if (event.beans) {
+            if (event.items) {
               const fresh = new SvelteMap<string, Bean>();
-              for (const b of event.beans) {
+              for (const b of event.items) {
                 fresh.set(b.id, b);
               }
               this.beans = fresh;
@@ -89,12 +89,12 @@ export class BeansStore {
             break;
           case 'CREATED':
           case 'UPDATED':
-            if (event.bean) {
-              this.beans.set(event.bean.id, event.bean);
+            if (event.item) {
+              this.beans.set(event.item.id, event.item);
             }
             break;
           case 'DELETED':
-            this.beans.delete(event.beanId);
+            this.beans.delete(event.itemId);
             break;
         }
       })

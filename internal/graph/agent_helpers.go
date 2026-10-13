@@ -122,7 +122,7 @@ func agentSessionToModel(s *agent.Session) *model.AgentSession {
 	copy(quickReplies, s.QuickReplies)
 
 	return &model.AgentSession{
-		BeanID:             s.ID,
+		ItemID:             s.ID,
 		AgentType:          s.AgentType,
 		Status:             status,
 		Messages:           msgs,
@@ -152,7 +152,7 @@ func activeAgentsToModel(agents []agent.ActiveAgent) []*model.ActiveAgentStatus 
 			status = model.AgentSessionStatusError
 		}
 		result[i] = &model.ActiveAgentStatus{
-			BeanID: a.ItemID,
+			ItemID: a.ItemID,
 			Status: status,
 		}
 	}

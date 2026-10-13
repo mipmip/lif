@@ -52,7 +52,7 @@ the first bean is written, so an unknown ID leaves the whole batch alone.`,
 
 		// Build the update input
 		status := scrapTargetStatus
-		input := model.UpdateBeanInput{
+		input := model.UpdateItemInput{
 			Status: &status,
 		}
 

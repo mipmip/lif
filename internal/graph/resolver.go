@@ -48,7 +48,7 @@ func worktreeToModel(wt *worktree.Worktree, core *itemcore.Core, baseRef string,
 		ID:     wt.ID,
 		Branch: wt.Branch,
 		Path:   wt.Path,
-		Beans:  []*item.Item{},
+		Items:  []*item.Item{},
 	}
 	if computeGitStatus {
 		m.HasChanges = gitutil.HasChanges(wt.Path)
@@ -65,7 +65,7 @@ func worktreeToModel(wt *worktree.Worktree, core *itemcore.Core, baseRef string,
 	if core != nil {
 		for _, id := range wt.ItemIDs {
 			if b, err := core.Get(id); err == nil {
-				m.Beans = append(m.Beans, b)
+				m.Items = append(m.Items, b)
 			}
 		}
 	}

@@ -302,7 +302,7 @@ func createPromotedItem(ctx context.Context, resolver *itemgraph.CoreResolver, a
 	}
 
 	title := rec.Title
-	input := model.CreateBeanInput{
+	input := model.CreateItemInput{
 		Title: title,
 		Type:  &itemType,
 		Tags:  tags,

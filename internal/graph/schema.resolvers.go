@@ -26,72 +26,72 @@ import (
 )
 
 // IsDirty is the resolver for the isDirty field.
-func (r *beanResolver) IsDirty(ctx context.Context, obj *item.Item) (bool, error) {
+func (r *itemResolver) IsDirty(ctx context.Context, obj *item.Item) (bool, error) {
 	return r.CoreResolver.ItemIsDirty(ctx, obj)
 }
 
 // WorktreeID is the resolver for the worktreeId field.
-func (r *beanResolver) WorktreeID(ctx context.Context, obj *item.Item) (*string, error) {
+func (r *itemResolver) WorktreeID(ctx context.Context, obj *item.Item) (*string, error) {
 	return r.CoreResolver.ItemWorktreeID(ctx, obj)
 }
 
 // ParentID is the resolver for the parentId field.
-func (r *beanResolver) ParentID(ctx context.Context, obj *item.Item) (*string, error) {
+func (r *itemResolver) ParentID(ctx context.Context, obj *item.Item) (*string, error) {
 	return r.CoreResolver.ItemParentID(ctx, obj)
 }
 
 // BlockingIds is the resolver for the blockingIds field.
-func (r *beanResolver) BlockingIds(ctx context.Context, obj *item.Item) ([]string, error) {
+func (r *itemResolver) BlockingIds(ctx context.Context, obj *item.Item) ([]string, error) {
 	return r.CoreResolver.ItemBlockingIds(ctx, obj)
 }
 
 // BlockedByIds is the resolver for the blockedByIds field.
-func (r *beanResolver) BlockedByIds(ctx context.Context, obj *item.Item) ([]string, error) {
+func (r *itemResolver) BlockedByIds(ctx context.Context, obj *item.Item) ([]string, error) {
 	return r.CoreResolver.ItemBlockedByIds(ctx, obj)
 }
 
 // BlockedBy is the resolver for the blockedBy field.
-func (r *beanResolver) BlockedBy(ctx context.Context, obj *item.Item, filter *model.BeanFilter) ([]*item.Item, error) {
+func (r *itemResolver) BlockedBy(ctx context.Context, obj *item.Item, filter *model.ItemFilter) ([]*item.Item, error) {
 	return r.CoreResolver.ItemBlockedBy(ctx, obj, filter)
 }
 
 // Blocking is the resolver for the blocking field.
-func (r *beanResolver) Blocking(ctx context.Context, obj *item.Item, filter *model.BeanFilter) ([]*item.Item, error) {
+func (r *itemResolver) Blocking(ctx context.Context, obj *item.Item, filter *model.ItemFilter) ([]*item.Item, error) {
 	return r.CoreResolver.ItemBlocking(ctx, obj, filter)
 }
 
 // Parent is the resolver for the parent field.
-func (r *beanResolver) Parent(ctx context.Context, obj *item.Item) (*item.Item, error) {
+func (r *itemResolver) Parent(ctx context.Context, obj *item.Item) (*item.Item, error) {
 	return r.CoreResolver.ItemParent(ctx, obj)
 }
 
 // Children is the resolver for the children field.
-func (r *beanResolver) Children(ctx context.Context, obj *item.Item, filter *model.BeanFilter) ([]*item.Item, error) {
+func (r *itemResolver) Children(ctx context.Context, obj *item.Item, filter *model.ItemFilter) ([]*item.Item, error) {
 	return r.CoreResolver.ItemChildren(ctx, obj, filter)
 }
 
 // ImplicitStatus is the resolver for the implicitStatus field.
-func (r *beanResolver) ImplicitStatus(ctx context.Context, obj *item.Item) (*string, error) {
+func (r *itemResolver) ImplicitStatus(ctx context.Context, obj *item.Item) (*string, error) {
 	return r.CoreResolver.ItemImplicitStatus(ctx, obj)
 }
 
 // ImplicitStatusFrom is the resolver for the implicitStatusFrom field.
-func (r *beanResolver) ImplicitStatusFrom(ctx context.Context, obj *item.Item) (*string, error) {
+func (r *itemResolver) ImplicitStatusFrom(ctx context.Context, obj *item.Item) (*string, error) {
 	return r.CoreResolver.ItemImplicitStatusFrom(ctx, obj)
 }
 
 // CreateItem is the resolver for the createItem field.
-func (r *mutationResolver) CreateBean(ctx context.Context, input model.CreateBeanInput) (*item.Item, error) {
+func (r *mutationResolver) CreateItem(ctx context.Context, input model.CreateItemInput) (*item.Item, error) {
 	return r.CoreResolver.CreateItem(ctx, input)
 }
 
 // UpdateItem is the resolver for the updateItem field.
-func (r *mutationResolver) UpdateBean(ctx context.Context, id string, input model.UpdateBeanInput) (*item.Item, error) {
+func (r *mutationResolver) UpdateItem(ctx context.Context, id string, input model.UpdateItemInput) (*item.Item, error) {
 	return r.CoreResolver.UpdateItem(ctx, id, input)
 }
 
 // DeleteItem is the resolver for the deleteItem field.
-func (r *mutationResolver) DeleteBean(ctx context.Context, id string) (bool, error) {
+func (r *mutationResolver) DeleteItem(ctx context.Context, id string) (bool, error) {
 	return r.CoreResolver.DeleteItem(ctx, id)
 }
 
@@ -220,9 +220,9 @@ func (r *mutationResolver) CreateWorktree(ctx context.Context, name string) (*mo
 		}
 	}
 
-	// Start watching the worktree's .beans/ directory for item changes
+	// Start watching the worktree's .items/ directory for item changes
 	if err := r.Core.WatchWorktreeItems(wt.Path); err != nil {
-		fmt.Printf("[beans] warning: failed to watch worktree beans: %v\n", err)
+		fmt.Printf("[items] warning: failed to watch worktree items: %v\n", err)
 	}
 
 	return worktreeToModel(wt, r.Core, r.WorktreeMgr.BaseRef(), false), nil
@@ -261,19 +261,19 @@ func (r *mutationResolver) RemoveWorktree(ctx context.Context, id string) (bool,
 }
 
 // SendAgentMessage is the resolver for the sendAgentMessage field.
-func (r *mutationResolver) SendAgentMessage(ctx context.Context, beanID string, message string, images []*model.ImageInput, attachments []*model.FileAttachmentInput) (bool, error) {
+func (r *mutationResolver) SendAgentMessage(ctx context.Context, itemID string, message string, images []*model.ImageInput, attachments []*model.FileAttachmentInput) (bool, error) {
 	if r.AgentMgr == nil {
 		return false, fmt.Errorf("agent manager not available")
 	}
 
 	var workDir string
-	if beanID == CentralSessionID {
+	if itemID == CentralSessionID {
 		// Central agent chat runs in the project root
 		workDir = r.ProjectRoot
 	} else {
 		// Find the worktree path for this item
 		var err error
-		workDir, err = r.findWorktreePath(beanID)
+		workDir, err = r.findWorktreePath(itemID)
 		if err != nil {
 			return false, err
 		}
@@ -293,58 +293,58 @@ func (r *mutationResolver) SendAgentMessage(ctx context.Context, beanID string, 
 		uploads = append(uploads, agent.ImageUpload{Data: data, MediaType: img.MediaType})
 	}
 
-	if err := r.AgentMgr.SendMessage(beanID, workDir, message, uploads, attachmentPaths...); err != nil {
+	if err := r.AgentMgr.SendMessage(itemID, workDir, message, uploads, attachmentPaths...); err != nil {
 		return false, err
 	}
 	return true, nil
 }
 
 // StopAgent is the resolver for the stopAgent field.
-func (r *mutationResolver) StopAgent(ctx context.Context, beanID string) (bool, error) {
+func (r *mutationResolver) StopAgent(ctx context.Context, itemID string) (bool, error) {
 	if r.AgentMgr == nil {
 		return false, fmt.Errorf("agent manager not available")
 	}
-	if err := r.AgentMgr.StopSession(beanID); err != nil {
+	if err := r.AgentMgr.StopSession(itemID); err != nil {
 		return false, err
 	}
 	return true, nil
 }
 
 // SetAgentPlanMode is the resolver for the setAgentPlanMode field.
-func (r *mutationResolver) SetAgentPlanMode(ctx context.Context, beanID string, planMode bool) (bool, error) {
+func (r *mutationResolver) SetAgentPlanMode(ctx context.Context, itemID string, planMode bool) (bool, error) {
 	if r.AgentMgr == nil {
 		return false, fmt.Errorf("agent manager not available")
 	}
-	if err := r.AgentMgr.SetPlanMode(beanID, planMode); err != nil {
+	if err := r.AgentMgr.SetPlanMode(itemID, planMode); err != nil {
 		return false, err
 	}
 	return true, nil
 }
 
 // SetAgentActMode is the resolver for the setAgentActMode field.
-func (r *mutationResolver) SetAgentActMode(ctx context.Context, beanID string, actMode bool) (bool, error) {
+func (r *mutationResolver) SetAgentActMode(ctx context.Context, itemID string, actMode bool) (bool, error) {
 	if r.AgentMgr == nil {
 		return false, fmt.Errorf("agent manager not available")
 	}
-	if err := r.AgentMgr.SetActMode(beanID, actMode); err != nil {
+	if err := r.AgentMgr.SetActMode(itemID, actMode); err != nil {
 		return false, err
 	}
 	return true, nil
 }
 
 // SetAgentEffort is the resolver for the setAgentEffort field.
-func (r *mutationResolver) SetAgentEffort(ctx context.Context, beanID string, effort string) (bool, error) {
+func (r *mutationResolver) SetAgentEffort(ctx context.Context, itemID string, effort string) (bool, error) {
 	if r.AgentMgr == nil {
 		return false, fmt.Errorf("agent manager not available")
 	}
-	if err := r.AgentMgr.SetEffort(beanID, effort); err != nil {
+	if err := r.AgentMgr.SetEffort(itemID, effort); err != nil {
 		return false, err
 	}
 	return true, nil
 }
 
 // SetAgentPendingInteraction is the resolver for the setAgentPendingInteraction field.
-func (r *mutationResolver) SetAgentPendingInteraction(ctx context.Context, beanID string, typeArg model.InteractionType, planContent *string) (bool, error) {
+func (r *mutationResolver) SetAgentPendingInteraction(ctx context.Context, itemID string, typeArg model.InteractionType, planContent *string) (bool, error) {
 	if r.AgentMgr == nil {
 		return false, fmt.Errorf("agent manager not available")
 	}
@@ -361,35 +361,35 @@ func (r *mutationResolver) SetAgentPendingInteraction(ctx context.Context, beanI
 	if planContent != nil {
 		interaction.PlanContent = *planContent
 	}
-	if err := r.AgentMgr.SetPendingInteraction(beanID, interaction); err != nil {
+	if err := r.AgentMgr.SetPendingInteraction(itemID, interaction); err != nil {
 		return false, err
 	}
 	return true, nil
 }
 
 // ClearAgentSession is the resolver for the clearAgentSession field.
-func (r *mutationResolver) ClearAgentSession(ctx context.Context, beanID string) (bool, error) {
+func (r *mutationResolver) ClearAgentSession(ctx context.Context, itemID string) (bool, error) {
 	if r.AgentMgr == nil {
 		return false, fmt.Errorf("agent manager not available")
 	}
-	if err := r.AgentMgr.ClearSession(beanID); err != nil {
+	if err := r.AgentMgr.ClearSession(itemID); err != nil {
 		return false, err
 	}
 	return true, nil
 }
 
 // ArchiveItem is the resolver for the archiveItem field.
-func (r *mutationResolver) ArchiveBean(ctx context.Context, id string) (bool, error) {
+func (r *mutationResolver) ArchiveItem(ctx context.Context, id string) (bool, error) {
 	return r.CoreResolver.ArchiveItem(ctx, id)
 }
 
-// SaveDirtyBeans is the resolver for the saveDirtyBeans field.
-func (r *mutationResolver) SaveDirtyBeans(ctx context.Context) (int, error) {
+// SaveDirtyItems is the resolver for the saveDirtyItems field.
+func (r *mutationResolver) SaveDirtyItems(ctx context.Context) (int, error) {
 	return r.Core.SaveDirty()
 }
 
 // SaveItem is the resolver for the saveItem field.
-func (r *mutationResolver) SaveBean(ctx context.Context, id string) (bool, error) {
+func (r *mutationResolver) SaveItem(ctx context.Context, id string) (bool, error) {
 	if err := r.Core.SaveItem(id); err != nil {
 		return false, err
 	}
@@ -397,7 +397,7 @@ func (r *mutationResolver) SaveBean(ctx context.Context, id string) (bool, error
 }
 
 // ExecuteAgentAction is the resolver for the executeAgentAction field.
-func (r *mutationResolver) ExecuteAgentAction(ctx context.Context, beanID string, actionID string) (bool, error) {
+func (r *mutationResolver) ExecuteAgentAction(ctx context.Context, itemID string, actionID string) (bool, error) {
 	if r.AgentMgr == nil {
 		return false, fmt.Errorf("agent manager not available")
 	}
@@ -408,17 +408,17 @@ func (r *mutationResolver) ExecuteAgentAction(ctx context.Context, beanID string
 	}
 
 	var workDir string
-	if beanID == CentralSessionID {
+	if itemID == CentralSessionID {
 		workDir = r.ProjectRoot
 	} else {
 		var err error
-		workDir, err = r.findWorktreePath(beanID)
+		workDir, err = r.findWorktreePath(itemID)
 		if err != nil {
 			return false, err
 		}
 	}
 
-	actCtx := actionContext{WorktreeID: beanID, WorkDir: workDir, MainRepoPath: r.ProjectRoot}
+	actCtx := actionContext{WorktreeID: itemID, WorkDir: workDir, MainRepoPath: r.ProjectRoot}
 
 	// Populate git state
 	actCtx.HasChanges = gitutil.HasChanges(workDir)
@@ -436,7 +436,7 @@ func (r *mutationResolver) ExecuteAgentAction(ctx context.Context, beanID string
 		}
 	}
 
-	if err := r.AgentMgr.SendMessage(beanID, workDir, action.PromptFunc(actCtx), nil); err != nil {
+	if err := r.AgentMgr.SendMessage(itemID, workDir, action.PromptFunc(actCtx), nil); err != nil {
 		return false, err
 	}
 	return true, nil
@@ -506,12 +506,12 @@ func (r *mutationResolver) OpenInEditor(ctx context.Context, workspaceID string)
 }
 
 // Item is the resolver for the item field.
-func (r *queryResolver) Bean(ctx context.Context, id string) (*item.Item, error) {
+func (r *queryResolver) Item(ctx context.Context, id string) (*item.Item, error) {
 	return r.CoreResolver.Item(ctx, id)
 }
 
 // Items is the resolver for the items field.
-func (r *queryResolver) Beans(ctx context.Context, filter *model.BeanFilter) ([]*item.Item, error) {
+func (r *queryResolver) Items(ctx context.Context, filter *model.ItemFilter) ([]*item.Item, error) {
 	return r.CoreResolver.Items(ctx, filter)
 }
 
@@ -535,11 +535,11 @@ func (r *queryResolver) Worktrees(ctx context.Context) ([]*model.Worktree, error
 }
 
 // AgentSession is the resolver for the agentSession field.
-func (r *queryResolver) AgentSession(ctx context.Context, beanID string) (*model.AgentSession, error) {
+func (r *queryResolver) AgentSession(ctx context.Context, itemID string) (*model.AgentSession, error) {
 	if r.AgentMgr == nil {
 		return nil, nil
 	}
-	s := r.AgentMgr.GetSession(beanID)
+	s := r.AgentMgr.GetSession(itemID)
 	if s == nil {
 		return nil, nil
 	}
@@ -735,15 +735,15 @@ func (r *queryResolver) BranchStatus(ctx context.Context, path *string) (*model.
 	}, nil
 }
 
-// HasDirtyBeans is the resolver for the hasDirtyBeans field.
-func (r *queryResolver) HasDirtyBeans(ctx context.Context) (bool, error) {
+// HasDirtyItems is the resolver for the hasDirtyItems field.
+func (r *queryResolver) HasDirtyItems(ctx context.Context) (bool, error) {
 	return r.Core.HasDirty(), nil
 }
 
 // AgentActions is the resolver for the agentActions field.
-func (r *queryResolver) AgentActions(ctx context.Context, beanID string, skipForge *bool) ([]*model.AgentAction, error) {
+func (r *queryResolver) AgentActions(ctx context.Context, itemID string, skipForge *bool) ([]*model.AgentAction, error) {
 	// Build action context for visibility filtering
-	actCtx := actionContext{WorktreeID: beanID}
+	actCtx := actionContext{WorktreeID: itemID}
 
 	// Set integrate mode from config
 	if cfg := r.Core.Config(); cfg != nil {
@@ -759,7 +759,7 @@ func (r *queryResolver) AgentActions(ctx context.Context, beanID string, skipFor
 
 		if wts, err := r.WorktreeMgr.List(); err == nil {
 			for _, wt := range wts {
-				if wt.ID == beanID {
+				if wt.ID == itemID {
 					actCtx.WorkDir = wt.Path
 					actCtx.HasChanges = gitutil.HasChanges(wt.Path)
 					actCtx.HasNewCommits = gitutil.HasUnmergedCommits(wt.Path, r.WorktreeMgr.BaseRef())
@@ -939,15 +939,15 @@ func (r *queryResolver) ListFiles(ctx context.Context, workspaceID *string, pref
 	return results, nil
 }
 
-// BeanChanged is the resolver for the beanChanged field.
-func (r *subscriptionResolver) BeanChanged(ctx context.Context, includeInitial *bool) (<-chan *model.BeanChangeEvent, error) {
+// ItemChanged is the resolver for the itemChanged field.
+func (r *subscriptionResolver) ItemChanged(ctx context.Context, includeInitial *bool) (<-chan *model.ItemChangeEvent, error) {
 	// Subscribe to item events from itemcore
 	eventCh, unsubscribe := r.Core.Subscribe()
 
 	// Create buffered output channel for GraphQL to reduce backpressure on the
 	// subscriber channel. Without buffering, the resolver blocks on sends to gqlgen's
 	// WebSocket transport, which prevents draining eventCh and causes fanOut to drop events.
-	out := make(chan *model.BeanChangeEvent, 64)
+	out := make(chan *model.ItemChangeEvent, 64)
 
 	// Start goroutine to forward events
 	go func() {
@@ -964,9 +964,9 @@ func (r *subscriptionResolver) BeanChanged(ctx context.Context, includeInitial *
 			item.SortByStatusPriorityAndType(items, cfg.StatusNames(), cfg.PriorityNames(), cfg.TypeNames())
 
 			select {
-			case out <- &model.BeanChangeEvent{
+			case out <- &model.ItemChangeEvent{
 				Type:  model.ChangeTypeInitialSnapshot,
-				Beans: items,
+				Items: items,
 			}:
 				return true
 			case <-ctx.Done():
@@ -1001,9 +1001,9 @@ func (r *subscriptionResolver) BeanChanged(ctx context.Context, includeInitial *
 						continue
 					}
 
-					gqlEvent := &model.BeanChangeEvent{
-						BeanID: event.ItemID,
-						Bean:   event.Item,
+					gqlEvent := &model.ItemChangeEvent{
+						ItemID: event.ItemID,
+						Item:   event.Item,
 					}
 
 					// Convert event type
@@ -1132,27 +1132,27 @@ func (r *subscriptionResolver) WorktreesChanged(ctx context.Context) (<-chan []*
 }
 
 // AgentSessionChanged is the resolver for the agentSessionChanged field.
-func (r *subscriptionResolver) AgentSessionChanged(ctx context.Context, beanID string) (<-chan *model.AgentSession, error) {
+func (r *subscriptionResolver) AgentSessionChanged(ctx context.Context, itemID string) (<-chan *model.AgentSession, error) {
 	if r.AgentMgr == nil {
 		out := make(chan *model.AgentSession)
 		close(out)
 		return out, nil
 	}
 
-	ch := r.AgentMgr.Subscribe(beanID)
+	ch := r.AgentMgr.Subscribe(itemID)
 	out := make(chan *model.AgentSession)
 
 	go func() {
-		defer r.AgentMgr.Unsubscribe(beanID, ch)
+		defer r.AgentMgr.Unsubscribe(itemID, ch)
 		defer close(out)
 
 		fetchState := func() *model.AgentSession {
-			if s := r.AgentMgr.GetSession(beanID); s != nil {
+			if s := r.AgentMgr.GetSession(itemID); s != nil {
 				return agentSessionToModel(s)
 			}
 			// Session was cleared — send an empty session so the UI resets
 			return &model.AgentSession{
-				BeanID:    beanID,
+				ItemID:    itemID,
 				AgentType: "claude",
 				Status:    model.AgentSessionStatusIdle,
 				Messages:  []*model.AgentMessage{},
@@ -1160,7 +1160,7 @@ func (r *subscriptionResolver) AgentSessionChanged(ctx context.Context, beanID s
 		}
 
 		// Emit current state immediately (if session exists)
-		if s := r.AgentMgr.GetSession(beanID); s != nil {
+		if s := r.AgentMgr.GetSession(itemID); s != nil {
 			select {
 			case out <- agentSessionToModel(s):
 			case <-ctx.Done():
@@ -1356,8 +1356,8 @@ func (r *subscriptionResolver) WorkspaceStatuses(ctx context.Context) (<-chan []
 	return out, nil
 }
 
-// Bean returns BeanResolver implementation.
-func (r *Resolver) Bean() BeanResolver { return &beanResolver{r} }
+// Item returns ItemResolver implementation.
+func (r *Resolver) Item() ItemResolver { return &itemResolver{r} }
 
 // Mutation returns MutationResolver implementation.
 func (r *Resolver) Mutation() MutationResolver { return &mutationResolver{r} }
@@ -1369,7 +1369,7 @@ func (r *Resolver) Query() QueryResolver { return &queryResolver{r} }
 func (r *Resolver) Subscription() SubscriptionResolver { return &subscriptionResolver{r} }
 
 type (
-	beanResolver         struct{ *Resolver }
+	itemResolver         struct{ *Resolver }
 	mutationResolver     struct{ *Resolver }
 	queryResolver        struct{ *Resolver }
 	subscriptionResolver struct{ *Resolver }

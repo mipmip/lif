@@ -22,7 +22,7 @@ export class AgentActionsStore {
     const result = await client
       .query(
         AgentActionsDocument,
-        { beanId, skipForge: skipForge ?? null },
+        { itemId: beanId, skipForge: skipForge ?? null },
         { requestPolicy: 'network-only' }
       )
       .toPromise();
@@ -75,7 +75,7 @@ export class AgentActionsStore {
   async execute(beanId: string, actionId: string) {
     this.executingAction = actionId;
     try {
-      await client.mutation(ExecuteAgentActionDocument, { beanId, actionId }).toPromise();
+      await client.mutation(ExecuteAgentActionDocument, { itemId: beanId, actionId }).toPromise();
     } finally {
       this.executingAction = null;
     }

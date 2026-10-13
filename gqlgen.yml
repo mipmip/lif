@@ -22,8 +22,8 @@ autobind:
   - github.com/xRiErOS/lif/pkg/item
 
 models:
-  # Bind schema type Bean to the item package's Item type
-  Bean:
+  # Bind schema type Item to the item package's Item type
+  Item:
     model: github.com/xRiErOS/lif/pkg/item.Item
   # Map the custom Map scalar to gqlgen's built-in map type
   Map:

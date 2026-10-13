@@ -11,7 +11,7 @@ import (
 )
 
 // CreateItem creates a new item from the given input.
-func (r *CoreResolver) CreateItem(ctx context.Context, input model.CreateBeanInput, opts ...itemcore.UpdateOption) (*item.Item, error) {
+func (r *CoreResolver) CreateItem(ctx context.Context, input model.CreateItemInput, opts ...itemcore.UpdateOption) (*item.Item, error) {
 	if err := r.validateCreateInput(input); err != nil {
 		return nil, err
 	}
@@ -108,7 +108,7 @@ func (r *CoreResolver) CreateItem(ctx context.Context, input model.CreateBeanInp
 }
 
 // UpdateItem updates an existing item.
-func (r *CoreResolver) UpdateItem(ctx context.Context, id string, input model.UpdateBeanInput, opts ...itemcore.UpdateOption) (*item.Item, error) {
+func (r *CoreResolver) UpdateItem(ctx context.Context, id string, input model.UpdateItemInput, opts ...itemcore.UpdateOption) (*item.Item, error) {
 	b, err := r.Core.Get(id)
 	if err != nil {
 		return nil, err

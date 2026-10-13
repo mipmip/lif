@@ -67,7 +67,7 @@ func ValidateTags(tags []string) error {
 
 // validateCreateInput checks every caller-supplied field of a create before
 // anything is written.
-func (r *CoreResolver) validateCreateInput(input model.CreateBeanInput) error {
+func (r *CoreResolver) validateCreateInput(input model.CreateItemInput) error {
 	if err := ValidateTitle(input.Title); err != nil {
 		return err
 	}
@@ -94,7 +94,7 @@ func (r *CoreResolver) validateCreateInput(input model.CreateBeanInput) error {
 // input leaves alone are not validated: an item written by an older build may
 // carry a value this one no longer accepts, and that must not make the rest of
 // the item uneditable. The body is checked after the modifications are applied.
-func (r *CoreResolver) validateUpdateInput(input model.UpdateBeanInput) error {
+func (r *CoreResolver) validateUpdateInput(input model.UpdateItemInput) error {
 	if input.Title != nil {
 		if err := ValidateTitle(*input.Title); err != nil {
 			return err
