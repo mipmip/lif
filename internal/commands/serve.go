@@ -149,12 +149,12 @@ func runServer(port int, origins []string) error {
 	if err := os.MkdirAll(worktreeRoot, 0755); err != nil {
 		return fmt.Errorf("failed to create worktree directory %s: %w", worktreeRoot, err)
 	}
-	log.Printf("[beans] worktrees directory: %s", worktreeRoot)
+	log.Printf("[lif] worktrees directory: %s", worktreeRoot)
 
 	// Warn if old in-repo worktrees directory exists
 	oldWorktreeDir := filepath.Join(core.Root(), ".worktrees")
 	if entries, err := os.ReadDir(oldWorktreeDir); err == nil && len(entries) > 0 {
-		log.Printf("[beans] WARNING: found old worktrees in %s — worktrees are now created in %s. You may want to recreate existing worktrees and remove the old directory.", oldWorktreeDir, worktreeRoot)
+		log.Printf("[lif] WARNING: found old worktrees in %s — worktrees are now created in %s. You may want to recreate existing worktrees and remove the old directory.", oldWorktreeDir, worktreeRoot)
 	}
 
 	wtManager := newWorktreeManager(cfg, core.Root(), worktreeRoot)
@@ -163,7 +163,7 @@ func runServer(port int, origins []string) error {
 	if existingWTs, err := wtManager.List(); err == nil {
 		for _, wt := range existingWTs {
 			if err := core.WatchWorktreeItems(wt.Path); err != nil {
-				fmt.Printf("[beans] warning: failed to watch worktree %s: %v\n", wt.ID, err)
+				fmt.Printf("[lif] warning: failed to watch worktree %s: %v\n", wt.ID, err)
 			}
 		}
 	}
@@ -184,7 +184,7 @@ func runServer(port int, origins []string) error {
 			// Persist the port (writes back the actual port, which may differ
 			// from the saved one if there was a conflict).
 			if err := wtManager.SavePort(wt.ID, port); err != nil {
-				log.Printf("[beans] warning: failed to save port for %s: %v", wt.ID, err)
+				log.Printf("[lif] warning: failed to save port for %s: %v", wt.ID, err)
 			}
 		}
 	}
@@ -206,10 +206,10 @@ func runServer(port int, origins []string) error {
 			return ""
 		}
 		var sb strings.Builder
-		sb.WriteString("IMPORTANT: Do NOT use Claude Code's built-in worktree system (EnterWorktree tool). You are already working inside a beans-managed worktree.\n\n")
+		sb.WriteString("IMPORTANT: Do NOT use Claude Code's built-in worktree system (EnterWorktree tool). You are already working inside a lif-managed worktree.\n\n")
 		sb.WriteString("CRITICAL — ASKING QUESTIONS:\nYou are running inside a web UI, NOT an interactive terminal. The user CANNOT see or respond to plain-text questions in your output. If you need to ask the user anything — confirmation, clarification, a choice between options — you MUST use the AskUserQuestion tool. Every single time. No exceptions. Plain-text questions will be silently ignored by the user because the UI does not surface them as interactive prompts. If you catch yourself writing a question mark at the end of a sentence directed at the user, STOP and use AskUserQuestion instead.\n\n")
 		sb.WriteString("IMPORTANT: You MUST only create or modify files within this worktree directory. NEVER make changes to files in the main repository or any other worktree. All your file operations (reads are fine anywhere, but writes, edits, and deletions) must be scoped to your current working directory.\n\n")
-		fmt.Fprintf(&sb, "You are working on bean %s: %q\n", b.ID, b.Title)
+		fmt.Fprintf(&sb, "You are working on item %s: %q\n", b.ID, b.Title)
 		fmt.Fprintf(&sb, "Type: %s | Status: %s", b.Type, b.Status)
 		if b.Priority != "" {
 			fmt.Fprintf(&sb, " | Priority: %s", b.Priority)
@@ -231,7 +231,7 @@ func runServer(port int, origins []string) error {
 	// its workspace identity.
 	agentMgr.SetSystemPromptProvider(func(itemID string) string {
 		if itemID == graph.CentralSessionID {
-			return fmt.Sprintf("You are the central planning agent for the beans project. Your working directory is the main repository at: %s\nNEVER merge pull requests. After creating a PR, stop and report the URL. Do not run `gh pr merge` or any equivalent.\nNEVER assume CI checks are absent. Checks take time to register after a push. If `gh pr checks` returns empty, it means checks haven't started yet, not that none are configured.", filepath.Dir(core.Root()))
+			return fmt.Sprintf("You are the central planning agent for the Lif project. Your working directory is the main repository at: %s\nNEVER merge pull requests. After creating a PR, stop and report the URL. Do not run `gh pr merge` or any equivalent.\nNEVER assume CI checks are absent. Checks take time to register after a push. If `gh pr checks` returns empty, it means checks haven't started yet, not that none are configured.", filepath.Dir(core.Root()))
 		}
 		wtPath := wtManager.WorktreePath(itemID)
 		if wtPath == "" {
@@ -264,9 +264,9 @@ func runServer(port int, origins []string) error {
 					desc := agent.GenerateDescription(message)
 					if desc != "" {
 						if err := wtManager.UpdateDescription(itemID, desc); err != nil {
-							log.Printf("[beans] failed to save workspace description for %s: %v", itemID, err)
+							log.Printf("[lif] failed to save workspace description for %s: %v", itemID, err)
 						} else {
-							log.Printf("[beans] generated workspace description for %s: %q", itemID, desc)
+							log.Printf("[lif] generated workspace description for %s: %q", itemID, desc)
 						}
 					}
 					break
@@ -282,7 +282,7 @@ func runServer(port int, origins []string) error {
 			return
 		}
 		if err := wtManager.TouchLastActive(itemID); err != nil {
-			log.Printf("[beans] failed to update last_active_at for %s: %v", itemID, err)
+			log.Printf("[lif] failed to update last_active_at for %s: %v", itemID, err)
 		}
 	})
 
@@ -296,7 +296,7 @@ func runServer(port int, origins []string) error {
 	projectRoot := filepath.Dir(core.Root())
 	forgeProvider := forge.Detect(projectRoot)
 	if forgeProvider != nil {
-		fmt.Printf("[beans] detected forge: %s (using %s CLI)\n", forgeProvider.Name(), forgeProvider.CLIName())
+		fmt.Printf("[lif] detected forge: %s (using %s CLI)\n", forgeProvider.Name(), forgeProvider.CLIName())
 	}
 
 	// Provide workspace context (PR status, git state) for quick reply generation.
@@ -381,7 +381,7 @@ func runServer(port int, origins []string) error {
 	router.Any("/api/graphql", gin.WrapH(gqlHandler))
 
 	// GraphQL Playground
-	router.GET("/playground", gin.WrapH(playground.Handler("Beans GraphQL", "/api/graphql")))
+	router.GET("/playground", gin.WrapH(playground.Handler("Lif GraphQL", "/api/graphql")))
 
 	// Serve agent chat image attachments
 	router.GET("/api/attachments/:beanId/:filename", func(c *gin.Context) {
@@ -420,9 +420,9 @@ func runServer(port int, origins []string) error {
 
 	// Start server in goroutine
 	go func() {
-		fmt.Printf("[beans] Starting server at http://localhost:%d/\n", port)
-		fmt.Printf("[beans] GraphQL Playground: http://localhost:%d/playground\n", port)
-		fmt.Printf("[beans] Allowed origins: %s\n", strings.Join(origins, ", "))
+		fmt.Printf("[lif] Starting server at http://localhost:%d/\n", port)
+		fmt.Printf("[lif] GraphQL Playground: http://localhost:%d/playground\n", port)
+		fmt.Printf("[lif] Allowed origins: %s\n", strings.Join(origins, ", "))
 		serverErr <- server.ListenAndServe()
 	}()
 
