@@ -1,18 +1,18 @@
 #!/bin/sh
-# Installs the xRiErOS/beans fork's beans, beans-serve, and beans-tui
+# Installs the xRiErOS/lif project's lif, lif-serve, and lif-tui
 # binaries from a GitHub release.
 #
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/xRiErOS/beans/main/install.sh | sh
+#   curl -fsSL https://raw.githubusercontent.com/xRiErOS/lif/main/install.sh | sh
 #
 # Configuration (environment variables):
-#   BEANS_VERSION  Release tag to install, e.g. "v0.7.0". Default: latest release.
-#   BEANS_BIN_DIR  Install directory. Default: "$HOME/.local/bin".
-#   BEANS_REPO     GitHub "owner/repo" to install from. Default: "xRiErOS/beans".
+#   LIF_VERSION  Release tag to install, e.g. "v0.7.0". Default: latest release.
+#   LIF_BIN_DIR  Install directory. Default: "$HOME/.local/bin".
+#   LIF_REPO     GitHub "owner/repo" to install from. Default: "xRiErOS/lif".
 set -eu
 
-BEANS_REPO="${BEANS_REPO:-xRiErOS/beans}"
-BEANS_BIN_DIR="${BEANS_BIN_DIR:-$HOME/.local/bin}"
+LIF_REPO="${LIF_REPO:-xRiErOS/lif}"
+LIF_BIN_DIR="${LIF_BIN_DIR:-$HOME/.local/bin}"
 
 err() {
 	echo "install.sh: $*" >&2
@@ -24,14 +24,14 @@ info() {
 }
 
 resolve_version() {
-	if [ -n "${BEANS_VERSION:-}" ]; then
-		echo "$BEANS_VERSION"
+	if [ -n "${LIF_VERSION:-}" ]; then
+		echo "$LIF_VERSION"
 		return
 	fi
-	api_url="https://api.github.com/repos/${BEANS_REPO}/releases/latest"
+	api_url="https://api.github.com/repos/${LIF_REPO}/releases/latest"
 	tag=$(curl -fsSL "$api_url" | sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p' | head -n1)
 	if [ -z "$tag" ]; then
-		err "could not resolve the latest release tag from $api_url. Set BEANS_VERSION explicitly (e.g. BEANS_VERSION=v0.7.0)."
+		err "could not resolve the latest release tag from $api_url. Set LIF_VERSION explicitly (e.g. LIF_VERSION=v0.7.0)."
 	fi
 	echo "$tag"
 }
@@ -42,7 +42,7 @@ detect_os() {
 	Darwin) echo "Darwin" ;;
 	Linux) echo "Linux" ;;
 	*)
-		err "unsupported OS '$uname_s'. Windows users: download the .zip archive from https://github.com/${BEANS_REPO}/releases instead."
+		err "unsupported OS '$uname_s'. Windows users: download the .zip archive from https://github.com/${LIF_REPO}/releases instead."
 		;;
 	esac
 }
@@ -83,15 +83,15 @@ main() {
 	version=$(resolve_version)
 	os=$(detect_os)
 	arch=$(detect_arch "$os")
-	archive="beans_${os}_${arch}.tar.gz"
+	archive="lif_${os}_${arch}.tar.gz"
 
 	tmp=$(mktemp -d)
 	trap 'rm -rf "$tmp"' EXIT INT TERM
 
-	base_url="https://github.com/${BEANS_REPO}/releases/download/${version}"
+	base_url="https://github.com/${LIF_REPO}/releases/download/${version}"
 	info "downloading ${archive} (${version})..."
 	curl -fsSL -o "$tmp/$archive" "${base_url}/${archive}" ||
-		err "failed to download ${base_url}/${archive}. Check that ${version} exists at https://github.com/${BEANS_REPO}/releases."
+		err "failed to download ${base_url}/${archive}. Check that ${version} exists at https://github.com/${LIF_REPO}/releases."
 
 	if curl -fsSL -o "$tmp/checksums.txt" "${base_url}/checksums.txt"; then
 		sha256_check "$tmp/$archive" "$tmp/checksums.txt" || err "checksum verification failed for ${archive}."
@@ -101,17 +101,17 @@ main() {
 
 	tar -xzf "$tmp/$archive" -C "$tmp"
 
-	mkdir -p "$BEANS_BIN_DIR"
-	install -m 755 "$tmp/beans" "$tmp/beans-serve" "$tmp/beans-tui" "$BEANS_BIN_DIR/" ||
-		err "failed to install binaries into ${BEANS_BIN_DIR}. Set BEANS_BIN_DIR to a writable directory."
+	mkdir -p "$LIF_BIN_DIR"
+	install -m 755 "$tmp/lif" "$tmp/lif-serve" "$tmp/lif-tui" "$LIF_BIN_DIR/" ||
+		err "failed to install binaries into ${LIF_BIN_DIR}. Set LIF_BIN_DIR to a writable directory."
 
-	"$BEANS_BIN_DIR/beans" version
+	"$LIF_BIN_DIR/lif" version
 
 	case ":$PATH:" in
-	*":$BEANS_BIN_DIR:"*) ;;
+	*":$LIF_BIN_DIR:"*) ;;
 	*)
-		info "note: ${BEANS_BIN_DIR} is not on your PATH. Add this to your shell configuration:"
-		info "  export PATH=\"${BEANS_BIN_DIR}:\$PATH\""
+		info "note: ${LIF_BIN_DIR} is not on your PATH. Add this to your shell configuration:"
+		info "  export PATH=\"${LIF_BIN_DIR}:\$PATH\""
 		;;
 	esac
 }

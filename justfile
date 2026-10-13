@@ -6,10 +6,13 @@
 bin_dir := env_var_or_default("LIF_BIN_DIR", "/opt/homebrew/bin")
 
 # Remote to push release tags to. This workspace keeps `origin` on the
-# read-only hmans/beans upstream and `fork` on the writable xRiErOS/beans;
+# read-only hmans/beans upstream and `fork` on the writable xRiErOS/lif;
 # a plain clone of the fork itself has no separate `fork` remote, so this
 # picks `fork` when present and falls back to `origin` otherwise.
-release_remote := env_var_or_default("BEANS_RELEASE_REMOTE", `git remote get-url fork >/dev/null 2>&1 && echo fork || echo origin`)
+release_remote := env_var_or_default("LIF_RELEASE_REMOTE", `git remote get-url fork >/dev/null 2>&1 && echo fork || echo origin`)
+
+# GitHub repo (owner/name) the release recipes query via `gh -R`.
+release_repo := "xRiErOS/lif"
 
 # Name-Suffix des WIP-Binaries für Testläufe. Bewusst ein eigener Name statt
 # eines zweiten Zielverzeichnisses: in Eriks PATH gewinnt {{bin_dir}}, ein
@@ -127,27 +130,27 @@ release LEVEL='patch': test release-snapshot
     esac
     # Runs for a re-pushed tag name keep the same branch label; remember the
     # highest existing run ID so only a run created by this push is watched.
-    LAST_ID=$(gh run list -R xRiErOS/beans -w release --branch "$NEW_TAG" -L 20 --json databaseId -q 'map(.databaseId) | max // 0')
+    LAST_ID=$(gh run list -R {{release_repo}} -w release --branch "$NEW_TAG" -L 20 --json databaseId -q 'map(.databaseId) | max // 0')
     git push {{release_remote}} HEAD
     git push {{release_remote}} "$NEW_TAG"
     RUN_ID=""
     for i in $(seq 1 20); do
-        RUN_ID=$(gh run list -R xRiErOS/beans -w release --branch "$NEW_TAG" -L 20 --json databaseId -q "map(select(.databaseId > $LAST_ID)) | map(.databaseId) | max // empty" 2>/dev/null || true)
+        RUN_ID=$(gh run list -R {{release_repo}} -w release --branch "$NEW_TAG" -L 20 --json databaseId -q "map(select(.databaseId > $LAST_ID)) | map(.databaseId) | max // empty" 2>/dev/null || true)
         [ -n "$RUN_ID" ] && break
         sleep 3
     done
     if [ -z "$RUN_ID" ]; then
-        echo "no release run appeared yet, check https://github.com/xRiErOS/beans/actions" >&2
+        echo "no release run appeared yet, check https://github.com/{{release_repo}}/actions" >&2
         exit 1
     fi
-    gh run watch -R xRiErOS/beans "$RUN_ID" --exit-status
+    gh run watch -R {{release_repo}} "$RUN_ID" --exit-status
 
 # Watch the most recent release Actions run without cutting a new release
 release-watch:
     #!/usr/bin/env bash
     set -euo pipefail
-    RUN_ID=$(gh run list -R xRiErOS/beans -w release -L1 --json databaseId -q '.[0].databaseId')
-    gh run watch -R xRiErOS/beans "$RUN_ID"
+    RUN_ID=$(gh run list -R {{release_repo}} -w release -L1 --json databaseId -q '.[0].databaseId')
+    gh run watch -R {{release_repo}} "$RUN_ID"
 
 # Remove local goreleaser snapshot output (dist/ is gitignored)
 release-clean:
