@@ -1020,8 +1020,13 @@ func TestListAndRemove_legacyWorktree(t *testing.T) {
 		t.Fatalf("List: %v", err)
 	}
 	requireBranches(t, wts, map[string]string{"old-one": "beans/old-one"})
-	if wts[0].Path != legacyPath {
-		t.Errorf("Path = %q, want %q", wts[0].Path, legacyPath)
+	// git reports the resolved path (macOS /var -> /private/var).
+	wantPath, err := filepath.EvalSymlinks(legacyPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if wts[0].Path != wantPath {
+		t.Errorf("Path = %q, want %q", wts[0].Path, wantPath)
 	}
 
 	// A worktree created afterwards lands in the same root on a lif/ branch,
@@ -1089,6 +1094,26 @@ func TestList_detachedWorktreeReportsExistingBranch(t *testing.T) {
 	})
 }
 
+// git reports worktree paths resolved; a worktree root that is a symlink
+// (macOS /var -> /private/var) must still match for a detached worktree.
+func TestList_detachedWorktreeUnderSymlinkedRoot(t *testing.T) {
+	repoDir, _, _ := initTestRepo(t)
+	realRoot := t.TempDir()
+	linkRoot := filepath.Join(t.TempDir(), "link")
+	if err := os.Symlink(realRoot, linkRoot); err != nil {
+		t.Fatal(err)
+	}
+	mgr := NewManager(repoDir, linkRoot, "", "")
+	path := addWorktree(t, repoDir, linkRoot, "rebasing", "lif/rebasing")
+	gitIn(t, path, "checkout", "--detach")
+
+	wts, err := mgr.List()
+	if err != nil {
+		t.Fatalf("List: %v", err)
+	}
+	requireBranches(t, wts, map[string]string{"rebasing": "lif/rebasing"})
+}
+
 func TestLegacyBranchWorktrees(t *testing.T) {
 	repoDir, _, wtRoot := initTestRepo(t)
 	legacyPath := addWorktree(t, repoDir, wtRoot, "old-one", "beans/old-one")
@@ -1103,8 +1128,13 @@ func TestLegacyBranchWorktrees(t *testing.T) {
 	}
 	requireBranches(t, got, map[string]string{"old-one": "beans/old-one"})
 	wt := got[0]
-	if wt.Path != legacyPath {
-		t.Errorf("Path = %q, want %q", wt.Path, legacyPath)
+	// git reports the resolved path (macOS /var -> /private/var).
+	wantPath, err := filepath.EvalSymlinks(legacyPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if wt.Path != wantPath {
+		t.Errorf("Path = %q, want %q", wt.Path, wantPath)
 	}
 	// Lightweight: no metadata, no diff scan.
 	if wt.Name != "" || wt.ItemIDs != nil || wt.Setup != SetupNone {

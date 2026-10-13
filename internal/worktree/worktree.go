@@ -317,6 +317,14 @@ func worktreeBranchID(branch string) (id string, ok bool) {
 // none (empty Branch) -- a branch name is never made up. A nil branchExists
 // finds none.
 func parsePorcelain(output string, worktreesDir string, branchExists func(branch string) bool) []Worktree {
+	// git prints resolved paths; a symlinked root (macOS /var -> /private/var)
+	// matches only in its resolved form.
+	resolvedDir := worktreesDir
+	if worktreesDir != "" {
+		if r, err := filepath.EvalSymlinks(worktreesDir); err == nil {
+			resolvedDir = r
+		}
+	}
 	var worktrees []Worktree
 	var currentPath, currentBranch string
 	var prunable, detached bool
@@ -337,7 +345,7 @@ func parsePorcelain(output string, worktreesDir string, branchExists func(branch
 				Branch: currentBranch,
 				Path:   currentPath,
 			})
-		} else if detached && worktreesDir != "" && strings.HasPrefix(currentPath, worktreesDir) {
+		} else if detached && worktreesDir != "" && strings.HasPrefix(currentPath, resolvedDir) {
 			// Detached HEAD (e.g. during rebase) — identify by path
 			id := filepath.Base(currentPath)
 			branch := ""
