@@ -2,11 +2,17 @@ package commands
 
 import (
 	"bytes"
+	"os"
+	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"text/template"
 
+	"github.com/vektah/gqlparser/v2"
+	"github.com/xRiErOS/lif/internal/graph"
 	"github.com/xRiErOS/lif/pkg/config"
+	"github.com/xRiErOS/lif/pkg/itemgraph"
 )
 
 // primeCmdOutput runs the real primeCmd.RunE against a fresh temp directory
@@ -23,6 +29,13 @@ func primeCmdOutput(t *testing.T, cfg *config.Config) string {
 	if err := cfg.Save(dir); err != nil {
 		t.Fatalf("Save: %v", err)
 	}
+	return primeCmdOutputIn(t, dir)
+}
+
+// primeCmdOutputIn runs the real primeCmd.RunE inside a prepared project
+// directory and returns everything it writes to stdout.
+func primeCmdOutputIn(t *testing.T, dir string) string {
+	t.Helper()
 	t.Chdir(dir)
 
 	origItemsPath, origConfigPath := storePath, configPath
@@ -73,7 +86,7 @@ func TestPrimeCmdDocumentsCustomFrontMatter(t *testing.T) {
 
 func TestPrimeCmdDocumentsManualOrdering(t *testing.T) {
 	out := renderPrimeTemplate(t)
-	for _, want := range []string{"beans order", "--sort order", "--order"} {
+	for _, want := range []string{"lif order", "--sort order", "--order"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("prime output missing %q (manual ordering undocumented)", want)
 		}
@@ -95,23 +108,23 @@ func TestPrimeCmdDocumentsReviewFindingsAndAttachments(t *testing.T) {
 	out := renderPrimeTemplate(t)
 	for _, want := range []string{
 		"## Review Findings and Attachments",
-		".beans/attachments/<bean-id>/",
+		"attachments/<item-id>/",
 		"Attach to the container, not to a leaf",
 		"No front matter key lists attachments",
 		"There is no read verb and no read flag",
-		"beans promote <artifact> <finding-id> [<finding-id>...]",
+		"lif promote <artifact> <finding-id> [<finding-id>...]",
 		"review=<artifact-path>",
 		"finding=<finding-id>",
-		"beans list --where review=<path>",
-		"beans rename <id> <new-id>",
+		"lif list --where review=<path>",
+		"lif rename <id> <new-id>",
 		"--suffix <suffix>",
-		"beans rename --prefix <prefix>",
+		"lif rename --prefix <prefix>",
 		"--dry-run",
-		"Archiving a bean leaves its attachment directory in place",
-		"`beans archive` itself is a batch verb with no `<id>` argument",
-		"`beans delete` removes the attachment directory together with the bean",
-		"`beans check` reports an attachment directory whose bean no longer resolves, or, if the directory itself cannot be read, that read failure",
-		"moving every bean already in an archive status",
+		"Archiving an item leaves its attachment directory in place",
+		"`lif archive` itself is a batch verb with no `<id>` argument",
+		"`lif delete` removes the attachment directory together with the item",
+		"`lif check` reports an attachment directory whose item no longer resolves, or, if the directory itself cannot be read, that read failure",
+		"moving every item already in an archive status",
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("prime output missing %q (review findings/attachments undocumented)", want)
@@ -176,15 +189,15 @@ func TestPrimeReviewFindingsSectionHasNoTemplateDirective(t *testing.T) {
 func TestPrimeCmdDocumentsWorkflowRecipes(t *testing.T) {
 	out := renderPrimeTemplate(t)
 	for _, want := range []string{
-		"beans start <id>",
-		"beans complete <id>",
+		"lif start <id>",
+		"lif complete <id>",
 		// The exact signature is pinned by TestPrimeCmdDocumentsBatchAndFilters;
 		// here it is only the recipe and its defining flag that must be present.
-		"beans scrap",
+		"lif scrap",
 		"--reason",
-		"beans next",
-		"beans milestones",
-		"beans progress",
+		"lif next",
+		"lif milestones",
+		"lif progress",
 		"list --ready",
 		"list --is-blocked",
 	} {
@@ -201,12 +214,12 @@ func TestPrimeCmdDocumentsWorkflowRecipes(t *testing.T) {
 func TestPrimeCmdDocumentsBatchAndFilters(t *testing.T) {
 	out := renderPrimeTemplate(t)
 	for _, want := range []string{
-		"beans complete <id> [id...]",
-		"beans scrap <id> [id...]",
-		"beans start <id> [id...]",
-		"beans tag <id> [id...]",
+		"lif complete <id> [id...]",
+		"lif scrap <id> [id...]",
+		"lif start <id> [id...]",
+		"lif tag <id> [id...]",
 		"--remove-tag",
-		"beans next --type",
+		"lif next --type",
 		"--desc",
 	} {
 		if !strings.Contains(out, want) {
@@ -226,6 +239,8 @@ func TestPrimeCmdDocumentsFailureShape(t *testing.T) {
 		`{"success": false`,
 		"exits 1",
 		"stderr stays empty",
+		`"items": [`,
+		"`NO_LIF_DIR`",
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("prime output missing %q (failure shape undocumented)", want)
@@ -287,7 +302,7 @@ func TestPromptTemplateNoLongerCarriesTheLinearChain(t *testing.T) {
 
 // An exclusive config (lif init --profile todo, say) is its own complete
 // type table: DefaultTypes' milestone/epic/feature/bug must not leak into
-// the "## Issue Types" section, and that section must name exactly the same
+// the "## Item Types" section, and that section must name exactly the same
 // types as the "## Relationships" rank lines -- both are derived from the
 // one live config an agent is actually working in.
 func TestPrimeExclusiveConfigTypesAndRanksAgree(t *testing.T) {
@@ -297,18 +312,18 @@ func TestPrimeExclusiveConfigTypesAndRanksAgree(t *testing.T) {
 	cfg.Types = []config.TypeOverride{{Name: "task", Rank: &rank, Short: "T"}}
 
 	out := primeCmdOutput(t, cfg)
-	issueTypes := sectionOf(t, out, "## Issue Types")
+	issueTypes := sectionOf(t, out, "## Item Types")
 
 	for _, name := range []string{"milestone", "epic", "feature", "bug"} {
 		if strings.Contains(issueTypes, name) {
-			t.Errorf("exclusive config's issue types section still mentions %q:\n%s", name, issueTypes)
+			t.Errorf("exclusive config's item types section still mentions %q:\n%s", name, issueTypes)
 		}
 	}
 	if !strings.Contains(out, "rank 4: task") {
 		t.Errorf("rank section does not name the only configured type:\n%s", out)
 	}
 	if !strings.Contains(issueTypes, "**task**") {
-		t.Errorf("issue types section does not name the only configured type:\n%s", issueTypes)
+		t.Errorf("item types section does not name the only configured type:\n%s", issueTypes)
 	}
 }
 
@@ -348,5 +363,134 @@ func TestPrimeReflectsConfiguredStatusesAndPriorities(t *testing.T) {
 	}
 	if !strings.Contains(out, "**urgent**: Drop everything") {
 		t.Errorf("prime output does not reflect the configured priority:\n%s", out)
+	}
+}
+
+// beans-oaex: the product and the noun are renamed in every text an agent
+// reads. The word search covers the real prime output, the prime and graphql
+// help and the planning-agent prompt.
+var productWord = regexp.MustCompile(`(?i)\bbeans?\b`)
+
+func TestPrimeSurfacesNameNeitherBeanNorBeans(t *testing.T) {
+	surfaces := map[string]string{
+		"lif prime":          primeCmdOutput(t, config.DefaultWithPrefix("demo-")),
+		"lif prime --help":   primeCmd.Short + "\n" + primeCmd.Long,
+		"lif graphql --help": graphqlCmd.Short + "\n" + graphqlCmd.Long,
+		"centralAgentPrompt": centralAgentPrompt,
+	}
+	for name, text := range surfaces {
+		if loc := productWord.FindStringIndex(text); loc != nil {
+			t.Errorf("%s still names the old product or noun: ...%s...", name, text[max(0, loc[0]-20):min(len(text), loc[1]+20)])
+		}
+	}
+}
+
+// Every command line in a fenced block of the prime output must start a verb
+// the CLI registers: an agent copies these lines verbatim.
+var fencedLifVerb = regexp.MustCompile(`(?:^|\|\s*|\$\()(lif\w*) (\S+)`)
+
+func TestPrimeFencedCommandsInvokeRegisteredLifVerbs(t *testing.T) {
+	out := primeCmdOutput(t, config.DefaultWithPrefix("demo-"))
+	root := sharedTestRoot(t)
+
+	inFence, seen := false, 0
+	for _, line := range strings.Split(out, "\n") {
+		if strings.HasPrefix(line, "```") {
+			inFence = !inFence
+			continue
+		}
+		if !inFence {
+			continue
+		}
+		m := fencedLifVerb.FindStringSubmatch(line)
+		if m == nil {
+			continue
+		}
+		seen++
+		if m[1] != "lif" {
+			t.Errorf("prime fenced line %q invokes binary %q, want lif", line, m[1])
+			continue
+		}
+		if cmd, _, err := root.Find([]string{m[2]}); err != nil || cmd == root {
+			t.Errorf("prime fenced line %q invokes unknown verb %q", line, m[2])
+		}
+	}
+	if seen < 20 {
+		t.Errorf("only %d fenced lif command lines found, expected the full command list", seen)
+	}
+	if strings.Contains(out, "\nbeans ") {
+		t.Error("prime output has a line starting with the old binary name")
+	}
+}
+
+// The prompt names neither the config file nor the store directory as a
+// fixed literal: an agent in a legacy project must not create `.lif/` next to
+// `.beans/`, and an agent in a new project must not look for `.beans/`.
+func TestPrimeNamesNoFixedConfigOrStoreLiteral(t *testing.T) {
+	for name, files := range map[string]map[string]string{
+		"legacy-only":   {".beans.yml": "beans:\n    path: .beans\n"},
+		"new-only":      {".lif.yml": "lif:\n    path: .lif\n"},
+		"explicit path": {".lif.yml": "lif:\n    path: custom-store\n"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			dir := t.TempDir()
+			for f, content := range files {
+				if err := os.WriteFile(filepath.Join(dir, f), []byte(content), 0o644); err != nil {
+					t.Fatal(err)
+				}
+			}
+			out := primeCmdOutputIn(t, dir)
+			if out == "" {
+				t.Fatal("prime printed nothing for a project fixture")
+			}
+			for _, lit := range []string{".lif", ".beans"} {
+				if i := strings.Index(out, lit); i >= 0 {
+					t.Errorf("prime output carries fixed layout literal %q: ...%s...", lit, out[max(0, i-30):min(len(out), i+30)])
+				}
+			}
+			if !strings.Contains(out, "`lif path`") {
+				t.Error("prime output does not name `lif path` as the way to find the store directory")
+			}
+		})
+	}
+}
+
+// Criterion 3: every query in the prime output and in `lif graphql --help`
+// validates against the schema `lif graphql --schema` prints.
+var quotedQuery = regexp.MustCompile(`'([^']*)'`)
+
+func TestPrimeAndGraphqlExamplesValidateAgainstSchema(t *testing.T) {
+	schema := graph.NewExecutableSchema(graph.Config{
+		Resolvers: &graph.Resolver{CoreResolver: &itemgraph.CoreResolver{Core: core}},
+	}).Schema()
+
+	n := 0
+	for name, text := range map[string]string{
+		"lif prime":          primeCmdOutput(t, config.DefaultWithPrefix("demo-")),
+		"lif graphql --help": graphqlCmd.Long,
+	} {
+		for _, m := range quotedQuery.FindAllStringSubmatch(text, -1) {
+			q := strings.TrimSpace(m[1])
+			if !strings.HasPrefix(q, "{ ") && !strings.HasPrefix(q, "query ") && !strings.HasPrefix(q, "mutation ") {
+				continue
+			}
+			n++
+			if _, perr := gqlparser.LoadQuery(schema, q); perr != nil {
+				t.Errorf("%s example does not validate: %v\n%s", name, perr, q)
+			}
+		}
+	}
+	if n < 11 {
+		t.Errorf("only %d GraphQL examples found, expected the prime and help examples", n)
+	}
+}
+
+func TestPrimeGraphqlSectionNamesRegisteredCommand(t *testing.T) {
+	out := primeCmdOutput(t, config.DefaultWithPrefix("demo-"))
+	section := sectionOf(t, out, "## GraphQL Queries")
+	for _, want := range []string{"`lif graphql`", "lif graphql --help", "lif graphql --schema", "`query`"} {
+		if !strings.Contains(section, want) {
+			t.Errorf("GraphQL section missing %q", want)
+		}
 	}
 }
