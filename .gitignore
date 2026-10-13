@@ -1,6 +1,6 @@
-/beans
-/beans-serve
-/beans-tui
+/lif
+/lif-serve
+/lif-tui
 /.vscode/settings.json
 /.worktrees/
 /.superpowers/

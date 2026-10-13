@@ -7,11 +7,11 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/xRiErOS/beans/internal/gitutil"
-	"github.com/xRiErOS/beans/internal/ui"
-	"github.com/xRiErOS/beans/pkg/bean"
-	"github.com/xRiErOS/beans/pkg/beancore"
-	"github.com/xRiErOS/beans/pkg/config"
+	"github.com/xRiErOS/lif/internal/gitutil"
+	"github.com/xRiErOS/lif/internal/ui"
+	"github.com/xRiErOS/lif/pkg/bean"
+	"github.com/xRiErOS/lif/pkg/beancore"
+	"github.com/xRiErOS/lif/pkg/config"
 )
 
 // unknownTypeBeans returns every bean whose type the current configuration

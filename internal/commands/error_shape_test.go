@@ -9,7 +9,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/xRiErOS/beans/internal/output"
+	"github.com/xRiErOS/lif/internal/output"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
@@ -94,7 +94,7 @@ func TestRuntimeErrorPrintsTwoLines(t *testing.T) {
 	if strings.Contains(stderr, "Usage:") {
 		t.Errorf("stderr still carries the usage block:\n%s", stderr)
 	}
-	if !strings.Contains(stderr, "Run 'beans update --help' for usage.") {
+	if !strings.Contains(stderr, "Run 'lif update --help' for usage.") {
 		t.Errorf("stderr does not point at the manual:\n%s", stderr)
 	}
 	if n := len(strings.Split(strings.TrimSpace(stderr), "\n")); n != 2 {
@@ -115,7 +115,7 @@ func TestInvocationErrorUsesTheSameShape(t *testing.T) {
 	if strings.Contains(stderr, "Usage:") {
 		t.Errorf("stderr still carries the usage block:\n%s", stderr)
 	}
-	if !strings.Contains(stderr, "Run 'beans update --help' for usage.") {
+	if !strings.Contains(stderr, "Run 'lif update --help' for usage.") {
 		t.Errorf("stderr does not point at the manual:\n%s", stderr)
 	}
 }
@@ -156,7 +156,7 @@ func TestJSONErrorLeavesStderrEmpty(t *testing.T) {
 // must not vanish.
 func TestErrorWithoutADocumentStillReachesTheUser(t *testing.T) {
 	var buf bytes.Buffer
-	cmd := &cobra.Command{Use: "beans"}
+	cmd := &cobra.Command{Use: "lif"}
 	cmd.SetErr(&buf)
 
 	reportExecutionError(cmd, errors.New("loading config: broken"))

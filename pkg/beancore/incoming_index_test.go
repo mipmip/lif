@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/xRiErOS/beans/pkg/bean"
+	"github.com/xRiErOS/lif/pkg/bean"
 )
 
 // incomingFingerprint renders the incoming links of id as a comparable value.

@@ -2,7 +2,7 @@ package tui
 
 import (
 	"github.com/charmbracelet/lipgloss"
-	"github.com/xRiErOS/beans/internal/ui"
+	"github.com/xRiErOS/lif/internal/ui"
 )
 
 var (

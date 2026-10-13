@@ -10,7 +10,7 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/xRiErOS/beans/pkg/bean"
+	"github.com/xRiErOS/lif/pkg/bean"
 	"gopkg.in/yaml.v3"
 )
 
@@ -948,7 +948,7 @@ func (c *Config) toYAMLNode() *yaml.Node {
 	topMapping := &yaml.Node{
 		Kind:        yaml.MappingNode,
 		Tag:         "!!map",
-		HeadComment: "Beans configuration\nSee: https://github.com/xRiErOS/beans",
+		HeadComment: "Beans configuration\nSee: https://github.com/xRiErOS/lif",
 	}
 	if len(projectMapping.Content) > 0 {
 		topMapping.Content = append(topMapping.Content, strNode("project"), projectMapping)

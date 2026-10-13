@@ -5,7 +5,7 @@ import (
 	"errors"
 	"os"
 
-	"github.com/xRiErOS/beans/pkg/bean"
+	"github.com/xRiErOS/lif/pkg/bean"
 )
 
 // Error codes for JSON responses

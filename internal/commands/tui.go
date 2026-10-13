@@ -2,7 +2,7 @@ package commands
 
 import (
 	"github.com/spf13/cobra"
-	"github.com/xRiErOS/beans/internal/tui"
+	"github.com/xRiErOS/lif/internal/tui"
 )
 
 var tuiCmd = &cobra.Command{

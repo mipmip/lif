@@ -3,7 +3,7 @@ package ui
 import (
 	"testing"
 
-	"github.com/xRiErOS/beans/pkg/bean"
+	"github.com/xRiErOS/lif/pkg/bean"
 )
 
 func TestBuildTree(t *testing.T) {

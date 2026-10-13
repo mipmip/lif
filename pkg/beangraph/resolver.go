@@ -3,8 +3,8 @@ package beangraph
 import (
 	"fmt"
 
-	"github.com/xRiErOS/beans/pkg/bean"
-	"github.com/xRiErOS/beans/pkg/beancore"
+	"github.com/xRiErOS/lif/pkg/bean"
+	"github.com/xRiErOS/lif/pkg/beancore"
 )
 
 // CoreResolver implements the core bean GraphQL operations (CRUD, relationships,

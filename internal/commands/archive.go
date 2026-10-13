@@ -3,8 +3,8 @@ package commands
 import (
 	"fmt"
 
-	"github.com/xRiErOS/beans/pkg/bean"
-	"github.com/xRiErOS/beans/internal/output"
+	"github.com/xRiErOS/lif/pkg/bean"
+	"github.com/xRiErOS/lif/internal/output"
 	"github.com/spf13/cobra"
 )
 

@@ -5,11 +5,11 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/xRiErOS/beans/internal/gitutil"
-	"github.com/xRiErOS/beans/internal/output"
-	"github.com/xRiErOS/beans/internal/ui"
-	"github.com/xRiErOS/beans/pkg/beancore"
-	"github.com/xRiErOS/beans/pkg/config"
+	"github.com/xRiErOS/lif/internal/gitutil"
+	"github.com/xRiErOS/lif/internal/output"
+	"github.com/xRiErOS/lif/internal/ui"
+	"github.com/xRiErOS/lif/pkg/beancore"
+	"github.com/xRiErOS/lif/pkg/config"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
@@ -23,7 +23,7 @@ var configPath string
 // and core initialization logic.
 func NewRootCmd() *cobra.Command {
 	rootCmd := &cobra.Command{
-		Use:   "beans",
+		Use:   "lif",
 		Short: "A file-based issue tracker for AI-first workflows",
 		// Reporting a failure is done once, in reportExecutionError. Cobra
 		// otherwise prints the error itself and follows it with the whole

@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/xRiErOS/beans/pkg/bean"
-	"github.com/xRiErOS/beans/pkg/beangraph/model"
+	"github.com/xRiErOS/lif/pkg/bean"
+	"github.com/xRiErOS/lif/pkg/beangraph/model"
 )
 
 func strptr(s string) *string { return &s }

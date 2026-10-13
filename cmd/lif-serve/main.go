@@ -3,12 +3,12 @@ package main
 import (
 	"os"
 
-	"github.com/xRiErOS/beans/internal/commands"
+	"github.com/xRiErOS/lif/internal/commands"
 )
 
 func main() {
 	root := commands.NewRootCmd()
-	root.Use = "beans-serve"
+	root.Use = "lif-serve"
 	commands.RegisterServeCmd(root)
 
 	// Default to "serve" when no subcommand is given

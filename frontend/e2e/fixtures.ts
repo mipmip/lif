@@ -19,10 +19,10 @@ const GIT_ENV = {
 };
 
 function getBinaries() {
-  const beans = process.env.BEANS_BINARY;
-  const beansServe = process.env.BEANS_SERVE_BINARY;
+  const beans = process.env.LIF_BINARY;
+  const beansServe = process.env.LIF_SERVE_BINARY;
   if (!beans || !beansServe) {
-    throw new Error('BEANS_BINARY and BEANS_SERVE_BINARY must be set — run tests via e2e/run.sh');
+    throw new Error('LIF_BINARY and LIF_SERVE_BINARY must be set — run tests via e2e/run.sh');
   }
   return { beans, beansServe };
 }

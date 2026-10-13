@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/xRiErOS/beans/internal/search"
-	"github.com/xRiErOS/beans/pkg/bean"
+	"github.com/xRiErOS/lif/internal/search"
+	"github.com/xRiErOS/lif/pkg/bean"
 )
 
 // runWithTimeout is pkg/beancore's equivalent of internal/search's

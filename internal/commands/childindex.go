@@ -1,7 +1,7 @@
 package commands
 
 import (
-	"github.com/xRiErOS/beans/pkg/bean"
+	"github.com/xRiErOS/lif/pkg/bean"
 )
 
 // buildChildrenIndex maps each bean ID to its direct children.

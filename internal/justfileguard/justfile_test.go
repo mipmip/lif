@@ -105,7 +105,7 @@ func TestJustfileInstallRecipeCallsGuard(t *testing.T) {
 func TestJustfileInstallWipRecipeNeverWritesPlainNames(t *testing.T) {
 	justfile := read(t, repoRoot(t)+"/justfile")
 	body := recipeBody(t, justfile, "install-wip")
-	for _, plain := range []string{`"{{bin_dir}}/beans"`, `"{{bin_dir}}/beans-serve"`, `"{{bin_dir}}/beans-tui"`} {
+	for _, plain := range []string{`"{{bin_dir}}/lif"`, `"{{bin_dir}}/lif-serve"`, `"{{bin_dir}}/lif-tui"`} {
 		if strings.Contains(body, plain) {
 			t.Errorf("install-wip must never target %s, got:\n%s", plain, body)
 		}

@@ -106,8 +106,8 @@ func RegisterCoreCommands(root *cobra.Command) {
 	markBootstrapSkip(versionCmd)
 
 	// Deprecated placeholders for commands that moved to separate binaries
-	registerDeprecatedCmd(root, "serve", "beans-serve")
-	registerDeprecatedCmd(root, "tui", "beans-tui")
+	registerDeprecatedCmd(root, "serve", "lif-serve")
+	registerDeprecatedCmd(root, "tui", "lif-tui")
 
 	// Cobra's own help and completion commands are plumbing exactly like
 	// init/path/version (AC2), but classifying them by name would itself

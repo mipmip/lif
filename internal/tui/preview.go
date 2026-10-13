@@ -4,8 +4,8 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/xRiErOS/beans/pkg/bean"
-	"github.com/xRiErOS/beans/internal/ui"
+	"github.com/xRiErOS/lif/pkg/bean"
+	"github.com/xRiErOS/lif/internal/ui"
 )
 
 // previewModel is a read-only detail preview for the two-column layout.

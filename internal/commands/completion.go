@@ -4,7 +4,7 @@ import (
 	"sort"
 
 	"github.com/spf13/cobra"
-	"github.com/xRiErOS/beans/pkg/bean"
+	"github.com/xRiErOS/lif/pkg/bean"
 )
 
 // completionDirective is the ShellCompDirective every ValidArgsFunction in

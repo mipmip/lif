@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/xRiErOS/beans/pkg/beancore"
+	"github.com/xRiErOS/lif/pkg/beancore"
 )
 
 var (

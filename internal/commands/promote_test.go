@@ -9,9 +9,9 @@ import (
 	"testing"
 
 	"github.com/spf13/pflag"
-	"github.com/xRiErOS/beans/internal/output"
-	"github.com/xRiErOS/beans/pkg/beancore"
-	"github.com/xRiErOS/beans/pkg/config"
+	"github.com/xRiErOS/lif/internal/output"
+	"github.com/xRiErOS/lif/pkg/beancore"
+	"github.com/xRiErOS/lif/pkg/config"
 )
 
 // setupPromoteTest installs a throwaway core and default config into the

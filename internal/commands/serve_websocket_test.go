@@ -13,8 +13,8 @@ import (
 	"github.com/coder/websocket/wsjson"
 	"github.com/gin-gonic/gin"
 
-	"github.com/xRiErOS/beans/internal/cors"
-	"github.com/xRiErOS/beans/internal/graph"
+	"github.com/xRiErOS/lif/internal/cors"
+	"github.com/xRiErOS/lif/internal/graph"
 )
 
 // TestGqlWebsocketImplementationRejectsDisallowedOrigin pins the origin check

@@ -13,9 +13,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/xRiErOS/beans/internal/search"
-	"github.com/xRiErOS/beans/pkg/bean"
-	"github.com/xRiErOS/beans/pkg/config"
+	"github.com/xRiErOS/lif/internal/search"
+	"github.com/xRiErOS/lif/pkg/bean"
+	"github.com/xRiErOS/lif/pkg/config"
 )
 
 const BeansDir = ".beans"

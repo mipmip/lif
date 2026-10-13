@@ -5,7 +5,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/xRiErOS/beans/internal/ui"
+	"github.com/xRiErOS/lif/internal/ui"
 )
 
 // openHelpMsg requests opening the help overlay

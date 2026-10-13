@@ -3,12 +3,12 @@ package main
 import (
 	"os"
 
-	"github.com/xRiErOS/beans/internal/commands"
+	"github.com/xRiErOS/lif/internal/commands"
 )
 
 func main() {
 	root := commands.NewRootCmd()
-	root.Use = "beans-tui"
+	root.Use = "lif-tui"
 	commands.RegisterTuiCmd(root)
 
 	// Default to "tui" when no subcommand is given
