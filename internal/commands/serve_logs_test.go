@@ -65,6 +65,15 @@ func TestServeLogLinesCarryTheLifPrefix(t *testing.T) {
 	if out, err := exec.Command("git", "-C", project, "init", "-q").CombinedOutput(); err != nil {
 		t.Skipf("git init: %v\n%s", err, out)
 	}
+	// A GitHub remote plus a stand-in gh CLI on PATH makes serve report the
+	// forge it detected.
+	if out, err := exec.Command("git", "-C", project, "remote", "add", "origin", "https://github.com/o/r.git").CombinedOutput(); err != nil {
+		t.Skipf("git remote add: %v\n%s", err, out)
+	}
+	stubDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(stubDir, "gh"), []byte("#!/bin/sh\nexit 0\n"), 0755); err != nil {
+		t.Fatal(err)
+	}
 
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -80,6 +89,7 @@ func TestServeLogLinesCarryTheLifPrefix(t *testing.T) {
 	}
 	cmd := exec.Command(os.Args[0], "-test.run=^TestServeHelperProcess$")
 	cmd.Env = append(os.Environ(),
+		"PATH="+stubDir+string(os.PathListSeparator)+os.Getenv("PATH"),
 		"LIF_SERVE_DIR="+project,
 		"LIF_SERVE_HOME="+t.TempDir(),
 		"LIF_SERVE_HELPER=1",
@@ -109,6 +119,7 @@ func TestServeLogLinesCarryTheLifPrefix(t *testing.T) {
 	for _, want := range []string{
 		"[lif] worktrees directory: ",
 		"[lif] WARNING: found old worktrees in ",
+		"[lif] detected forge: ",
 		fmt.Sprintf("[lif] Starting server at http://localhost:%d/", port),
 		fmt.Sprintf("[lif] GraphQL Playground: http://localhost:%d/playground", port),
 		"[lif] Allowed origins: ",
