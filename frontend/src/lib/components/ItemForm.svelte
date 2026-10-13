@@ -1,35 +1,35 @@
 <script lang="ts">
-  import type { Bean } from '$lib/beans.svelte';
-  import { beansStore } from '$lib/beans.svelte';
+  import type { Item } from '$lib/items.svelte';
+  import { itemsStore } from '$lib/items.svelte';
   import { client } from '$lib/graphqlClient';
   import { CreateItemDocument, UpdateItemDocument, type CreateItemInput, type UpdateItemInput } from '$lib/graphql/generated';
 
   interface Props {
-    bean?: Bean | null;
+    item?: Item | null;
     onClose: () => void;
-    onSaved?: (bean: Bean) => void;
+    onSaved?: (item: Item) => void;
   }
 
-  let { bean = null, onClose, onSaved }: Props = $props();
+  let { item = null, onClose, onSaved }: Props = $props();
 
-  const isEdit = $derived(!!bean);
+  const isEdit = $derived(!!item);
 
   // Form fields — intentionally capture initial prop values for local editing
   /* eslint-disable svelte/valid-compile */
   // svelte-ignore state_referenced_locally
-  let title = $state(bean?.title ?? '');
+  let title = $state(item?.title ?? '');
   // svelte-ignore state_referenced_locally
-  let type = $state(bean?.type ?? 'task');
+  let type = $state(item?.type ?? 'task');
   // svelte-ignore state_referenced_locally
-  let status = $state(bean?.status ?? 'todo');
+  let status = $state(item?.status ?? 'todo');
   // svelte-ignore state_referenced_locally
-  let priority = $state(bean?.priority ?? 'normal');
+  let priority = $state(item?.priority ?? 'normal');
   // svelte-ignore state_referenced_locally
-  let tags = $state(bean?.tags.join(', ') ?? '');
+  let tags = $state(item?.tags.join(', ') ?? '');
   // svelte-ignore state_referenced_locally
-  let body = $state(bean?.body ?? '');
+  let body = $state(item?.body ?? '');
   // svelte-ignore state_referenced_locally
-  let parentId = $state(bean?.parentId ?? '');
+  let parentId = $state(item?.parentId ?? '');
   /* eslint-enable svelte/valid-compile */
 
   let submitting = $state(false);
@@ -39,16 +39,16 @@
   const statuses = ['draft', 'todo', 'in-progress', 'completed', 'scrapped'];
   const priorities = ['critical', 'high', 'normal', 'low', 'deferred'];
 
-  // Available parents (all beans except current bean and its descendants)
+  // Available parents (all items except current item and its descendants)
   const availableParents = $derived(
-    beansStore.all.filter((b) => {
-      if (!bean) return true;
-      if (b.id === bean.id) return false;
+    itemsStore.all.filter((b) => {
+      if (!item) return true;
+      if (b.id === item.id) return false;
       // Simple cycle check: don't allow own children as parent
-      let current: Bean | undefined = b;
+      let current: Item | undefined = b;
       while (current) {
-        if (current.parentId === bean.id) return false;
-        current = current.parentId ? beansStore.get(current.parentId) : undefined;
+        if (current.parentId === item.id) return false;
+        current = current.parentId ? itemsStore.get(current.parentId) : undefined;
       }
       return true;
     })
@@ -80,10 +80,10 @@
       parent: parentId || null
     };
 
-    let saved: Bean | null = null;
-    if (isEdit && bean) {
+    let saved: Item | null = null;
+    if (isEdit && item) {
       const input: UpdateItemInput = fields;
-      const result = await client.mutation(UpdateItemDocument, { id: bean.id, input }).toPromise();
+      const result = await client.mutation(UpdateItemDocument, { id: item.id, input }).toPromise();
       submitting = false;
       if (result.error) { error = result.error.message; return; }
       saved = result.data?.updateItem ?? null;
@@ -103,7 +103,7 @@
 
 <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
   <div class="w-11/12 max-w-2xl rounded-xl bg-surface p-6 shadow-xl">
-    <h3 class="text-lg font-bold text-text">{isEdit ? 'Edit Bean' : 'New Bean'}</h3>
+    <h3 class="text-lg font-bold text-text">{isEdit ? 'Edit Item' : 'New Item'}</h3>
 
     {#if error}
       <div
@@ -122,9 +122,9 @@
     >
       <!-- Title -->
       <div>
-        <label class="mb-1 block text-sm font-medium text-text-muted" for="bean-title">Title</label>
+        <label class="mb-1 block text-sm font-medium text-text-muted" for="item-title">Title</label>
         <input
-          id="bean-title"
+          id="item-title"
           type="text"
           class="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-text focus:border-accent focus:ring-2 focus:ring-accent/50 focus:outline-none"
           bind:value={title}
@@ -135,9 +135,9 @@
       <!-- Type / Status / Priority row -->
       <div class="grid grid-cols-3 gap-3">
         <div>
-          <label class="mb-1 block text-sm font-medium text-text-muted" for="bean-type">Type</label>
+          <label class="mb-1 block text-sm font-medium text-text-muted" for="item-type">Type</label>
           <select
-            id="bean-type"
+            id="item-type"
             class="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-text focus:border-accent focus:ring-2 focus:ring-accent/50 focus:outline-none"
             bind:value={type}
           >
@@ -148,11 +148,11 @@
         </div>
 
         <div>
-          <label class="mb-1 block text-sm font-medium text-text-muted" for="bean-status"
+          <label class="mb-1 block text-sm font-medium text-text-muted" for="item-status"
             >Status</label
           >
           <select
-            id="bean-status"
+            id="item-status"
             class="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-text focus:border-accent focus:ring-2 focus:ring-accent/50 focus:outline-none"
             bind:value={status}
           >
@@ -163,11 +163,11 @@
         </div>
 
         <div>
-          <label class="mb-1 block text-sm font-medium text-text-muted" for="bean-priority"
+          <label class="mb-1 block text-sm font-medium text-text-muted" for="item-priority"
             >Priority</label
           >
           <select
-            id="bean-priority"
+            id="item-priority"
             class="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-text focus:border-accent focus:ring-2 focus:ring-accent/50 focus:outline-none"
             bind:value={priority}
           >
@@ -180,11 +180,11 @@
 
       <!-- Parent -->
       <div>
-        <label class="mb-1 block text-sm font-medium text-text-muted" for="bean-parent"
+        <label class="mb-1 block text-sm font-medium text-text-muted" for="item-parent"
           >Parent</label
         >
         <select
-          id="bean-parent"
+          id="item-parent"
           class="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-text focus:border-accent focus:ring-2 focus:ring-accent/50 focus:outline-none"
           bind:value={parentId}
         >
@@ -197,9 +197,9 @@
 
       <!-- Tags -->
       <div>
-        <label class="mb-1 block text-sm font-medium text-text-muted" for="bean-tags">Tags</label>
+        <label class="mb-1 block text-sm font-medium text-text-muted" for="item-tags">Tags</label>
         <input
-          id="bean-tags"
+          id="item-tags"
           type="text"
           class="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-text focus:border-accent focus:ring-2 focus:ring-accent/50 focus:outline-none"
           bind:value={tags}
@@ -209,11 +209,11 @@
 
       <!-- Body -->
       <div>
-        <label class="mb-1 block text-sm font-medium text-text-muted" for="bean-body"
+        <label class="mb-1 block text-sm font-medium text-text-muted" for="item-body"
           >Description (Markdown)</label
         >
         <textarea
-          id="bean-body"
+          id="item-body"
           class="h-40 w-full resize-y rounded-md border border-border bg-surface px-3 py-2 font-mono text-sm text-text focus:border-accent focus:ring-2 focus:ring-accent/50 focus:outline-none"
           bind:value={body}
           placeholder="Markdown content..."
@@ -238,7 +238,7 @@
               class="inline-block h-4 w-4 animate-spin rounded-full border-2 border-accent-text/30 border-t-accent-text"
             ></span>
           {/if}
-          {isEdit ? 'Save Changes' : 'Create Bean'}
+          {isEdit ? 'Save Changes' : 'Create Item'}
         </button>
       </div>
     </form>

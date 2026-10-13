@@ -18,11 +18,11 @@ export class AgentActionsStore {
   #pollTimer: ReturnType<typeof setInterval> | null = null;
   #postIdleTimer: ReturnType<typeof setTimeout> | null = null;
 
-  async fetch(beanId: string, skipForge?: boolean) {
+  async fetch(itemId: string, skipForge?: boolean) {
     const result = await client
       .query(
         AgentActionsDocument,
-        { itemId: beanId, skipForge: skipForge ?? null },
+        { itemId: itemId, skipForge: skipForge ?? null },
         { requestPolicy: 'network-only' }
       )
       .toPromise();
@@ -39,14 +39,14 @@ export class AgentActionsStore {
    * Call this reactively with the current agent busy state.
    * Automatically re-fetches actions when the agent transitions from busy to idle.
    */
-  notifyAgentStatus(beanId: string, busy: boolean) {
+  notifyAgentStatus(itemId: string, busy: boolean) {
     if (this.#wasAgentBusy && !busy) {
       // Immediate fetch for actions that don't depend on external CI state.
-      this.fetch(beanId);
+      this.fetch(itemId);
       // Delayed re-fetch to pick up CI check status that GitHub may not have
       // registered yet right after the agent pushed.
       this.#clearPostIdleTimer();
-      this.#postIdleTimer = setTimeout(() => this.fetch(beanId), POST_IDLE_REFETCH_DELAY);
+      this.#postIdleTimer = setTimeout(() => this.fetch(itemId), POST_IDLE_REFETCH_DELAY);
     }
     this.#wasAgentBusy = busy;
   }
@@ -59,9 +59,9 @@ export class AgentActionsStore {
   }
 
   /** Start polling agent actions to keep PR check status fresh. */
-  startPolling(beanId: string) {
+  startPolling(itemId: string) {
     this.stopPolling();
-    this.#pollTimer = setInterval(() => this.fetch(beanId), PR_POLL_INTERVAL);
+    this.#pollTimer = setInterval(() => this.fetch(itemId), PR_POLL_INTERVAL);
   }
 
   stopPolling() {
@@ -72,10 +72,10 @@ export class AgentActionsStore {
     this.#clearPostIdleTimer();
   }
 
-  async execute(beanId: string, actionId: string) {
+  async execute(itemId: string, actionId: string) {
     this.executingAction = actionId;
     try {
-      await client.mutation(ExecuteAgentActionDocument, { itemId: beanId, actionId }).toPromise();
+      await client.mutation(ExecuteAgentActionDocument, { itemId: itemId, actionId }).toPromise();
     } finally {
       this.executingAction = null;
     }

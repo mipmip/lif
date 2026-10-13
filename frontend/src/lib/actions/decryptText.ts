@@ -36,7 +36,7 @@ export function decryptText(node: HTMLElement, input: DecryptTextInput) {
 	let frameId: number | null = null;
 	let target = '';
 	// Optional pre-sanitized HTML to use as final output instead of textContent.
-	// Callers must ensure this is safe (e.g. produced by linkifyBeanIds which
+	// Callers must ensure this is safe (e.g. produced by linkifyItemIds which
 	// escapes all user text and only injects controlled <a> tags).
 	let finalHtml: string | undefined;
 	let revealed = 0;

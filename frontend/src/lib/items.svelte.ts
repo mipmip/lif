@@ -8,17 +8,17 @@ import {
 } from './graphql/generated';
 
 /**
- * Bean type matching the GraphQL schema (re-exported from codegen)
+ * Item type matching the GraphQL schema (re-exported from codegen)
  */
-export type Bean = ItemFieldsFragment;
+export type Item = ItemFieldsFragment;
 
 /**
- * Svelte 5 runes-style stateful store for beans.
- * Frontend equivalent of beancore on the backend.
+ * Svelte 5 runes-style stateful store for items.
+ * Frontend equivalent of itemcore on the backend.
  */
-export class BeansStore {
-  /** All beans indexed by ID */
-  beans = $state(new SvelteMap<string, Bean>());
+export class ItemsStore {
+  /** All items indexed by ID */
+  items = $state(new SvelteMap<string, Item>());
 
   /** Loading state (true until first non-initial event or subscription fully synced) */
   loading = $state(true);
@@ -35,20 +35,20 @@ export class BeansStore {
   /** Subscription teardown function */
   #unsubscribe: (() => void) | null = null;
 
-  /** All non-archived beans as a sorted array (derived) */
-  get all(): Bean[] {
-    return sortBeans(Array.from(this.beans.values()).filter((b) => !b.path.startsWith('archive/')));
+  /** All non-archived items as a sorted array (derived) */
+  get all(): Item[] {
+    return sortItems(Array.from(this.items.values()).filter((b) => !b.path.startsWith('archive/')));
   }
 
-  /** Count of beans */
+  /** Count of items */
   get count(): number {
-    return this.beans.size;
+    return this.items.size;
   }
 
   /**
-   * Start subscription to bean changes with initial state.
+   * Start subscription to item changes with initial state.
    * This is the primary method to initialize the store - it subscribes to changes
-   * and receives all current beans as initial events, eliminating race conditions.
+   * and receives all current items as initial events, eliminating race conditions.
    */
   subscribe(): void {
     if (this.#unsubscribe) {
@@ -78,11 +78,11 @@ export class BeansStore {
         switch (event.type) {
           case 'INITIAL_SNAPSHOT':
             if (event.items) {
-              const fresh = new SvelteMap<string, Bean>();
+              const fresh = new SvelteMap<string, Item>();
               for (const b of event.items) {
                 fresh.set(b.id, b);
               }
-              this.beans = fresh;
+              this.items = fresh;
             }
             this.#initialSyncDone = true;
             this.loading = false;
@@ -90,11 +90,11 @@ export class BeansStore {
           case 'CREATED':
           case 'UPDATED':
             if (event.item) {
-              this.beans.set(event.item.id, event.item);
+              this.items.set(event.item.id, event.item);
             }
             break;
           case 'DELETED':
-            this.beans.delete(event.itemId);
+            this.items.delete(event.itemId);
             break;
         }
       })
@@ -104,7 +104,7 @@ export class BeansStore {
   }
 
   /**
-   * Stop subscription to bean changes.
+   * Stop subscription to item changes.
    */
   unsubscribe(): void {
     if (this.#unsubscribe) {
@@ -115,48 +115,48 @@ export class BeansStore {
   }
 
   /**
-   * Get a bean by ID
+   * Get an item by ID
    */
-  get(id: string): Bean | undefined {
-    return this.beans.get(id);
+  get(id: string): Item | undefined {
+    return this.items.get(id);
   }
 
   /**
-   * Get beans filtered by status
+   * Get items filtered by status
    */
-  byStatus(status: string): Bean[] {
+  byStatus(status: string): Item[] {
     return this.all.filter((b) => b.status === status);
   }
 
   /**
-   * Get beans filtered by type
+   * Get items filtered by type
    */
-  byType(type: string): Bean[] {
+  byType(type: string): Item[] {
     return this.all.filter((b) => b.type === type);
   }
 
   /**
-   * Get children of a bean (beans with this bean as parent)
+   * Get children of an item (items with this item as parent)
    */
-  children(parentId: string): Bean[] {
+  children(parentId: string): Item[] {
     return this.all.filter((b) => b.parentId === parentId);
   }
 
   /**
-   * Get beans that are blocking a given bean
+   * Get items that are blocking a given item
    */
-  blockedBy(beanId: string): Bean[] {
-    return this.all.filter((b) => b.blockingIds.includes(beanId));
+  blockedBy(itemId: string): Item[] {
+    return this.all.filter((b) => b.blockingIds.includes(itemId));
   }
 
   /**
-   * Optimistically update a bean's fields in the local store.
+   * Optimistically update an item's fields in the local store.
    * The subscription will eventually confirm or overwrite.
    */
-  optimisticUpdate(id: string, fields: Partial<Bean>): void {
-    const bean = this.beans.get(id);
-    if (bean) {
-      this.beans.set(id, { ...bean, ...fields });
+  optimisticUpdate(id: string, fields: Partial<Item>): void {
+    const item = this.items.get(id);
+    if (item) {
+      this.items.set(id, { ...item, ...fields });
     }
   }
 }
@@ -176,16 +176,16 @@ function orderOf(value: string, order: string[], defaultTo?: string): number {
 }
 
 /**
- * Sort beans by status → priority → type → title, matching the backend's
- * SortByStatusPriorityAndType from internal/bean/sort.go.
+ * Sort items by status → priority → type → title, matching the backend's
+ * SortByStatusPriorityAndType from internal/item/sort.go.
  */
-export function sortBeans(beans: Bean[]): Bean[] {
-  return beans.toSorted((a, b) => {
+export function sortItems(items: Item[]): Item[] {
+  return items.toSorted((a, b) => {
     // Primary: status
     let d = orderOf(a.status, STATUS_ORDER) - orderOf(b.status, STATUS_ORDER);
     if (d !== 0) return d;
 
-    // Secondary: manual order (fractional index) — beans with order come first
+    // Secondary: manual order (fractional index) — items with order come first
     if (a.order && b.order) {
       if (a.order < b.order) return -1;
       if (a.order > b.order) return 1;
@@ -207,6 +207,6 @@ export function sortBeans(beans: Bean[]): Bean[] {
 }
 
 /**
- * Singleton instance of the beans store
+ * Singleton instance of the items store
  */
-export const beansStore = new BeansStore();
+export const itemsStore = new ItemsStore();

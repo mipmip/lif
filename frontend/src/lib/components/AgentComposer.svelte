@@ -11,7 +11,7 @@
   const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
 
   interface Props {
-    beanId: string;
+    itemId: string;
     workspaceId: string;
     isRunning: boolean;
     hasMessages: boolean;
@@ -29,7 +29,7 @@
   }
 
   let {
-    beanId,
+    itemId,
     workspaceId,
     isRunning,
     hasMessages,
@@ -46,7 +46,7 @@
     onClear
   }: Props = $props();
 
-  const inputStorageKey = $derived(`agent-chat-input:${beanId}`);
+  const inputStorageKey = $derived(`agent-chat-input:${itemId}`);
   let inputText = $state('');
   let hasAttachments = $state(false);
   let pendingImages = $state<{ data: string; mediaType: string; preview: string }[]>([]);
@@ -301,13 +301,13 @@
     };
   });
 
-  // Focus the editor when switching to a new bean/workspace
+  // Focus the editor when switching to a new item/workspace
   $effect(() => {
-    beanId;
+    itemId;
     editor?.commands.focus();
   });
 
-  // Load persisted composer input when beanId changes
+  // Load persisted composer input when itemId changes
   $effect(() => {
     const saved = localStorage.getItem(inputStorageKey) ?? '';
     if (editor && !editor.isDestroyed) {

@@ -199,16 +199,16 @@ function shikiExtension(hl: HighlighterCore): MarkedExtension {
 }
 
 /**
- * Marked extension that auto-links bean IDs (e.g. beans-s1m0) in inline text.
- * Renders as <a href="?bean=beans-xxxx" data-bean-id="beans-xxxx">: a real link,
- * so it is focusable and openable in a new tab, which the beanLinks action
+ * Marked extension that auto-links item IDs (e.g. beans-s1m0) in inline text.
+ * Renders as <a href="?item=beans-xxxx" data-item-id="beans-xxxx">: a real link,
+ * so it is focusable and openable in a new tab, which the itemLinks action
  * upgrades to in-app navigation.
  */
-function beanLinkExtension(): MarkedExtension {
+function itemLinkExtension(): MarkedExtension {
   return {
     extensions: [
       {
-        name: 'beanLink',
+        name: 'itemLink',
         level: 'inline',
         start(src: string) {
           return src.match(/beans-/)?.index;
@@ -217,16 +217,16 @@ function beanLinkExtension(): MarkedExtension {
           const match = src.match(/^beans-[a-z0-9]{4}\b/);
           if (match) {
             return {
-              type: 'beanLink',
+              type: 'itemLink',
               raw: match[0],
-              beanId: match[0]
+              itemId: match[0]
             };
           }
           return undefined;
         },
         renderer(token) {
-          const beanId = (token as Record<string, unknown>).beanId as string;
-          return `<a href="?bean=${beanId}" data-bean-id="${beanId}" class="bean-link">${beanId}</a>`;
+          const itemId = (token as Record<string, unknown>).itemId as string;
+          return `<a href="?item=${itemId}" data-item-id="${itemId}" class="item-link">${itemId}</a>`;
         }
       }
     ]
@@ -242,7 +242,7 @@ export async function renderMarkdown(content: string): Promise<string> {
 
   const md = new Marked();
   md.use({ gfm: true, breaks: true });
-  md.use(beanLinkExtension());
+  md.use(itemLinkExtension());
   md.use({
     renderer: {
       link({ href, title, tokens }) {
@@ -265,7 +265,7 @@ export async function renderMarkdown(content: string): Promise<string> {
   if (browser) {
     return DOMPurify.sanitize(html, {
       ADD_TAGS: ['input'],
-      ADD_ATTR: ['data-bean-id', 'target', 'rel', 'checked', 'disabled', 'type']
+      ADD_ATTR: ['data-item-id', 'target', 'rel', 'checked', 'disabled', 'type']
     });
   }
 
@@ -298,18 +298,18 @@ export function escapeHtml(text: string): string {
 }
 
 /**
- * Replace bean IDs (e.g. beans-s1m0) in plain text with clickable bean-link HTML.
+ * Replace item IDs (e.g. beans-s1m0) in plain text with clickable item-link HTML.
  * The input is HTML-escaped first, so the result is safe for innerHTML.
- * Returns undefined if no bean IDs are found (caller can skip innerHTML).
+ * Returns undefined if no item IDs are found (caller can skip innerHTML).
  */
-export function linkifyBeanIds(text: string): string | undefined {
+export function linkifyItemIds(text: string): string | undefined {
   const pattern = /\bbeans-[a-z0-9]{4}\b/g;
   if (!pattern.test(text)) return undefined;
   pattern.lastIndex = 0;
   const escaped = escapeHtml(text);
   return escaped.replace(
     pattern,
-    (match) => `<a href="?bean=${match}" data-bean-id="${match}" class="bean-link">${match}</a>`
+    (match) => `<a href="?item=${match}" data-item-id="${match}" class="item-link">${match}</a>`
   );
 }
 

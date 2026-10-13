@@ -15,19 +15,19 @@ async function createWorkspace(page: import('@playwright/test').Page) {
 
 test.describe('Workspace status subscription', () => {
   test('shows "Ready to integrate" icon when worktree has uncommitted changes', async ({
-    beans,
+    lif,
     page
   }) => {
-    await page.goto(beans.baseURL + '/');
+    await page.goto(lif.baseURL + '/');
     await expect(page.getByText('Workspaces')).toBeVisible({ timeout: 10_000 });
 
     const wsName = await createWorkspace(page);
 
     // Create an uncommitted file in the worktree
-    const worktrees = await beans.getWorktrees();
+    const worktrees = await lif.getWorktrees();
     const wt = worktrees.find((w) => w.branch.includes(wsName));
     expect(wt).toBeTruthy();
-    beans.createFileInWorktree(wt!.path, 'dirty.txt', 'uncommitted content');
+    lif.createFileInWorktree(wt!.path, 'dirty.txt', 'uncommitted content');
 
     // The subscription should deliver the status update within ~10s
     const sidebar = page.locator('nav');
@@ -36,19 +36,19 @@ test.describe('Workspace status subscription', () => {
   });
 
   test('shows "Ready to integrate" icon when worktree has unmerged commits', async ({
-    beans,
+    lif,
     page
   }) => {
-    await page.goto(beans.baseURL + '/');
+    await page.goto(lif.baseURL + '/');
     await expect(page.getByText('Workspaces')).toBeVisible({ timeout: 10_000 });
 
     const wsName = await createWorkspace(page);
 
     // Create a commit in the worktree
-    const worktrees = await beans.getWorktrees();
+    const worktrees = await lif.getWorktrees();
     const wt = worktrees.find((w) => w.branch.includes(wsName));
     expect(wt).toBeTruthy();
-    beans.commitInWorktree(wt!.path, 'committed.txt', 'committed content');
+    lif.commitInWorktree(wt!.path, 'committed.txt', 'committed content');
 
     // The subscription should deliver the status update within ~10s
     const sidebar = page.locator('nav');
@@ -56,8 +56,8 @@ test.describe('Workspace status subscription', () => {
     await expect(wsCard.locator('[title="Ready to integrate"]')).toBeVisible({ timeout: 15_000 });
   });
 
-  test('does not show status icon for clean worktree', async ({ beans, page }) => {
-    await page.goto(beans.baseURL + '/');
+  test('does not show status icon for clean worktree', async ({ lif, page }) => {
+    await page.goto(lif.baseURL + '/');
     await expect(page.getByText('Workspaces')).toBeVisible({ timeout: 10_000 });
 
     const wsName = await createWorkspace(page);

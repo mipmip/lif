@@ -3,12 +3,12 @@
   import { AgentActionsStore } from '$lib/agentActions.svelte';
 
   interface Props {
-    beanId: string;
+    itemId: string;
     agentBusy: boolean;
     onExecute?: () => void;
   }
 
-  let { beanId, agentBusy, onExecute }: Props = $props();
+  let { itemId, agentBusy, onExecute }: Props = $props();
 
   const store = new AgentActionsStore();
 
@@ -21,13 +21,13 @@
     // Fast initial fetch (skip forge/PR lookup) so local actions render instantly,
     // then immediately follow up with a full fetch to get PR state without waiting
     // for the first poll interval.
-    store.fetch(beanId, true).then(() => store.fetch(beanId));
-    store.startPolling(beanId);
+    store.fetch(itemId, true).then(() => store.fetch(itemId));
+    store.startPolling(itemId);
     return () => store.stopPolling();
   });
 
   $effect(() => {
-    store.notifyAgentStatus(beanId, agentBusy);
+    store.notifyAgentStatus(itemId, agentBusy);
   });
 
   function prActionStyle(label: string): string {
@@ -55,7 +55,7 @@
       class={['btn-toggle btn-toggle-inactive']}
       disabled={agentBusy || !!store.executingAction || action.disabled}
       title={action.disabled ? (action.disabledReason ?? undefined) : (action.description ?? undefined)}
-      onclick={() => { store.execute(beanId, action.id); onExecute?.(); }}
+      onclick={() => { store.execute(itemId, action.id); onExecute?.(); }}
     >
       {action.label}
     </button>
@@ -74,7 +74,7 @@
         ]}
         disabled={agentBusy || !!store.executingAction || action.disabled}
         title={action.disabled ? (action.disabledReason ?? undefined) : (action.description ?? undefined)}
-        onclick={() => { store.execute(beanId, action.id); onExecute?.(); }}
+        onclick={() => { store.execute(itemId, action.id); onExecute?.(); }}
       >
         {#if action.id === 'integrate'}
           <span class="icon-[uil--check] size-4"></span>

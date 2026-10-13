@@ -1,8 +1,8 @@
 import { test, expect } from './fixtures';
 
 test.describe('Workspace run experience', () => {
-  test('Run button appears when run command is configured', async ({ beansWithRun, page }) => {
-    await page.goto(beansWithRun.baseURL + '/');
+  test('Run button appears when run command is configured', async ({ lifWithRun, page }) => {
+    await page.goto(lifWithRun.baseURL + '/');
 
     // Create a workspace
     await expect(page.getByText('Workspaces')).toBeVisible({ timeout: 10_000 });
@@ -13,8 +13,8 @@ test.describe('Workspace run experience', () => {
     await expect(page.getByTitle(/^Run:/)).toBeVisible({ timeout: 5_000 });
   });
 
-  test('Run button is hidden when no run command is configured', async ({ beans, page }) => {
-    await page.goto(beans.baseURL + '/');
+  test('Run button is hidden when no run command is configured', async ({ lif, page }) => {
+    await page.goto(lif.baseURL + '/');
 
     // Create a workspace
     await expect(page.getByText('Workspaces')).toBeVisible({ timeout: 10_000 });
@@ -28,8 +28,8 @@ test.describe('Workspace run experience', () => {
     await expect(page.getByTitle(/^Run:/)).not.toBeVisible();
   });
 
-  test('clicking Run starts the process and shows Stop button', async ({ beansWithRun, page }) => {
-    await page.goto(beansWithRun.baseURL + '/');
+  test('clicking Run starts the process and shows Stop button', async ({ lifWithRun, page }) => {
+    await page.goto(lifWithRun.baseURL + '/');
 
     // Create a workspace
     await expect(page.getByText('Workspaces')).toBeVisible({ timeout: 10_000 });
@@ -53,10 +53,10 @@ test.describe('Workspace run experience', () => {
   });
 
   test('clicking Stop kills the process and reverts to Run button', async ({
-    beansWithRun,
+    lifWithRun,
     page
   }) => {
-    await page.goto(beansWithRun.baseURL + '/');
+    await page.goto(lifWithRun.baseURL + '/');
 
     // Create a workspace and start run
     await expect(page.getByText('Workspaces')).toBeVisible({ timeout: 10_000 });
@@ -82,10 +82,10 @@ test.describe('Workspace run experience', () => {
   });
 
   test('Open button appears when running and has correct port', async ({
-    beansWithRun,
+    lifWithRun,
     page
   }) => {
-    await page.goto(beansWithRun.baseURL + '/');
+    await page.goto(lifWithRun.baseURL + '/');
 
     // Create a workspace and start run
     await expect(page.getByText('Workspaces')).toBeVisible({ timeout: 10_000 });

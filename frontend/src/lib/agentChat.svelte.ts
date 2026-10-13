@@ -37,19 +37,19 @@ export class AgentChatStore {
   sending = $state(false);
   error = $state<string | null>(null);
 
-  #beanId: string | null = null;
+  #itemId: string | null = null;
   #unsubscribe: (() => void) | null = null;
 
-  subscribe(beanId: string): void {
-    // If already subscribed to the same bean, skip
-    if (this.#unsubscribe && this.#beanId === beanId) return;
+  subscribe(itemId: string): void {
+    // If already subscribed to the same item, skip
+    if (this.#unsubscribe && this.#itemId === itemId) return;
 
     // Clean up previous subscription
     this.unsubscribe();
-    this.#beanId = beanId;
+    this.#itemId = itemId;
 
     const { unsubscribe } = pipe(
-      client.subscription(AgentSessionChangedDocument, { itemId: beanId }),
+      client.subscription(AgentSessionChangedDocument, { itemId: itemId }),
       subscribe((result) => {
         if (result.error) {
           console.error('Agent session subscription error:', result.error);
@@ -100,11 +100,11 @@ export class AgentChatStore {
       this.#unsubscribe();
       this.#unsubscribe = null;
     }
-    this.#beanId = null;
+    this.#itemId = null;
   }
 
   async sendMessage(
-    beanId: string,
+    itemId: string,
     message: string,
     images?: ImageUploadInput[],
     attachments?: FileAttachment[]
@@ -131,7 +131,7 @@ export class AgentChatStore {
 
     const result = await client
       .mutation(SendAgentMessageDocument, {
-        itemId: beanId,
+        itemId: itemId,
         message,
         images: images ?? null,
         attachments: attachments?.length ? attachments : null
@@ -148,8 +148,8 @@ export class AgentChatStore {
     return true;
   }
 
-  async stop(beanId: string): Promise<boolean> {
-    const result = await client.mutation(StopAgentDocument, { itemId: beanId }).toPromise();
+  async stop(itemId: string): Promise<boolean> {
+    const result = await client.mutation(StopAgentDocument, { itemId: itemId }).toPromise();
 
     if (result.error) {
       this.error = result.error.message;
@@ -159,8 +159,8 @@ export class AgentChatStore {
     return true;
   }
 
-  async setPlanMode(beanId: string, planMode: boolean): Promise<boolean> {
-    const result = await client.mutation(SetAgentPlanModeDocument, { itemId: beanId, planMode }).toPromise();
+  async setPlanMode(itemId: string, planMode: boolean): Promise<boolean> {
+    const result = await client.mutation(SetAgentPlanModeDocument, { itemId: itemId, planMode }).toPromise();
 
     if (result.error) {
       this.error = result.error.message;
@@ -170,8 +170,8 @@ export class AgentChatStore {
     return true;
   }
 
-  async setActMode(beanId: string, actMode: boolean): Promise<boolean> {
-    const result = await client.mutation(SetAgentActModeDocument, { itemId: beanId, actMode }).toPromise();
+  async setActMode(itemId: string, actMode: boolean): Promise<boolean> {
+    const result = await client.mutation(SetAgentActModeDocument, { itemId: itemId, actMode }).toPromise();
 
     if (result.error) {
       this.error = result.error.message;
@@ -181,9 +181,9 @@ export class AgentChatStore {
     return true;
   }
 
-  async setEffort(beanId: string, effort: string): Promise<boolean> {
+  async setEffort(itemId: string, effort: string): Promise<boolean> {
     const result = await client
-      .mutation(SetAgentEffortDocument, { itemId: beanId, effort })
+      .mutation(SetAgentEffortDocument, { itemId: itemId, effort })
       .toPromise();
 
     if (result.error) {
@@ -194,8 +194,8 @@ export class AgentChatStore {
     return true;
   }
 
-  async clearSession(beanId: string): Promise<boolean> {
-    const result = await client.mutation(ClearAgentSessionDocument, { itemId: beanId }).toPromise();
+  async clearSession(itemId: string): Promise<boolean> {
+    const result = await client.mutation(ClearAgentSessionDocument, { itemId: itemId }).toPromise();
 
     if (result.error) {
       this.error = result.error.message;

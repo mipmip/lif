@@ -1,8 +1,8 @@
 import { test, expect } from './fixtures';
 
 test.describe('Board archive all', () => {
-  test('archive all button is hidden when no completed beans', async ({ beans, boardPage }) => {
-    beans.create('Todo Bean', { status: 'todo', type: 'task' });
+  test('archive all button is hidden when no completed items', async ({ lif, boardPage }) => {
+    lif.create('Todo Item', { status: 'todo', type: 'task' });
 
     await boardPage.goto();
     await boardPage.waitForColumnCount('todo', 1);
@@ -10,8 +10,8 @@ test.describe('Board archive all', () => {
     await expect(boardPage.archiveAllButton).not.toBeVisible();
   });
 
-  test('archive all button is visible when completed beans exist', async ({ beans, boardPage }) => {
-    beans.create('Done Bean', { status: 'completed', type: 'task' });
+  test('archive all button is visible when completed items exist', async ({ lif, boardPage }) => {
+    lif.create('Done Item', { status: 'completed', type: 'task' });
 
     await boardPage.goto();
     await boardPage.waitForColumnCount('completed', 1);
@@ -19,10 +19,10 @@ test.describe('Board archive all', () => {
     await expect(boardPage.archiveAllButton).toBeVisible();
   });
 
-  test('archive all removes all completed beans from the board', async ({ beans, boardPage }) => {
-    beans.create('Done A', { status: 'completed', type: 'task' });
-    beans.create('Done B', { status: 'completed', type: 'task' });
-    beans.create('Still Todo', { status: 'todo', type: 'task' });
+  test('archive all removes all completed items from the board', async ({ lif, boardPage }) => {
+    lif.create('Done A', { status: 'completed', type: 'task' });
+    lif.create('Done B', { status: 'completed', type: 'task' });
+    lif.create('Still Todo', { status: 'todo', type: 'task' });
 
     await boardPage.goto();
     await boardPage.waitForColumnCount('completed', 2);
@@ -36,12 +36,8 @@ test.describe('Board archive all', () => {
     await boardPage.waitForColumnCount('todo', 1);
   });
 
-  test('cancel in confirmation modal does not archive beans', async ({
-    beans,
-    boardPage,
-    page
-  }) => {
-    beans.create('Done Bean', { status: 'completed', type: 'task' });
+  test('cancel in confirmation modal does not archive items', async ({ lif, boardPage, page }) => {
+    lif.create('Done Item', { status: 'completed', type: 'task' });
 
     await boardPage.goto();
     await boardPage.waitForColumnCount('completed', 1);
@@ -52,7 +48,7 @@ test.describe('Board archive all', () => {
     // Cancel
     await page.getByRole('button', { name: 'Cancel' }).click();
 
-    // Bean should still be there
+    // Item should still be there
     await boardPage.waitForColumnCount('completed', 1);
   });
 });

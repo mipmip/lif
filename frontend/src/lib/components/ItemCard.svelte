@@ -1,6 +1,6 @@
 <script lang="ts">
-  import type { Bean } from '$lib/beans.svelte';
-  import { beansStore } from '$lib/beans.svelte';
+  import type { Item } from '$lib/items.svelte';
+  import { itemsStore } from '$lib/items.svelte';
   import { worktreeStore } from '$lib/worktrees.svelte';
   import { agentStatusesStore } from '$lib/agentStatuses.svelte';
   import { ui } from '$lib/uiState.svelte';
@@ -9,15 +9,15 @@
   import { ArchiveItemDocument } from '$lib/graphql/generated';
 
   interface Props {
-    bean: Bean;
+    item: Item;
     variant?: 'list' | 'board' | 'compact';
     selected?: boolean;
     onclick?: () => void;
   }
 
-  let { bean, variant = 'list', selected = false, onclick }: Props = $props();
+  let { item, variant = 'list', selected = false, onclick }: Props = $props();
 
-  const linkedWorktreeId = $derived(worktreeStore.worktreeForBean(bean.id));
+  const linkedWorktreeId = $derived(worktreeStore.worktreeForItem(item.id));
   const hasWorktree = $derived(variant !== 'compact' && !!linkedWorktreeId);
   const agentRunning = $derived(hasWorktree && linkedWorktreeId != null && agentStatusesStore.isRunning(linkedWorktreeId));
 
@@ -33,14 +33,14 @@
       ui.navigateTo(linkedWorktreeId);
     }
   }
-  const isArchivable = $derived(bean.status === 'completed' || bean.status === 'scrapped');
+  const isArchivable = $derived(item.status === 'completed' || item.status === 'scrapped');
 
   let archiving = $state(false);
 
   async function handleArchive(e: MouseEvent) {
     e.stopPropagation();
     archiving = true;
-    await client.mutation(ArchiveItemDocument, { id: bean.id }).toPromise();
+    await client.mutation(ArchiveItemDocument, { id: item.id }).toPromise();
     archiving = false;
   }
 
@@ -65,7 +65,7 @@
       : [
           'rounded-xs p-2',
           variant === 'compact' ? 'border-l-2' : 'border-l-3',
-          typeBorders[bean.type] ?? 'border-l-type-task-border',
+          typeBorders[item.type] ?? 'border-l-type-task-border',
           selected ? 'bg-accent/10 ring-1 ring-accent' : 'bg-surface hover:bg-surface-alt'
         ]
   ]}
@@ -73,24 +73,24 @@
   {#if variant === 'board'}
     <!-- Board: two-row layout -->
     <div class="flex min-w-0 items-start gap-2">
-      <span class="flex-1 text-sm leading-snug text-text">{bean.title}</span>
-      {#if bean.priority && bean.priority !== 'normal' && priorityIndicators[bean.priority]}
-        <span class={['shrink-0 text-xs', priorityIndicators[bean.priority]]}>
-          {bean.priority}
+      <span class="flex-1 text-sm leading-snug text-text">{item.title}</span>
+      {#if item.priority && item.priority !== 'normal' && priorityIndicators[item.priority]}
+        <span class={['shrink-0 text-xs', priorityIndicators[item.priority]]}>
+          {item.priority}
         </span>
       {/if}
     </div>
     <div class="mt-1 flex items-center gap-2">
-      <code class="text-[10px] text-text-faint">{bean.id.slice(-4)}</code>
+      <code class="text-[10px] text-text-faint">{item.id.slice(-4)}</code>
       <span
         class={[
           'badge-sm',
-          typeColors[bean.type] ?? 'bg-type-task-bg text-type-task-text'
+          typeColors[item.type] ?? 'bg-type-task-bg text-type-task-text'
         ]}
       >
-        {bean.type}
+        {item.type}
       </span>
-      {#each bean.tags as tag}
+      {#each item.tags as tag}
         <span class="badge-sm bg-surface-alt text-text-muted">{tag}</span>
       {/each}
       {#if hasWorktree}
@@ -119,12 +119,12 @@
     <div class="flex min-w-0 items-center gap-2">
       <code
         class={['shrink-0 text-text-faint', variant === 'compact' ? 'text-[9px]' : 'text-[10px]']}
-        >{bean.id.slice(-4)}</code
+        >{item.id.slice(-4)}</code
       >
       <span class={['flex-1 truncate text-text', variant === 'compact' ? 'text-xs' : 'text-sm']}
-        >{bean.title}</span
+        >{item.title}</span
       >
-      {#each bean.tags as tag}
+      {#each item.tags as tag}
         <span class="shrink-0 badge-sm bg-surface-alt text-text-muted">{tag}</span>
       {/each}
       {#if hasWorktree}
@@ -142,10 +142,10 @@
       <span
         class={[
           'shrink-0 badge-sm',
-          statusColors[bean.status] ?? 'bg-status-todo-bg text-status-todo-text'
+          statusColors[item.status] ?? 'bg-status-todo-bg text-status-todo-text'
         ]}
       >
-        {bean.status}
+        {item.status}
       </span>
       {#if isArchivable}
         <button

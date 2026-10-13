@@ -29,7 +29,7 @@
     return defs.map((p) => {
       if (p.size === undefined) return 0;
       if (p.persistKey) {
-        const saved = localStorage.getItem(`beans-split-${p.persistKey}`);
+        const saved = localStorage.getItem(`lif-split-${p.persistKey}`);
         if (saved) {
           const parsed = parseInt(saved, 10);
           if (!Number.isNaN(parsed)) {
@@ -80,7 +80,7 @@
       isDragging = false;
       for (const idx of [dragLeft, dragRight]) {
         if (idx >= 0 && panels[idx]?.persistKey) {
-          localStorage.setItem(`beans-split-${panels[idx].persistKey}`, sizes[idx].toString());
+          localStorage.setItem(`lif-split-${panels[idx].persistKey}`, sizes[idx].toString());
         }
       }
       dragLeft = -1;

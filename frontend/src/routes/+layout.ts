@@ -4,19 +4,19 @@ export const prerender = true;
 export const ssr = false;
 
 export function load() {
-  let selectedBeanId: string | null = null;
+  let selectedItemId: string | null = null;
   let showPlanningChat = false;
   let showChanges = false;
   let filterText = '';
 
   if (browser) {
     const params = new URLSearchParams(window.location.search);
-    selectedBeanId = params.get('bean');
+    selectedItemId = params.get('item');
 
-    showPlanningChat = localStorage.getItem('beans-planning-chat') === 'true';
-    showChanges = localStorage.getItem('beans-changes-pane') === 'true';
-    filterText = localStorage.getItem('beans-filter-text') ?? '';
+    showPlanningChat = localStorage.getItem('lif-planning-chat') === 'true';
+    showChanges = localStorage.getItem('lif-changes-pane') === 'true';
+    filterText = localStorage.getItem('lif-filter-text') ?? '';
   }
 
-  return { selectedBeanId, showPlanningChat, showChanges, filterText };
+  return { selectedItemId, showPlanningChat, showChanges, filterText };
 }
