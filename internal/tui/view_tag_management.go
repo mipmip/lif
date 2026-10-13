@@ -51,13 +51,13 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/xRiErOS/lif/internal/tui/data"
-	"github.com/xRiErOS/lif/internal/tui/theme"
 	keybind "github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/xRiErOS/lif/internal/tui/data"
+	"github.com/xRiErOS/lif/internal/tui/theme"
 )
 
 // tagRegistryRow is one row of the Tag-Management page's D09 Union list.

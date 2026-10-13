@@ -1,27 +1,26 @@
 # Separate Binaries
 
-`lif-serve` and `lif-tui` are standalone binaries built from the same repository as `lif`, each wrapping one dedicated application command. The main binary does not advertise runnable `serve` or `tui` subcommands; hidden migration stubs only report that those commands moved to separate executables and exit with an error.
+`lif-serve` is a standalone binary built from the same repository as `lif`, wrapping one dedicated application command. The main binary does not advertise a runnable `serve` subcommand; a hidden migration stub only reports that the command moved to a separate executable and exits with an error. The terminal UI is not separate: it is the `lif tui` subcommand of the main binary, see [Terminal UI](../tui-companion.md).
 
-## Why two extra binaries
+## Why one extra binary
 
-`lif` registers only the core, file-based subcommands — creation, editing, listing, [validation](validation-and-maintenance.md), and [querying](querying-and-automation.md), among others. `serve` and `tui` are registered separately, each in its own `cmd/` entry point, so that a plain `lif` install carries no web server or terminal-UI dependencies, and a deployment that only needs one of the three doesn't have to ship the others:
+`lif` registers the core, file-based subcommands — creation, editing, listing, [validation](validation-and-maintenance.md), and [querying](querying-and-automation.md), among others — plus `tui`. `serve` is registered separately, in its own `cmd/` entry point, so that a plain `lif` install carries no web server dependencies, and a deployment that only needs the CLI doesn't have to ship the web server:
 
 | Binary | Wraps | Purpose |
 |---|---|---|
-| `lif` | every core subcommand | day-to-day CLI use, scripting, agent tool calls |
+| `lif` | every core subcommand, including `tui` | day-to-day CLI use, scripting, agent tool calls, the [terminal UI](../tui-companion.md) via `lif tui` |
 | `lif-serve` | `serve` | starts the web UI and GraphQL HTTP API — see [Web UI and API](../web-ui-and-api.md) |
-| `lif-tui` | `tui` | opens the interactive terminal UI — see [TUI Companion](../tui-companion.md) |
 
-Each binary is a thin `main()` that builds the same root command, registers its one subcommand, and defaults to running that subcommand when invoked with no arguments or with a flag as the first argument — so `lif-serve` alone is equivalent to `lif-serve serve`, and `lif-tui` alone is equivalent to `lif-tui tui`.
+`lif-serve` is a thin `main()` that builds the same root command, registers its one subcommand, and defaults to running that subcommand when invoked with no arguments or with a flag as the first argument — so `lif-serve` alone is equivalent to `lif-serve serve`.
 
-Both binaries still accept the two global flags every `lif` command does:
+`lif-serve` still accepts the two global flags every `lif` command does:
 
 | Flag | Description |
 |---|---|
 | `--lif-path string` | Path to the data directory (overrides config and `LIF_PATH`) |
 | `--config string` | Path to a config file (default: searches upward for `.lif.yml`) |
 
-Neither binary registers the other's subcommand, and neither registers `version`, `graphql`, `check`, or any other core command — `lif-serve version` and `lif-tui version` both fail with cobra's "unknown command" error. Version and diagnostic commands are only available on the main `lif` binary.
+`lif-serve` does not register `version`, `graphql`, `check`, or any other core command — `lif-serve version` fails with cobra's "unknown command" error. Version and diagnostic commands are only available on the main `lif` binary.
 
 ## `lif-serve`
 
@@ -45,26 +44,9 @@ The global flags in the table above apply; the full `lif-serve --help` output al
 
 Starting it launches the web UI and GraphQL API on the configured port (default `8080`). Full route list, network binding behavior, and security posture are documented in [Web UI and API](../web-ui-and-api.md); do not run it against a store you don't want reachable from every process on the machine without first reading that page's CORS and origin-checking section.
 
-## `lif-tui`
-
-```
-$ lif-tui --help
-Opens an interactive terminal user interface for browsing and managing items.
-
-Usage:
-  lif-tui tui [flags]
-
-Flags:
-  -h, --help   help for tui
-```
-
-The global flags in the table above apply to `lif-tui` as well.
-
-`lif-tui` opens the original full-screen terminal interface. [TUI Companion](../tui-companion.md) explains how this binary differs from the separately maintained companion project and its `bt` executable.
-
 ## Building the separate binaries
 
-Use the repository's canonical source-build pipeline; it generates the embedded frontend before compiling all three entrypoints and stamps version metadata:
+Use the repository's canonical source-build pipeline; it generates the embedded frontend before compiling both entrypoints and stamps version metadata:
 
 ```
 mise install
@@ -72,11 +54,11 @@ mise run setup
 mise run build
 ```
 
-The resulting `lif`, `lif-serve`, and `lif-tui` executables are written to the repository root. See [Installation](../installation.md) for prerequisites and PATH setup.
+The resulting `lif` and `lif-serve` executables are written to the repository root. See [Installation](../installation.md) for prerequisites and PATH setup.
 
 ## Related documentation
 
 - [Web UI and API](../web-ui-and-api.md)
-- [TUI Companion](../tui-companion.md)
+- [Terminal UI](../tui-companion.md)
 - [Querying and Automation](querying-and-automation.md)
 - [Installation](../installation.md)

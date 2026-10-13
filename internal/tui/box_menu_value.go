@@ -15,11 +15,11 @@ package tui
 import (
 	"strings"
 
-	"github.com/xRiErOS/lif/internal/tui/data"
-	"github.com/xRiErOS/lif/internal/tui/theme"
 	keybind "github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/xRiErOS/lif/internal/tui/data"
+	"github.com/xRiErOS/lif/internal/tui/theme"
 )
 
 // valueMenuItem is one row of the combined s-menu. group is "status",

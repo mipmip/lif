@@ -13,12 +13,12 @@ package tui
 import (
 	"strings"
 
-	"github.com/xRiErOS/lif/internal/tui/data"
-	"github.com/xRiErOS/lif/internal/tui/theme"
 	keybind "github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/xRiErOS/lif/internal/tui/data"
+	"github.com/xRiErOS/lif/internal/tui/theme"
 )
 
 // pickerItem is one row shared by the Parent-Picker (this file) and the

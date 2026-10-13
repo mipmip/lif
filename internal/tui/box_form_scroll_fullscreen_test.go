@@ -22,9 +22,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/xRiErOS/lif/internal/tui/data"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/xRiErOS/lif/internal/tui/data"
 )
 
 // boxFormWrapSensitiveBeans is boxFormLongBodyBeans (box_form_scroll_test.go)

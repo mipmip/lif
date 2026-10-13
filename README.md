@@ -94,7 +94,7 @@ Profiles are expanded into the repository's `.lif.yml` when `lif init --profile`
 
 ## Installation
 
-Pick the channel that matches your platform. All four install the same three binaries: `lif` (CLI), `lif-serve` (web UI and GraphQL API), `lif-tui` (terminal UI).
+Pick the channel that matches your platform. All four install the same two binaries: `lif` (CLI and terminal UI, started with `lif tui`) and `lif-serve` (web UI and GraphQL API).
 
 ### Homebrew (macOS)
 
@@ -112,7 +112,6 @@ curl -fsSL https://raw.githubusercontent.com/xRiErOS/lif/main/install.sh | sh
 
 ````sh
 go install github.com/xRiErOS/lif/cmd/lif@latest
-go install github.com/xRiErOS/lif/cmd/lif-tui@latest
 ````
 
 A `lif-serve` built this way has no embedded web assets (only a placeholder is tracked in the source tree) and serves 404 for the browser UI. Use Homebrew, the install script, or a release archive if you need `lif-serve` with the web UI.
@@ -128,7 +127,7 @@ mise run setup
 mise run build
 
 install -d "$HOME/.local/bin"
-install -m 755 lif lif-serve lif-tui "$HOME/.local/bin/"
+install -m 755 lif lif-serve "$HOME/.local/bin/"
 export PATH="$HOME/.local/bin:$PATH"
 
 lif version
@@ -194,9 +193,9 @@ Network binding, CORS, routes, and authentication posture matter before exposing
 
 ## Terminal interfaces
 
-Lif builds the original upstream terminal UI as the separate `lif-tui` binary. It opens an interactive view for browsing and managing items. A richer Product Owner cockpit, launched as `bt`, is developed in a separate companion project, [xRiErOS/beans-tui](https://github.com/xRiErOS/beans-tui).
+The terminal UI is built into the main binary. Run `lif tui` to browse and manage items interactively, or `lif tui <repo-path>` to open a specific repository. It replaces the former separate TUI binary and the `bt` (beans-tui) companion.
 
-[Understand the terminal paths](wiki/tui-companion.md) · [Review all separate binaries](wiki/commands/separate-binaries.md)
+[Read the terminal UI guide](wiki/tui-companion.md) · [Review the separate binary `lif-serve`](wiki/commands/separate-binaries.md)
 
 ## Full feature reference
 
@@ -209,7 +208,8 @@ The reference is grouped by user intent instead of reproducing one long `lif --h
 - [Planning and reporting](wiki/commands/planning-and-reporting.md): `roadmap`, `milestones`, `progress`, `graph`.
 - [Querying and automation](wiki/commands/querying-and-automation.md): `graphql`, JSON output, and structured errors.
 - [Validation and maintenance](wiki/commands/validation-and-maintenance.md): `check`, `promote`, integrity rules, and policies.
-- [Separate applications](wiki/commands/separate-binaries.md): `lif-serve` and `lif-tui`.
+- [Terminal UI](wiki/tui-companion.md): `lif tui`.
+- [Separate applications](wiki/commands/separate-binaries.md): `lif-serve`.
 
 The installed binary remains authoritative for version-specific options:
 

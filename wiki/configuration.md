@@ -1,6 +1,6 @@
 # Configuration Reference
 
-This page documents every key `.lif.yml` accepts, in the shape the `lif`, `lif-serve`, and `lif-tui` binaries actually read it. It also covers the type/status/priority override system, custom types, display options, and how a Lif store's path is resolved.
+This page documents every key `.lif.yml` accepts, in the shape the `lif` and `lif-serve` binaries (including `lif tui`) actually read it. It also covers the type/status/priority override system, custom types, display options, and how a Lif store's path is resolved.
 
 ## Minimal configuration
 
@@ -151,7 +151,7 @@ display:
     max_width: 100
 ```
 
-`display.theme` selects one of the four bundled Catppuccin flavors: `latte`, `frappe`, `macchiato`, or `mocha`. It governs terminal rendering in the `lif` CLI and `lif-tui`; an unrecognized name is ignored and the default applies (`lif check` flags it as invalid). `display.max_width` caps the rendered width in terminal cells; `0` (unset) yields the default of `110`, and `-1` disables the cap entirely so output uses the full terminal width.
+`display.theme` selects one of the four bundled Catppuccin flavors: `latte`, `frappe`, `macchiato`, or `mocha`. It governs terminal rendering in the `lif` CLI and `lif tui`; an unrecognized name is ignored and the default applies (`lif check` flags it as invalid). `display.max_width` caps the rendered width in terminal cells; `0` (unset) yields the default of `110`, and `-1` disables the cap entirely so output uses the full terminal width.
 
 Every `color` field described below (on statuses, types, and priorities) must name one of the Catppuccin tones the active theme defines: `rosewater`, `flamingo`, `pink`, `mauve`, `red`, `maroon`, `peach`, `yellow`, `green`, `teal`, `sky`, `sapphire`, `blue`, `lavender`, `text`, `subtext1`, `subtext0`, `overlay2`, `overlay1`, `overlay0`, `surface2`, `surface1`, `surface0`, or `base`. An empty `color` field is valid and renders with no explicit color.
 

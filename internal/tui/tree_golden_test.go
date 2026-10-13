@@ -11,10 +11,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/xRiErOS/lif/internal/tui/data"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/muesli/termenv"
+	"github.com/xRiErOS/lif/internal/tui/data"
 )
 
 // goldenTreeModel builds the deterministic fixture rendered by

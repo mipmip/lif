@@ -1,24 +1,59 @@
-# TUI Companion
+# Terminal UI
 
-This page explains the layers of terminal tooling around Lif data: the `lif` CLI itself, the bundled `lif-tui` binary, and the separate `bt` companion project. Read this before assuming any terminal UI is Lif's primary interface.
+This page explains `lif tui`, the interactive terminal UI built into the main `lif` binary. It is the former standalone `bt` (beans-tui) cockpit, absorbed into this repository; there is no separate terminal-UI binary and nothing extra to install.
 
-## Layer 1: `lif` CLI is the source of truth
+## The `lif` CLI stays the source of truth
 
-Every terminal UI described on this page is a client of the `lif` CLI and its underlying `.lif` data directory; none of them hold state of their own. If a terminal UI and the `lif` CLI ever disagree about an item's fields, the item files on disk (as read by `lif show`/`lif list`) are authoritative, not the UI's cached rendering. Command and data details live in [`commands/separate-binaries.md`](commands/separate-binaries.md), [`feature-overview.md`](feature-overview.md), and [`configuration.md`](configuration.md).
+`lif tui` is a client of the same `.lif` data directory the `lif` CLI reads and writes; it holds no state of its own beyond the small user-level files listed under [Configuration](#configuration). If the terminal UI and the CLI ever disagree about an item's fields, the item files on disk (as read by `lif show`/`lif list`) are authoritative, not the UI's cached rendering. Data and command details live in [`feature-overview.md`](feature-overview.md) and [`configuration.md`](configuration.md).
 
-## Layer 2: `lif-tui`, the bundled terminal UI
+## Start the terminal UI
 
-`lif-tui` is a separate binary built from `cmd/lif-tui` in this repository; running it with no arguments opens the interactive terminal interface for browsing and managing items, the same `tui` view that used to ship inside the main binary. The `tui` subcommand is not part of the main `lif` binary: running `lif tui` prints `The "tui" command has moved to a separate binary: lif-tui` and `Please install and use "lif-tui" instead.`, then exits with a non-zero status, so `lif-tui` is required to use that view at all. It is the terminal UI carried over from the upstream project; it is kept for compatibility and receives no new features here. Build and install instructions for `lif-tui` are in [`commands/separate-binaries.md`](commands/separate-binaries.md); general setup is in [`installation.md`](installation.md).
+```
+$ lif tui --help
+Opens the interactive terminal UI.
 
-## Layer 3: `bt`, the separate PO cockpit
+Without an argument, the TUI opens the repository found upward from the
+current directory. Outside a repository, it shows the repository picker when
+~/.config/lif/tui/config.yaml lists at least two repositories.
 
-A separate project, maintained independently of this repository, provides the `bt` executable: a keyboard-first, mouse-friendly Product Owner cockpit that works on item data. It ships and versions independently, with its own README, changelog and releases, and it is licensed Apache-2.0 like Lif. Its repository is [xRiErOS/beans-tui](https://github.com/xRiErOS/beans-tui); see also [fork lineage](fork-lineage.md).
+--lif-path names the store of the opened repository.
 
-Which data names a given `bt` release reads, and which Lif release it targets, is stated in its own documentation; this repository does not verify it. Before pointing `bt` at a project that uses the current names (`.lif/`, `.lif.yml`), read its release notes.
+Usage:
+  lif tui [repo-path] [flags]
 
-## Choosing between the two
+Flags:
+  -h, --help   help for tui
 
-Use `lif-tui` when you only need the bundled view and have no use for the companion's capabilities. For day-to-day Product Owner work, evaluate `bt` from its own project: it is where active terminal UI development happens, and `lif-tui` will not receive equivalent features. Neither is endorsed by or affiliated with the original upstream project that Lif descends from; see [`fork-lineage.md`](fork-lineage.md) for how Lif positions itself relative to that upstream.
+Global Flags:
+      --config string     Path to config file (default: searches upward for .lif.yml; a legacy .beans.yml is read when no .lif.yml exists)
+      --lif-path string   Path to data directory (overrides config and LIF_PATH env var; a legacy BEANS_PATH is read when LIF_PATH is unset)
+```
+
+- `lif tui` opens the repository found upward from the current directory.
+- `lif tui <repo-path>` opens exactly that repository and never walks up from the current directory. `repo-path` is a directory.
+- Outside a repository, `lif tui` shows the repository picker when the config lists at least two repositories; otherwise it exits with the repository-discovery error.
+- `--lif-path` (global flag) names the store of the opened repository. In the picker it applies only to the repository of this launch, never to a repository you switch to later; those resolve their own store.
+
+The terminal UI drives the same `lif` build that runs it, so it never mixes versions with a second installed binary.
+
+## Configuration
+
+The terminal UI reads `~/.config/lif/tui/config.yaml` and keeps lightweight runtime state in `~/.config/lif/tui/state.json`. A missing or malformed `config.yaml` is not an error; defaults apply.
+
+```yaml
+repos:                       # repositories offered by the picker
+  - /Users/me/work/repo-a
+  - /Users/me/work/repo-b
+repo_store_paths:            # optional: repo directory -> explicit store path (passed as --lif-path)
+  /Users/me/work/repo-a: /Users/me/work/shared-store/.lif
+editor: "code -w"            # empty (default) = $VISUAL / $EDITOR / vi
+theme:
+  accent: "#f5a97f"          # empty (default) = built-in accent
+layout:
+  tree_width: 40             # tree column width, clamped to 24-60 (default 36)
+```
+
+Legacy beans-tui users keep their setup: when `config.yaml` or `state.json` does not exist under `~/.config/lif/tui/`, the terminal UI reads the file from the former `~/.config/beans-tui/` directory instead. The legacy directory is only read, never written or deleted, and the former key `repo_beans_paths` is still accepted as `repo_store_paths`. To migrate, copy the files into `~/.config/lif/tui/`.
 
 ## Related documentation
 

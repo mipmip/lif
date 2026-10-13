@@ -165,10 +165,10 @@ func newKeyMap() keyMap {
 		FocusIn:  keybind.NewBinding(keybind.WithKeys("tab"), keybind.WithHelp("tab", "focus in")),
 		FocusOut: keybind.NewBinding(keybind.WithKeys("shift+tab"), keybind.WithHelp("shift+tab", "focus out")),
 
-		Enter:   keybind.NewBinding(keybind.WithKeys("enter"), keybind.WithHelp("enter", "open/confirm")),
-		Back:    keybind.NewBinding(keybind.WithKeys("esc"), keybind.WithHelp("esc", "back")),
-		Quit:    keybind.NewBinding(keybind.WithKeys("q", "ctrl+c"), keybind.WithHelp("q", "quit")),
-		Help:    keybind.NewBinding(keybind.WithKeys("?"), keybind.WithHelp("?", "help")),
+		Enter: keybind.NewBinding(keybind.WithKeys("enter"), keybind.WithHelp("enter", "open/confirm")),
+		Back:  keybind.NewBinding(keybind.WithKeys("esc"), keybind.WithHelp("esc", "back")),
+		Quit:  keybind.NewBinding(keybind.WithKeys("q", "ctrl+c"), keybind.WithHelp("q", "quit")),
+		Help:  keybind.NewBinding(keybind.WithKeys("?"), keybind.WithHelp("?", "help")),
 		// bt-mx4k: ctrl+k retired -- K was long since bound and matches the
 		// D07 case convention (uppercase = view/global). One key, one
 		// function; the header gets six characters shorter, which counts at
@@ -187,10 +187,10 @@ func newKeyMap() keyMap {
 		Sort:        keybind.NewBinding(keybind.WithKeys("S"), keybind.WithHelp("S", "Sort")),
 		FlatView:    keybind.NewBinding(keybind.WithKeys("G"), keybind.WithHelp("G", "Nested/Flat")),
 
-		Status:    keybind.NewBinding(keybind.WithKeys("s"), keybind.WithHelp("s", "Status")),
-		Type:      keybind.NewBinding(keybind.WithKeys("o"), keybind.WithHelp("o", "Type")),
-		Priority:  keybind.NewBinding(keybind.WithKeys("u"), keybind.WithHelp("u", "Priority")),
-		Assign:    keybind.NewBinding(keybind.WithKeys("a"), keybind.WithHelp("a", "Parent")),
+		Status:   keybind.NewBinding(keybind.WithKeys("s"), keybind.WithHelp("s", "Status")),
+		Type:     keybind.NewBinding(keybind.WithKeys("o"), keybind.WithHelp("o", "Type")),
+		Priority: keybind.NewBinding(keybind.WithKeys("u"), keybind.WithHelp("u", "Priority")),
+		Assign:   keybind.NewBinding(keybind.WithKeys("a"), keybind.WithHelp("a", "Parent")),
 		// Label "Relations", nicht "Blocking" (PO-Befund #7): das Overlay heisst
 		// Relations und die Detail-Pane ueberschreibt ihr Panel ebenso. Der
 		// Bezeichner `Blocking` und `data.SetBlocking` bleiben, weil sie die

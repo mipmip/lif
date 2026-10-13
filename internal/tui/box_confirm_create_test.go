@@ -11,8 +11,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/xRiErOS/lif/internal/tui/data"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/xRiErOS/lif/internal/tui/data"
 )
 
 // skipSlowHuhDriveInShortMode guards the handful of tests in this file that

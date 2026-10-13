@@ -38,10 +38,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/xRiErOS/lif/internal/tui/theme"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/xRiErOS/lif/internal/tui/theme"
 )
 
 type toastKind int

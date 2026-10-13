@@ -38,7 +38,7 @@ Commit history follows the Conventional Commits convention (`feat:`, `fix:`, `pe
 
 ## Related projects
 
-The terminal UI that Lif builds itself is `lif-tui`, carried over from upstream. A separate, independently versioned companion project, [xRiErOS/beans-tui](https://github.com/xRiErOS/beans-tui), ships a keyboard-first Product Owner cockpit as the `bt` executable. Its repository keeps its own name and release cadence; this repository does not verify which data names a given `bt` release reads, so check its own README before pointing it at a project that uses the current names. See [TUI Companion](tui-companion.md).
+The terminal UI is part of Lif itself: `lif tui` is a subcommand of the main binary. It is the former standalone companion [xRiErOS/beans-tui](https://github.com/xRiErOS/beans-tui) (executable `bt`), absorbed into this repository; it replaced the separate binary that carried the upstream terminal UI. The beans-tui repository keeps its own history. See [Terminal UI](tui-companion.md).
 
 ## How to reference Lif
 
@@ -50,4 +50,4 @@ When citing the underlying design or crediting the original author, reference [h
 
 - [Compatibility and Upgrading](compatibility-and-upgrading.md)
 - [Installation](installation.md)
-- [TUI Companion](tui-companion.md)
+- [Terminal UI](tui-companion.md)

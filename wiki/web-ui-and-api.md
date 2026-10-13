@@ -79,5 +79,5 @@ The web UI keeps its layout in the browser's `localStorage`, under keys that sta
 - [Separate Binaries](commands/separate-binaries.md)
 - [Configuration Reference](configuration.md)
 - [Querying and Automation](commands/querying-and-automation.md)
-- [TUI Companion](tui-companion.md)
+- [Terminal UI](tui-companion.md)
 - [Troubleshooting](troubleshooting.md)

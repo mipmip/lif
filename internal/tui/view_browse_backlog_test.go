@@ -16,11 +16,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/xRiErOS/lif/internal/tui/data"
 	keybind "github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/muesli/termenv"
+	"github.com/xRiErOS/lif/internal/tui/data"
 )
 
 // backlogBeans is a small parentless fixture set covering both Backlog

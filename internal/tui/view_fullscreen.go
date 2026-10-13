@@ -11,9 +11,9 @@ package tui
 // fullscreenNone.
 
 import (
-	"github.com/xRiErOS/lif/internal/tui/data"
 	keybind "github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/xRiErOS/lif/internal/tui/data"
 )
 
 // keyFullscreen dispatches every F01 key: `v` (entry, no-op when already

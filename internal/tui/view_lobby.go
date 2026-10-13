@@ -5,7 +5,7 @@ package tui
 // (~/dev/DeveloperDashboard/apps/cli-go/internal/tui/
 // view_home.go) STRUCTURALLY -- centerInto/pickerRowFill are VERBATIM string
 // utilities (no devd-API coupling to strip), homeLogoBlock/repoPickerBody/
-// viewLobby are beans-tui-native (a "beans" banner instead of "DevDashboard",
+// viewLobby are beans-tui-native (a "lif" banner instead of "DevDashboard",
 // beans-tui's own config.Settings.Repos instead of devd's api.Project list,
 // an Open/Total bean-count metric instead of devd's Sprint/Backlog count).
 //
@@ -22,23 +22,23 @@ import (
 	"fmt"
 	"strings"
 
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/xRiErOS/lif/internal/tui/config"
 	"github.com/xRiErOS/lif/internal/tui/data"
 	"github.com/xRiErOS/lif/internal/tui/theme"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 )
 
-// homeLogoLines is a pure-ASCII "beans" banner (figlet "Standard"-style),
+// homeLogoLines is a pure-ASCII "lif" banner (figlet "Standard"-style),
 // deliberately narrow EAW-neutral glyphs only (no East-Asian-Ambiguous
 // drift, same rationale as devd's own homeLogoLines doc-stamp) -- terminal-
 // independent, stable width.
 var homeLogoLines = []string{
-	` _                           `,
-	`| |__   ___  __ _ _ __  ___  `,
-	`| '_ \ / _ \/ _` + "`" + ` | '_ \/ __| `,
-	`| |_) |  __/ (_| | | | \__ \ `,
-	`|_.__/ \___|\__,_|_| |_|___/ `,
+	` _ _  __ `,
+	`| (_)/ _|`,
+	`| | | |_ `,
+	`| | |  _|`,
+	`|_|_|_|  `,
 }
 
 // centerInto sets s exactly centered in a field of width w (left+right
@@ -65,7 +65,7 @@ func pickerRowFill(left, right string, w int) string {
 	return left + strings.Repeat(" ", gap) + right
 }
 
-// homeLogoBlock renders the Mauve "beans" banner as UNIFORM-width lines
+// homeLogoBlock renders the Mauve "lif" banner as UNIFORM-width lines
 // (each padded to the banner's own max width, so the block stays internally
 // flush -- Port devd homeLogoBlock's own padding rationale). A narrow
 // terminal falls back to a plain Header-styled "lif tui" title instead of

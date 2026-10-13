@@ -1,6 +1,6 @@
 # Feature Overview
 
-This page maps what `lif` and its companion binaries actually do, grouped by capability rather than by command name. It is the starting point for understanding the whole toolset before diving into the per-command reference pages.
+This page maps what `lif` and `lif-serve` actually do, grouped by capability rather than by command name. It is the starting point for understanding the whole toolset before diving into the per-command reference pages.
 
 ## Issue tracking on plain Markdown files
 
@@ -40,7 +40,7 @@ Lif configuration includes a `worktree` section covering the base ref new work b
 
 ## Interfaces beyond the CLI
 
-The core `lif` binary is deliberately narrow; the terminal UI and the web UI ship as separate binaries, `lif-tui` and `lif-serve`, so installing the tracker does not require pulling in either interface. See [TUI Companion](tui-companion.md) for the terminal UI and [Web UI and API](web-ui-and-api.md) for the web UI and its HTTP surface.
+The core `lif` binary is deliberately narrow, and the web UI ships as the separate `lif-serve` binary, so installing the tracker does not require pulling in the web interface. The terminal UI is built into `lif` and starts with `lif tui`. See [Terminal UI](tui-companion.md) for the terminal UI and [Web UI and API](web-ui-and-api.md) for the web UI and its HTTP surface.
 
 ## What is deliberately out of scope
 
@@ -60,5 +60,5 @@ The core `lif` binary is deliberately narrow; the terminal UI and the web UI shi
 - [Command Reference: Separate Binaries](commands/separate-binaries.md)
 - [Data Model](data-model.md)
 - [Agent Integration](agent-integration.md)
-- [TUI Companion](tui-companion.md)
+- [Terminal UI](tui-companion.md)
 - [Web UI and API](web-ui-and-api.md)
