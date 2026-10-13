@@ -127,7 +127,7 @@ func (m model) keyDeleteConfirm(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.overlay = overlayNone
 		id := m.mutTarget
 		if _, ok := m.beanETag(id); !ok {
-			m.err = "Bean no longer exists — deletion discarded"
+			m.err = "Item no longer exists — deletion discarded"
 			// bt-81f0 (Notifications vereinheitlichen): m.err's rendering
 			// anbindung is gone (view.go statusBar/ErrNote) -- Toast is now
 			// the ONE visible channel, so this vanished-target guard needs
@@ -149,7 +149,7 @@ func (m model) keyDeleteConfirm(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 // m.idx.ByID[m.mutTarget] lookup) rather than a cached field, since it is
 // only needed for display, not for dispatch.
 func (m model) deleteBox() string {
-	typ := "bean"
+	typ := "item"
 	if m.idx != nil {
 		if cur, ok := m.idx.ByID[m.mutTarget]; ok {
 			typ = cur.Type
@@ -178,9 +178,9 @@ func (m model) deleteBox() string {
 	case 0:
 		// no line -- TestDeleteBoxOmitsLinkedWarningWhenZero
 	case 1:
-		b.WriteString("1 bean loses its blocking/blocked-by link to this bean\n")
+		b.WriteString("1 item loses its blocking/blocked-by link to this item\n")
 	default:
-		b.WriteString(fmt.Sprintf("%d beans lose their blocking/blocked-by link to this bean\n", m.delLinks))
+		b.WriteString(fmt.Sprintf("%d items lose their blocking/blocked-by link to this item\n", m.delLinks))
 	}
 	b.WriteString("\n" + lipgloss.NewStyle().Foreground(theme.Red).Render("Irreversible.") + "\n")
 	b.WriteString("\n" + theme.Dim.Render("enter: delete permanently   esc/n: cancel"))

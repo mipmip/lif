@@ -421,7 +421,7 @@ func (m model) applyTagPickerDiff() (tea.Model, tea.Cmd) {
 
 	etag, ok := m.beanETag(id)
 	if !ok {
-		m.err = "Bean no longer exists — selection discarded"
+		m.err = "Item no longer exists — selection discarded"
 		// bt-81f0: see box_confirm_delete.go's identical guard comment.
 		var toastCmd tea.Cmd
 		m, toastCmd = m.showToast(toastError, m.err, "", nil, false)

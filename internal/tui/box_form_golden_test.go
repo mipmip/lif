@@ -2,10 +2,10 @@ package tui
 
 // box_form_golden_test.go — golden snapshot for the Browse Primat-View with
 // the experimental jira-style box-form detail render switched ON (S2b,
-// BT_BOXFORM env gate, box_form_flag.go). Mirrors tree_golden_test.go's
+// LIF_TUI_BOXFORM env gate, box_form_flag.go). Mirrors tree_golden_test.go's
 // TestTreeGolden EXACTLY (same fixture via goldenTreeModel, same 100x30
 // frame, same TrueColor/-update pattern) -- the ONLY difference is
-// t.Setenv("BT_BOXFORM", "1") before rendering, so this test proves the
+// t.Setenv("LIF_TUI_BOXFORM", "1") before rendering, so this test proves the
 // flag's ON state without touching tree.golden (which stays the flag-OFF
 // snapshot, byte-identical, per this slice's contract).
 
@@ -20,10 +20,10 @@ import (
 )
 
 // TestBrowseBoxFormGolden renders the SAME fixture TestTreeGolden uses, but
-// with BT_BOXFORM=1, and compares it against testdata/browse_boxform.golden.
+// with LIF_TUI_BOXFORM=1, and compares it against testdata/browse_boxform.golden.
 // Regenerate with: go test ./internal/tui/ -run TestBrowseBoxFormGolden -update
 func TestBrowseBoxFormGolden(t *testing.T) {
-	t.Setenv("BT_BOXFORM", "1")
+	t.Setenv("LIF_TUI_BOXFORM", "1")
 	lipgloss.SetColorProfile(termenv.TrueColor)
 	defer lipgloss.SetColorProfile(termenv.Ascii)
 
@@ -59,7 +59,7 @@ func TestBrowseBoxFormGolden(t *testing.T) {
 }
 
 // TestBrowseBoxFormDefaultOffMatchesTree guards the flag's OFF-by-default
-// contract at the golden level: WITHOUT BT_BOXFORM set, the exact same
+// contract at the golden level: WITHOUT LIF_TUI_BOXFORM set, the exact same
 // fixture must still render byte-identically to tree.golden -- i.e. this new
 // code path is fully inert unless explicitly opted into.
 func TestBrowseBoxFormDefaultOffMatchesTree(t *testing.T) {
@@ -74,6 +74,6 @@ func TestBrowseBoxFormDefaultOffMatchesTree(t *testing.T) {
 		t.Fatalf("tree.golden missing: %v", err)
 	}
 	if out != string(want) {
-		t.Errorf("default (BT_BOXFORM unset) browse view diverged from tree.golden -- flag must be fully inert when unset")
+		t.Errorf("default (LIF_TUI_BOXFORM unset) browse view diverged from tree.golden -- flag must be fully inert when unset")
 	}
 }

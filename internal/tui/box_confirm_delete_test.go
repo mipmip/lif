@@ -251,10 +251,10 @@ func TestDeleteBoxWarnsLinkedBeanSingular(t *testing.T) {
 	// Short substring, same word-wrap reasoning as
 	// TestDeleteBoxSingularChildWording above.
 	box := m.deleteBox()
-	if !strings.Contains(box, "1 bean loses its blocking") {
-		t.Fatalf("deleteBox() = %q, want the singular linked-bean warning", box)
+	if !strings.Contains(box, "1 item loses its blocking") {
+		t.Fatalf("deleteBox() = %q, want the singular linked-item warning", box)
 	}
-	if strings.Contains(box, "beans lose their blocking") {
+	if strings.Contains(box, "items lose their blocking") {
 		t.Fatalf("deleteBox() = %q, must not use plural wording for delLinks == 1", box)
 	}
 }
@@ -275,7 +275,7 @@ func TestDeleteBoxWarnsLinkedBeansPlural(t *testing.T) {
 	m = step(t, m, runeMsg('d'))
 
 	box := m.deleteBox()
-	if !strings.Contains(box, "2 beans lose their blocking") {
+	if !strings.Contains(box, "2 items lose their blocking") {
 		t.Fatalf("deleteBox() = %q, want the plural linked-bean warning (\"2 beans lose\")", box)
 	}
 }

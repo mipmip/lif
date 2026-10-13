@@ -182,7 +182,7 @@ func tagManagementLocalBindings() []keybind.Binding {
 // instead of omitting the column outright, so neither group's name column
 // ever shifts relative to the other. U+2713 CHECK MARK is EAW=Neutral
 // (Narrow, same class as theme.priorityGlyph's "‼"/"!" -- already
-// column-safe without needing a BT_ASCII_ICONS fallback variant, theme.go's
+// column-safe without needing a LIF_TUI_ASCII_ICONS fallback variant, theme.go's
 // own doc-stamp on that pair).
 const tagManagementMarkerGlyph = "✓"
 
@@ -654,11 +654,11 @@ func (m model) tagMgmtDeleteConfirmBox() string {
 	var body string
 	switch count {
 	case 0:
-		body = "Not currently used by any bean.\n"
+		body = "Not currently used by any item.\n"
 	case 1:
-		body = "Still used by 1 bean — it keeps the tag, it just won't be prioritized anymore.\n"
+		body = "Still used by 1 item — it keeps the tag, it just won't be prioritized anymore.\n"
 	default:
-		body = fmt.Sprintf("Still used by %d beans — they keep the tag, it just won't be prioritized anymore.\n", count)
+		body = fmt.Sprintf("Still used by %d items — they keep the tag, it just won't be prioritized anymore.\n", count)
 	}
 
 	title := fmt.Sprintf("Delete tag definition '%s'?", m.tagMgmtDeleteTarget)

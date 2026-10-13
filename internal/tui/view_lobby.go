@@ -68,7 +68,7 @@ func pickerRowFill(left, right string, w int) string {
 // homeLogoBlock renders the Mauve "beans" banner as UNIFORM-width lines
 // (each padded to the banner's own max width, so the block stays internally
 // flush -- Port devd homeLogoBlock's own padding rationale). A narrow
-// terminal falls back to a plain Header-styled "beans-tui" title instead of
+// terminal falls back to a plain Header-styled "lif tui" title instead of
 // the full banner.
 func homeLogoBlock(width int) []string {
 	lw := 0
@@ -78,7 +78,7 @@ func homeLogoBlock(width int) []string {
 		}
 	}
 	if width < lw+2 {
-		return []string{theme.Header.Render("beans-tui")}
+		return []string{theme.Header.Render("lif tui")}
 	}
 	style := lipgloss.NewStyle().Foreground(theme.Mauve)
 	out := make([]string, len(homeLogoLines))

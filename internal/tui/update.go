@@ -280,7 +280,7 @@ func (m model) applyMutationResult(err error) (tea.Model, tea.Cmd) {
 	var toastCmd tea.Cmd
 	if err != nil {
 		if errors.Is(err, data.ErrConflict) {
-			m.err = "Conflict: bean changed externally — reloaded"
+			m.err = "Conflict: item changed externally — reloaded"
 			// F2 (Review-Runde 2) nicety: applyEditorFinished's mutateCmd
 			// closure wraps a genuine conflict in *conflictWithRecovery when
 			// it managed to persist the PO's just-edited body to a kept
@@ -310,7 +310,7 @@ func (m model) applyMutationResult(err error) (tea.Model, tea.Cmd) {
 			// newer toast replaces it, surviving every reload cycle in
 			// between (applyLoaded never touches m.toast, so there is
 			// nothing here that would clobber it).
-			m, toastCmd = m.showToast(toastError, "Conflict: bean changed externally", toastCtx, nil, true)
+			m, toastCmd = m.showToast(toastError, "Conflict: item changed externally", toastCtx, nil, true)
 		} else {
 			m.err = err.Error()
 			// F01 (bt-z4b1 Review-Runde 1): applyEditorFinished's mutateCmd
@@ -365,7 +365,7 @@ func (c *conflictWithRecovery) Unwrap() error { return c.err }
 // must not mask the underlying error, so the caller (applyEditorFinished)
 // falls back to the bare unwrapped error.
 func writeConflictTempFile(body string) (path string, err error) {
-	f, err := os.CreateTemp("", "beans-tui-conflict-*.md")
+	f, err := os.CreateTemp("", "lif-tui-conflict-*.md")
 	if err != nil {
 		return "", err
 	}
@@ -527,7 +527,7 @@ func (m model) applyTagDefsSaved(msg tagDefsSavedMsg) (tea.Model, tea.Cmd) {
 // kind e.g. the Yank "Copied: "+b.ID toast above already uses for a bare
 // success.
 func (m model) applyTagRenameDone(msg tagRenameDoneMsg) (tea.Model, tea.Cmd) {
-	title := fmt.Sprintf("Renamed %s → %s: %d bean(s) updated", msg.oldTag, msg.newTag, msg.renamed)
+	title := fmt.Sprintf("Renamed %s → %s: %d item(s) updated", msg.oldTag, msg.newTag, msg.renamed)
 	kind := toastInfo
 	if len(msg.failed) > 0 {
 		title += fmt.Sprintf(", %d failed (first: %v)", len(msg.failed), msg.failed[0].err)
@@ -640,7 +640,7 @@ func (m model) applyEditorFinished(msg editorFinishedMsg) (tea.Model, tea.Cmd) {
 		// convention as F01 now: kept tempfile, path appended to the
 		// status text, toast ctx carries it. Warn semantics (toastWarn,
 		// not an error) stay unchanged -- only the recovery half is new.
-		const note = "Bean no longer exists — editor edit discarded"
+		const note = "Item no longer exists — editor edit discarded"
 		m.err = note
 		toastCtx := ""
 		if path, werr := writeConflictTempFile(msg.content); werr == nil {
@@ -655,7 +655,7 @@ func (m model) applyEditorFinished(msg editorFinishedMsg) (tea.Model, tea.Cmd) {
 	content := msg.content
 	fm, body, perr := parseRawBean(content)
 	if perr != nil {
-		m.err = "Invalid bean format: " + perr.Error()
+		m.err = "Invalid item format: " + perr.Error()
 		if path, werr := writeConflictTempFile(content); werr == nil {
 			m.err += " — your version: " + path
 		}
@@ -716,7 +716,7 @@ const createInFlightNote = "Creation already in progress — please wait"
 // keyNodeAction routes the node-focused mutation keys (design-spec §7:
 // s/t/a/B/c/d/e -- Status/TagAssign/Assign/Blocking/Create/Delete/Editor;
 // plus jira-style-ui experiment S4's o/u -- Type/Priority, wired onto the
-// SAME value-menu machinery as Status, not gated behind BT_BOXFORM).
+// SAME value-menu machinery as Status, not gated behind LIF_TUI_BOXFORM).
 // Placed in handleKey directly after the Refresh check and BEFORE the
 // m.detailFocus dispatch, since node actions must act on m.focusedBean()
 // regardless of which pane currently has focus (focusedBean() already

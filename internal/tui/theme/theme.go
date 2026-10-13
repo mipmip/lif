@@ -16,11 +16,11 @@ import (
 // asciiIcons — Opt-in ASCII-Ersatz-Glyphen für Terminals/Fonts, die die (EAW-neutrale,
 // aber font-seitig schwach abgedeckte) Unicode-Geometrie nicht darstellen. ASCII ist
 // garantiert verfügbar UND EAW=Neutral (kein Spalten-Drift). Aktiv via
-// BT_ASCII_ICONS=1|true|yes|on (Port-Adaptation 1: devd DEVD_ASCII_ICONS → BT_ASCII_ICONS).
+// LIF_TUI_ASCII_ICONS=1|true|yes|on (Port-Adaptation 1: devd DEVD_ASCII_ICONS → LIF_TUI_ASCII_ICONS).
 // Pro Aufruf gelesen (Render ist nicht perf-kritisch) → auch in Tests via t.Setenv
 // setz-/rücksetzbar, kein Package-State-Caching.
 func asciiIcons() bool {
-	switch strings.ToLower(strings.TrimSpace(os.Getenv("BT_ASCII_ICONS"))) {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv("LIF_TUI_ASCII_ICONS"))) {
 	case "1", "true", "yes", "on":
 		return true
 	}
@@ -175,7 +175,7 @@ var statusLetter = map[string]string{
 
 // statusIconGlyph wählt den Status-Buchstaben. Unbekannte Status bekommen den
 // generischen Fallback-Glyph (fallbackGlyph) statt eines eigenen Zeichens.
-// BT_ASCII_ICONS bleibt für Status wirkungslos -- die Buchstaben sind bereits
+// LIF_TUI_ASCII_ICONS bleibt für Status wirkungslos -- die Buchstaben sind bereits
 // ASCII/EAW-neutral, kein Ersatz nötig (PF-6).
 func statusIconGlyph(status string) string {
 	if letter, ok := statusLetter[status]; ok {
@@ -230,7 +230,7 @@ func priorityColor(p string) lipgloss.Color {
 
 // priorityGlyph/priorityGlyphASCII — PF-6 (design-spec.md §15, 2026-07-15):
 // Priorität wird künftig als EIN Glyph statt als ausgeschriebenes Wort
-// gerendert. Anders als bei Status/Typ bleibt BT_ASCII_ICONS hier weiterhin
+// gerendert. Anders als bei Status/Typ bleibt LIF_TUI_ASCII_ICONS hier weiterhin
 // relevant: normal/low/deferred (·/↓/→) sind laut Unicode East-Asian-Width
 // als Ambiguous klassifiziert (dieselbe Klasse wie fallbackGlyphChar oben) --
 // critical/high (‼/!) sind Neutral/Narrow und daher bereits spaltensicher.

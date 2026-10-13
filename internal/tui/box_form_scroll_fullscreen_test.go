@@ -51,7 +51,7 @@ func boxFormWrapSensitiveBeans() []data.Bean {
 	return beans
 }
 
-// fullscreenBoxFormModel builds boxFormScrollModel's model (BT_BOXFORM=1,
+// fullscreenBoxFormModel builds boxFormScrollModel's model (LIF_TUI_BOXFORM=1,
 // 100x30, tk-2 focused) already inside fullscreenDetail, entered through the
 // REAL `v` keypress from a Detail-focused split view (keyFullscreen's own
 // detailFocus branch, view_fullscreen.go) rather than by setting m.fullscreen
@@ -59,7 +59,7 @@ func boxFormWrapSensitiveBeans() []data.Bean {
 // tests use.
 func fullscreenBoxFormModel(t *testing.T, beans []data.Bean) model {
 	t.Helper()
-	t.Setenv("BT_BOXFORM", "1")
+	t.Setenv("LIF_TUI_BOXFORM", "1")
 	m := fixtureModel(t, beans)
 	m = step(t, m, tea.WindowSizeMsg{Width: 100, Height: 30})
 	m = focusBean(m, "tk-2")
@@ -206,11 +206,11 @@ func TestBoxFormScrollFullscreenDrivenByKeyboardReachesEnd(t *testing.T) {
 // --- Flag off: nothing about the Vollbild changes ---
 
 // TestBoxFormScrollFullscreenInertWithoutFlag guards the epic's hard
-// constraint that BT_BOXFORM stays additive: without the flag, `down` inside
+// constraint that LIF_TUI_BOXFORM stays additive: without the flag, `down` inside
 // fullscreenDetail must drive the pre-existing Accordion Section cursor
 // exactly as before and never write box-form scroll state.
 func TestBoxFormScrollFullscreenInertWithoutFlag(t *testing.T) {
-	m := fixtureModel(t, boxFormLongBodyBeans()) // BT_BOXFORM left unset
+	m := fixtureModel(t, boxFormLongBodyBeans()) // LIF_TUI_BOXFORM left unset
 	m = step(t, m, tea.WindowSizeMsg{Width: 100, Height: 30})
 	m = focusBean(m, "tk-2")
 	m.detailFocus = true

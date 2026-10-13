@@ -208,7 +208,7 @@ func (m model) applyBlockingPickerDiff() (tea.Model, tea.Cmd) {
 
 	etag, ok := m.beanETag(id)
 	if !ok {
-		m.err = "Bean no longer exists — selection discarded"
+		m.err = "Item no longer exists — selection discarded"
 		// bt-81f0: see box_confirm_delete.go's identical guard comment.
 		var toastCmd tea.Cmd
 		m, toastCmd = m.showToast(toastError, m.err, "", nil, false)
@@ -286,7 +286,7 @@ func (m model) blockingPickerBox() string {
 	}
 	if len(m.blockFiltered) == 0 {
 		if len(m.blockItems) == 0 {
-			b.WriteString(theme.Muted.Render("(no other beans in repo)") + "\n")
+			b.WriteString(theme.Muted.Render("(no other items in repo)") + "\n")
 		} else {
 			b.WriteString(theme.Muted.Render("(no match)") + "\n")
 		}

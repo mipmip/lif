@@ -53,19 +53,19 @@ func classifyError(id string, stdout []byte, cmdErr error) error {
 	if json.Unmarshal(stdout, &env) == nil && env.Code != "" {
 		if env.Code == "CONFLICT" {
 			if id != "" {
-				return fmt.Errorf("%w: bean %s: %s", ErrConflict, id, env.Error)
+				return fmt.Errorf("%w: item %s: %s", ErrConflict, id, env.Error)
 			}
 			return fmt.Errorf("%w: %s", ErrConflict, env.Error)
 		}
 		if id != "" {
-			return fmt.Errorf("lif: %s: bean %s: %s", env.Code, id, env.Error)
+			return fmt.Errorf("lif: %s: item %s: %s", env.Code, id, env.Error)
 		}
 		return fmt.Errorf("lif: %s: %s", env.Code, env.Error)
 	}
 
 	if strings.Contains(cmdErr.Error(), conflictSubstring) {
 		if id != "" {
-			return fmt.Errorf("%w: bean %s: %s", ErrConflict, id, cmdErr)
+			return fmt.Errorf("%w: item %s: %s", ErrConflict, id, cmdErr)
 		}
 		return fmt.Errorf("%w: %s", ErrConflict, cmdErr)
 	}

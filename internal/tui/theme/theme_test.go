@@ -39,27 +39,27 @@ func TestStatusColorMapping(t *testing.T) {
 	}
 }
 
-// TestAsciiFallback — BT_ASCII_ICONS ist seit PF-6 nur noch für Priorität relevant:
+// TestAsciiFallback — LIF_TUI_ASCII_ICONS ist seit PF-6 nur noch für Priorität relevant:
 // Status-/Type-Buchstaben sind bereits ASCII/EAW-neutral und bleiben in BEIDEN Modi
 // identisch (kein Unicode-vs-ASCII-Branch mehr). Per-Aufruf-Read via os.Getenv, daher
 // mit t.Setenv pro Sub-Case steuerbar (kein Package-State-Caching).
 func TestAsciiFallback(t *testing.T) {
-	t.Setenv("BT_ASCII_ICONS", "1")
+	t.Setenv("LIF_TUI_ASCII_ICONS", "1")
 
 	if !strings.Contains(Priority("critical"), "!!") {
-		t.Errorf("Priority(critical) with BT_ASCII_ICONS=1 should contain ASCII glyph %q", "!!")
+		t.Errorf("Priority(critical) with LIF_TUI_ASCII_ICONS=1 should contain ASCII glyph %q", "!!")
 	}
 	if strings.Contains(Priority("critical"), "‼") {
-		t.Errorf("Priority(critical) with BT_ASCII_ICONS=1 should not contain unicode glyph %q", "‼")
+		t.Errorf("Priority(critical) with LIF_TUI_ASCII_ICONS=1 should not contain unicode glyph %q", "‼")
 	}
 	if !strings.Contains(StatusIcon("todo"), "t") {
-		t.Errorf("StatusIcon(todo) with BT_ASCII_ICONS=1 should still contain letter %q (no-op for status)", "t")
+		t.Errorf("StatusIcon(todo) with LIF_TUI_ASCII_ICONS=1 should still contain letter %q (no-op for status)", "t")
 	}
 	if !strings.Contains(TypeIcon("bug"), "B") {
-		t.Errorf("TypeIcon(bug) with BT_ASCII_ICONS=1 should still contain letter %q (no-op for type)", "B")
+		t.Errorf("TypeIcon(bug) with LIF_TUI_ASCII_ICONS=1 should still contain letter %q (no-op for type)", "B")
 	}
 
-	t.Setenv("BT_ASCII_ICONS", "0")
+	t.Setenv("LIF_TUI_ASCII_ICONS", "0")
 
 	if !strings.Contains(Priority("critical"), "‼") {
 		t.Errorf("Priority(critical) without ascii mode should contain unicode glyph %q", "‼")

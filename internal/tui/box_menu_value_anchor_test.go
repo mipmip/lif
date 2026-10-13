@@ -104,7 +104,7 @@ func TestValueMenuContentWidthSizesToLongestLine(t *testing.T) {
 }
 
 func TestValueMenuBoxWidthIsUnderOldFixedFortyAndMatchesContent(t *testing.T) {
-	t.Setenv("BT_BOXFORM", "1")
+	t.Setenv("LIF_TUI_BOXFORM", "1")
 	m := fixtureModel(t, fixtureBeans())
 	m = step(t, m, tea.WindowSizeMsg{Width: 100, Height: 30})
 	m = focusBean(m, "tk-2")
@@ -155,13 +155,13 @@ func rawValueMenuBody(m model) string {
 
 // --- Render-grounded: anchored placement, one test per trigger path ---
 
-// anchorModel builds a BT_BOXFORM=1 fixtureModel at the given size, tk-2
+// anchorModel builds a LIF_TUI_BOXFORM=1 fixtureModel at the given size, tk-2
 // focused (Task Two, ms-1->ep-1->tk-2 ancestry expanded, box_menu_value_test.
 // go's focusBean), Detail-Pane focused (tab-equivalent) -- the state every
 // one of the four trigger paths needs at minimum.
 func anchorModel(t *testing.T, width, height int) model {
 	t.Helper()
-	t.Setenv("BT_BOXFORM", "1")
+	t.Setenv("LIF_TUI_BOXFORM", "1")
 	m := fixtureModel(t, fixtureBeans())
 	m = step(t, m, tea.WindowSizeMsg{Width: width, Height: height})
 	m = focusBean(m, "tk-2")
@@ -451,7 +451,7 @@ func TestValueMenuAnchoredInFullscreenDetail(t *testing.T) {
 // --- Flag off: accordion mode stays centered ---
 
 // TestValueMenuStaysCenteredWithoutBoxFormFlag guards the OFF-by-default
-// contract: accordion mode (BT_BOXFORM unset) has no boxed fields to anchor
+// contract: accordion mode (LIF_TUI_BOXFORM unset) has no boxed fields to anchor
 // to at all (D09's own scope, "nur die Einzelfeld-Menüs"), so the value menu
 // must stay centered exactly as before -- its title lands at the SAME
 // (centerX+2, centerY+1) position placeOverlay's own (bgW-fgW)/2,
@@ -463,7 +463,7 @@ func TestValueMenuStaysCenteredWithoutBoxFormFlag(t *testing.T) {
 	m = focusBean(m, "tk-2")
 
 	if boxFormEnabled() {
-		t.Fatal("setup: BT_BOXFORM must be unset for this test")
+		t.Fatal("setup: LIF_TUI_BOXFORM must be unset for this test")
 	}
 	m = step(t, m, runeMsg('s'))
 	if m.overlay != overlayValueMenu {
@@ -487,7 +487,7 @@ func TestValueMenuStaysCenteredWithoutBoxFormFlag(t *testing.T) {
 		t.Fatalf("title %q not found on row %d: %q", title, wantRow, lines[wantRow])
 	}
 	if gotCol := ansi.StringWidth(lines[wantRow][:idx]); gotCol != wantCol {
-		t.Fatalf("title %q at col=%d, want %d (centered, BT_BOXFORM off)", title, gotCol, wantCol)
+		t.Fatalf("title %q at col=%d, want %d (centered, LIF_TUI_BOXFORM off)", title, gotCol, wantCol)
 	}
 }
 

@@ -774,7 +774,7 @@ func renderAccordionPane(idx *data.Index, b *data.Bean, w, h, open, secCursor, f
 		// as the Accordion itself (accW) -- not the App-Chrome header (PO-
 		// Antwort Q01: Detail-Pane only).
 		if boxFormEnabled() {
-			// S2b (jira-style-experiment, BT_BOXFORM env gate, box_form_flag.go):
+			// S2b (jira-style-experiment, LIF_TUI_BOXFORM env gate, box_form_flag.go):
 			// swap the accordion body for detailBoxForm's jira-style boxes.
 			// accW is the SAME outer box width detailHeaderBlock/renderAccordion
 			// use above/below -- detailBoxForm's own dropdownBox/panelBox calls
@@ -1125,7 +1125,7 @@ func (m model) treePaneHeadRows(width int) []string {
 // devd's project slug, view.go's breadcrumb doc comment).
 func (m model) repoLabel() string {
 	if m.repoDir == "" {
-		return "bt"
+		return "lif"
 	}
 	return filepath.Base(m.repoDir)
 }
@@ -1294,7 +1294,7 @@ func browseRepoLocalBindings() []keybind.Binding {
 	// keys leaves the flag-ON footer at 127 cells, with room to spare. Epic
 	// bt-vy1q's standing constraint -- everything additive and gated,
 	// flag-off output byte-identical -- points the same way, and the PO saw
-	// the miss with BT_BOXFORM=1 in the first place.
+	// the miss with LIF_TUI_BOXFORM=1 in the first place.
 	return append(out, keys.Fullscreen)
 }
 
@@ -1349,7 +1349,7 @@ func (m model) viewBrowseRepo() string {
 	bodyH, lw, rw, _, _ := clickPaneGeometry(w, h, head, localKeys, m.statusLine(innerW), m.settings.Layout.TreeWidth)
 	nodes := m.visibleNodes()
 
-	// S3 (jira-style-experiment, BT_BOXFORM): the persistent filter chip row
+	// S3 (jira-style-experiment, LIF_TUI_BOXFORM): the persistent filter chip row
 	// (box_filter_bar.go, design-spec.md D02/D08) sits between the header
 	// divider and the Tree/Detail split, ONLY when boxFormEnabled() --
 	// existing composition (bodyH/content below) stays byte-for-byte
@@ -1401,7 +1401,7 @@ func (m model) viewBrowseRepo() string {
 			// Dispatch already handled flat mode here (keyTree routes to
 			// keyFlat, update.go; focusedBean resolves via flatSelected) --
 			// the render was the only half missing. NOT gated on
-			// boxFormEnabled(): `G` exists independently of BT_BOXFORM, and
+			// boxFormEnabled(): `G` exists independently of LIF_TUI_BOXFORM, and
 			// m.flatView's default false leaves the Tree path (and every
 			// pre-existing Vollbild golden) byte-for-byte untouched.
 			if m.flatView {

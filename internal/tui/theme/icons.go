@@ -9,7 +9,7 @@ import "github.com/charmbracelet/lipgloss"
 // feature teilten sich sogar denselben Glyphen (✦). PO-Direktive: EIN
 // kapitalisierter Typ-Buchstabe je Typ + Farbe, redundante Kodierung wie bei
 // Status (theme.go statusLetter). Alle Buchstaben sind ASCII/EAW=Narrow --
-// BT_ASCII_ICONS bleibt für Typ wirkungslos, kein typeIconASCII mehr nötig.
+// LIF_TUI_ASCII_ICONS bleibt für Typ wirkungslos, kein typeIconASCII mehr nötig.
 var typeIcon = map[string]string{
 	"milestone": "M",
 	"epic":      "E",

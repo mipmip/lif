@@ -23,7 +23,7 @@ import (
 // (design decision d, bean bt-zhwl) -- Init() checks m.view == viewLobby
 // FIRST specifically to keep those two nil-client cases distinct, see
 // Init() below.
-var errNilClient = errors.New("bt: nil beans client (Run() must construct a data.Client before newModel)")
+var errNilClient = errors.New("lif tui: nil client (Run() must construct a data.Client before newModel)")
 
 // activeProgram is the currently running *tea.Program (E5 Task 6, bean
 // bt-zhwl) -- set in Run() immediately after tea.NewProgram, strictly

@@ -5,7 +5,7 @@ package tui
 // theme.asciiIcons()'s env pattern (internal/theme/theme.go) 1:1: read
 // per-call (no caching), so tests can flip it via t.Setenv without any
 // package-state reset dance. Default OFF -> every existing golden/behavior
-// stays byte-identical; opt in via BT_BOXFORM=1|true|yes|on.
+// stays byte-identical; opt in via LIF_TUI_BOXFORM=1|true|yes|on.
 
 import (
 	"os"
@@ -13,10 +13,10 @@ import (
 )
 
 // boxFormEnabled reports whether the experimental jira-style box-form detail
-// render is active (env BT_BOXFORM=1|true|yes|on). Default off — existing
+// render is active (env LIF_TUI_BOXFORM=1|true|yes|on). Default off — existing
 // goldens/behavior unchanged. Read per-call (no caching), like asciiIcons().
 func boxFormEnabled() bool {
-	switch strings.ToLower(strings.TrimSpace(os.Getenv("BT_BOXFORM"))) {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv("LIF_TUI_BOXFORM"))) {
 	case "1", "true", "yes", "on":
 		return true
 	}

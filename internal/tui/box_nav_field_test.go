@@ -313,7 +313,7 @@ func TestBoxFormTabFromTreeEntersAtTheFirstField(t *testing.T) {
 // pane and routes through the same keyDetailFocus (handleKey's detailFocus
 // dispatch), so this pins that it really does, rather than only Browse.
 func TestBoxFormTabWalksFieldsInTheBacklogToo(t *testing.T) {
-	t.Setenv("BT_BOXFORM", "1")
+	t.Setenv("LIF_TUI_BOXFORM", "1")
 	m := fixtureModel(t, backlogBeans())
 	m = step(t, m, tea.WindowSizeMsg{Width: 100, Height: 30})
 	m.view = viewBacklog
@@ -337,10 +337,10 @@ func TestBoxFormTabWalksFieldsInTheBacklogToo(t *testing.T) {
 
 // TestTabStillSwapsPanesWithoutBoxForm is the flag-OFF regression pin: the
 // whole Fokus-Modell is experiment-gated (epic bt-vy1q), so without
-// BT_BOXFORM tab remains PF-13's bidirectional pane toggle and shift+tab
+// LIF_TUI_BOXFORM tab remains PF-13's bidirectional pane toggle and shift+tab
 // remains the deterministic exit.
 func TestTabStillSwapsPanesWithoutBoxForm(t *testing.T) {
-	t.Setenv("BT_BOXFORM", "")
+	t.Setenv("LIF_TUI_BOXFORM", "")
 	m := fixtureModel(t, fixtureBeans())
 	m = step(t, m, tea.WindowSizeMsg{Width: 100, Height: 30})
 
@@ -514,10 +514,10 @@ func TestBoxFormCursorResetsWhenSelectedBeanChanges(t *testing.T) {
 // --- Flag off: accordion mode is untouched ---
 
 // TestBoxFormFieldNavInertWithoutFlag guards the experiment's hard contract:
-// without BT_BOXFORM, the same keys must drive the pre-existing accordion
+// without LIF_TUI_BOXFORM, the same keys must drive the pre-existing accordion
 // Section/Field machine and never write the box-form cursor state.
 func TestBoxFormFieldNavInertWithoutFlag(t *testing.T) {
-	m := fixtureModel(t, boxFormLongBodyBeans()) // BT_BOXFORM left unset
+	m := fixtureModel(t, boxFormLongBodyBeans()) // LIF_TUI_BOXFORM left unset
 	m = step(t, m, tea.WindowSizeMsg{Width: 100, Height: 30})
 	m = focusBean(m, "tk-2")
 	m.detailFocus = true
@@ -532,14 +532,14 @@ func TestBoxFormFieldNavInertWithoutFlag(t *testing.T) {
 
 // --- Slice A (bt-f0y9, D09 revidiert): forward field->screen-rect geometry ---
 
-// boxFormRectModel builds a fixtureModel with BT_BOXFORM=1, tk-2 focused, at
+// boxFormRectModel builds a fixtureModel with LIF_TUI_BOXFORM=1, tk-2 focused, at
 // the given terminal width (80/120, S6 grounding's own boundary widths) --
 // unscrolled (fixtureBeans' tk-2 has no long Body, unlike
 // boxFormLongBodyBeans), so Status/Type/Priority sit at their unscrolled
 // render position and boxFormEffectiveScroll(m, b) is 0.
 func boxFormRectModel(t *testing.T, width int) model {
 	t.Helper()
-	t.Setenv("BT_BOXFORM", "1")
+	t.Setenv("LIF_TUI_BOXFORM", "1")
 	m := fixtureModel(t, fixtureBeans())
 	m = step(t, m, tea.WindowSizeMsg{Width: width, Height: 30})
 	m = focusBean(m, "tk-2")

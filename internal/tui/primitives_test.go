@@ -21,9 +21,9 @@ import (
 // (port-adaptation vs. devd's `> slug: Title`) plus the right-aligned global
 // hint, and the title-less `> repo` form.
 func TestBreadcrumbFormat(t *testing.T) {
-	out := breadcrumb("bt", "Browse", "q:quit", 60)
-	if !strings.Contains(out, "> bt") {
-		t.Errorf("breadcrumb missing '> bt': %q", out)
+	out := breadcrumb("lif", "Browse", "q:quit", 60)
+	if !strings.Contains(out, "> lif") {
+		t.Errorf("breadcrumb missing '> lif': %q", out)
 	}
 	if !strings.Contains(out, "Browse") {
 		t.Errorf("breadcrumb missing title: %q", out)
@@ -32,8 +32,8 @@ func TestBreadcrumbFormat(t *testing.T) {
 		t.Errorf("breadcrumb missing global hint: %q", out)
 	}
 
-	bare := breadcrumb("bt", "", "q:quit", 60)
-	if strings.Contains(bare, "> bt:") {
+	bare := breadcrumb("lif", "", "q:quit", 60)
+	if strings.Contains(bare, "> lif:") {
 		t.Errorf("title-less breadcrumb must not render a trailing colon: %q", bare)
 	}
 }
@@ -42,7 +42,7 @@ func TestBreadcrumbFormat(t *testing.T) {
 // right don't fit on one line, breadcrumb stacks them on two lines instead of
 // overflowing/truncating silently.
 func TestBreadcrumbNarrowStacks(t *testing.T) {
-	out := breadcrumb("bt", "A Very Long Screen Title Indeed", "ctrl+k:cmd  p:project  q:quit", 20)
+	out := breadcrumb("lif", "A Very Long Screen Title Indeed", "ctrl+k:cmd  p:project  q:quit", 20)
 	if !strings.Contains(out, "\n") {
 		t.Errorf("expected narrow breadcrumb to stack onto two lines, got single line: %q", out)
 	}

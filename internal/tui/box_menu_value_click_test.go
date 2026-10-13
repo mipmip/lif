@@ -135,7 +135,7 @@ func TestValueMenuMouseClickOutsidePopupClosesWithoutMutation(t *testing.T) {
 }
 
 // TestValueMenuMouseClickInertWithoutBoxFormFlag guards the OFF-by-default
-// contract: accordion mode (BT_BOXFORM unset) renders the value menu
+// contract: accordion mode (LIF_TUI_BOXFORM unset) renders the value menu
 // CENTERED (Slice C), out of Slice D's scope -- a click anywhere must stay
 // the pre-existing no-op the blanket overlay guard already gave it (no
 // regression, and deliberately no new capability either).
@@ -145,7 +145,7 @@ func TestValueMenuMouseClickInertWithoutBoxFormFlag(t *testing.T) {
 	m = focusBean(m, "tk-2")
 
 	if boxFormEnabled() {
-		t.Fatal("setup: BT_BOXFORM must be unset for this test")
+		t.Fatal("setup: LIF_TUI_BOXFORM must be unset for this test")
 	}
 	m = step(t, m, runeMsg('s'))
 	if m.overlay != overlayValueMenu {
@@ -159,10 +159,10 @@ func TestValueMenuMouseClickInertWithoutBoxFormFlag(t *testing.T) {
 		t.Fatalf("handleMouse(click) did not return a model, got %T", tm)
 	}
 	if nm.overlay != overlayValueMenu {
-		t.Fatalf("overlay after click (BT_BOXFORM off) = %v, want unchanged overlayValueMenu (blanket guard, unaffected by Slice D)", nm.overlay)
+		t.Fatalf("overlay after click (LIF_TUI_BOXFORM off) = %v, want unchanged overlayValueMenu (blanket guard, unaffected by Slice D)", nm.overlay)
 	}
 	if cmd != nil {
-		t.Fatal("click while BT_BOXFORM is off must not return any Cmd")
+		t.Fatal("click while LIF_TUI_BOXFORM is off must not return any Cmd")
 	}
 }
 

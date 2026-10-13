@@ -393,7 +393,7 @@ func TestFilterMenuEnterAppliesUnchangedAcrossTabs(t *testing.T) {
 // pre-existing close-the-menu meaning (TestFilterMenuEnterAppliesUnchanged
 // AcrossTabs, above, is the untouched guard for that).
 func TestFilterStripEnterAppliesAndHoldsFocus(t *testing.T) {
-	t.Setenv("BT_BOXFORM", "1")
+	t.Setenv("LIF_TUI_BOXFORM", "1")
 	m := fixtureModel(t, fixtureBeans())
 	m = step(t, m, runeMsg('f'))
 	m = step(t, m, keyMsg(tea.KeyTab)) // Type tab
@@ -419,7 +419,7 @@ func TestFilterStripEnterAppliesAndHoldsFocus(t *testing.T) {
 // TestFilterStripEscLeavesTheRegion pins bt-8d35's other half for the Strip:
 // esc (and only esc / the toggle key f) leaves the region.
 func TestFilterStripEscLeavesTheRegion(t *testing.T) {
-	t.Setenv("BT_BOXFORM", "1")
+	t.Setenv("LIF_TUI_BOXFORM", "1")
 	m := fixtureModel(t, fixtureBeans())
 	m = step(t, m, runeMsg('f'))
 	m = step(t, m, keyMsg(tea.KeyEsc))

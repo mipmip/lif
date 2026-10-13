@@ -135,7 +135,7 @@ func paletteFormTheme() *huh.Theme {
 func (m model) formTitle() string {
 	switch m.formKind {
 	case "create":
-		return "New bean"
+		return "New item"
 	case "editTitle":
 		return "Edit title"
 	case "settings":

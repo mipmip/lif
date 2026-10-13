@@ -88,7 +88,7 @@ func buildSettingsForm(cur config.Settings) *huh.Form {
 	treeWidth := strconv.Itoa(cur.Layout.TreeWidth)
 	return huh.NewForm(huh.NewGroup(
 		huh.NewText().Key("repos").Title("repos").
-			Description("one beans-repo path per line").Value(&repos).ExternalEditor(false),
+			Description("one repo path per line").Value(&repos).ExternalEditor(false),
 		huh.NewInput().Key("editor").Title("editor").
 			Description("empty = $VISUAL/$EDITOR/vi").Value(&editor),
 		huh.NewInput().Key("accent").Title("accent").

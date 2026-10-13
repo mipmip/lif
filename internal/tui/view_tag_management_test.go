@@ -1554,7 +1554,7 @@ func TestTagMgmtDeleteConfirmBoxShowsLiveCountAndName(t *testing.T) {
 }
 
 // TestTagMgmtDeleteConfirmBoxZeroCountShorterText pins D12's own explicit
-// wording for the count==0 case ("Not currently used by any bean" -- a
+// wording for the count==0 case ("Not currently used by any item" -- a
 // shorter, non-contradictory text, not "Still used by 0 bean(s)").
 func TestTagMgmtDeleteConfirmBoxZeroCountShorterText(t *testing.T) {
 	m := newModel(nil, "")
@@ -1564,7 +1564,7 @@ func TestTagMgmtDeleteConfirmBoxZeroCountShorterText(t *testing.T) {
 	m.tagMgmtDeleteTarget = "unused-tag"
 
 	out := m.tagMgmtDeleteConfirmBox()
-	if !strings.Contains(out, "Not currently used by any bean") {
+	if !strings.Contains(out, "Not currently used by any item") {
 		t.Errorf("want the zero-count shorter text, got:\n%s", out)
 	}
 	if strings.Contains(out, "Still used by") {
@@ -1586,8 +1586,8 @@ func TestTagMgmtDeleteConfirmBoxSingularOneBean(t *testing.T) {
 	m.tagMgmtDeleteTarget = "solo-tag"
 
 	out := m.tagMgmtDeleteConfirmBox()
-	if !strings.Contains(out, "Still used by 1 bean") {
-		t.Errorf("want the singular 'Still used by 1 bean' text, got:\n%s", out)
+	if !strings.Contains(out, "Still used by 1 item") {
+		t.Errorf("want the singular 'Still used by 1 item' text, got:\n%s", out)
 	}
 	if strings.Contains(out, "beans") {
 		t.Errorf("count==1 must not render the plural 'beans' wording:\n%s", out)
@@ -1616,7 +1616,7 @@ func TestViewTagManagementRendersDeleteConfirmCentered(t *testing.T) {
 	if !strings.Contains(out, "to-review") {
 		t.Errorf("viewTagManagement() with Confirm open missing the target tag name:\n%s", out)
 	}
-	if !strings.Contains(out, "Still used by 4 beans") {
+	if !strings.Contains(out, "Still used by 4 items") {
 		t.Errorf("viewTagManagement() with Confirm open missing the live count text:\n%s", out)
 	}
 }

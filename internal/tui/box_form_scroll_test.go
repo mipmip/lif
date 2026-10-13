@@ -43,7 +43,7 @@ func boxFormLongBodyBeans() []data.Bean {
 	return beans
 }
 
-// boxFormScrollModel builds a fixtureModel with BT_BOXFORM=1, a 100x30
+// boxFormScrollModel builds a fixtureModel with LIF_TUI_BOXFORM=1, a 100x30
 // frame, and tk-2 (long body) focused (Browse/Tree view, ancestors
 // expanded via focusBean, box_menu_value_test.go) -- detailFocus is left
 // false (Tree-focused default); callers that need Detail focus set
@@ -51,7 +51,7 @@ func boxFormLongBodyBeans() []data.Bean {
 // (e.g. TestActivateDetailFieldJumpStaysInFullscreenDetail).
 func boxFormScrollModel(t *testing.T) model {
 	t.Helper()
-	t.Setenv("BT_BOXFORM", "1")
+	t.Setenv("LIF_TUI_BOXFORM", "1")
 	m := fixtureModel(t, boxFormLongBodyBeans())
 	m = step(t, m, tea.WindowSizeMsg{Width: 100, Height: 30})
 	m = focusBean(m, "tk-2")
@@ -293,11 +293,11 @@ func TestBoxFormScrollRevealsContentPreviouslyCutOff(t *testing.T) {
 // --- Accordion mode (flag off) stays untouched ---
 
 // TestBoxFormScrollFieldsInertWithoutFlag guards the flag's OFF-by-default
-// contract for F1 specifically: without BT_BOXFORM, up/down while
+// contract for F1 specifically: without LIF_TUI_BOXFORM, up/down while
 // detailFocus is true must drive the pre-existing Accordion Section/Field
 // cursor exactly as before -- model.boxFormScroll must never be written.
 func TestBoxFormScrollFieldsInertWithoutFlag(t *testing.T) {
-	m := fixtureModel(t, boxFormLongBodyBeans()) // BT_BOXFORM left unset
+	m := fixtureModel(t, boxFormLongBodyBeans()) // LIF_TUI_BOXFORM left unset
 	m = step(t, m, tea.WindowSizeMsg{Width: 100, Height: 30})
 	m = focusBean(m, "tk-2")
 	m.detailFocus = true

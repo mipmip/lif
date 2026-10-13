@@ -91,7 +91,7 @@ func prepareEditor(initial, suffix string) (path string, cmd *exec.Cmd, err erro
 	if suffix == "" {
 		suffix = ".md"
 	}
-	f, err := os.CreateTemp("", "beans-tui-*"+suffix)
+	f, err := os.CreateTemp("", "lif-tui-*"+suffix)
 	if err != nil {
 		return "", nil, err
 	}

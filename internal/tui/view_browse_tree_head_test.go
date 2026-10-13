@@ -222,7 +222,7 @@ func TestTreeColumnHeaderIsRenderedInTheSplit(t *testing.T) {
 // --- #11: boxed search head ---
 
 func TestSearchHeadIsBoxedUnderBoxForm(t *testing.T) {
-	t.Setenv("BT_BOXFORM", "1")
+	t.Setenv("LIF_TUI_BOXFORM", "1")
 	m := longTitleModel(t)
 	lines := screenLines(m)
 	found := false
@@ -233,7 +233,7 @@ func TestSearchHeadIsBoxedUnderBoxForm(t *testing.T) {
 		}
 	}
 	if !found {
-		t.Errorf("BT_BOXFORM: the search head is not framed like the other fields (PO-Befund #11)")
+		t.Errorf("LIF_TUI_BOXFORM: the search head is not framed like the other fields (PO-Befund #11)")
 	}
 }
 
@@ -257,7 +257,7 @@ func TestSearchHeadBoxOffWithoutFlagStaysPlain(t *testing.T) {
 	m := fixtureModel(t, fixtureBeans())
 	rows := m.treePaneHeadRows(30)
 	if len(rows) != 2 {
-		t.Fatalf("without BT_BOXFORM the head is search line + column header (2 rows), got %d", len(rows))
+		t.Fatalf("without LIF_TUI_BOXFORM the head is search line + column header (2 rows), got %d", len(rows))
 	}
 	if !strings.Contains(ansi.Strip(rows[0]), searchShield) {
 		t.Errorf("plain head row must keep the ⌕ shield: %q", rows[0])

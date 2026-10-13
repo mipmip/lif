@@ -42,7 +42,7 @@ func bindingKeys(bs []keybind.Binding) []string {
 var boxFormInlineFooterKeys = []string{"s", "e", "t", "a"}
 
 func TestBrowseRepoLocalBindingsDropInlineKeysWhileBoxForm(t *testing.T) {
-	t.Setenv("BT_BOXFORM", "1")
+	t.Setenv("LIF_TUI_BOXFORM", "1")
 
 	got := bindingKeys(browseRepoLocalBindings())
 	for _, k := range boxFormInlineFooterKeys {
@@ -73,7 +73,7 @@ func TestBrowseRepoLocalBindingsDropInlineKeysWhileBoxForm(t *testing.T) {
 // (bean bt-fy5d Akzeptanz: "Bei Flag AUS ist der Footer unveraendert"):
 // without the box form nothing is shown inline, so nothing may be dropped.
 func TestBrowseRepoLocalBindingsUnchangedWithoutBoxForm(t *testing.T) {
-	t.Setenv("BT_BOXFORM", "")
+	t.Setenv("LIF_TUI_BOXFORM", "")
 
 	// `v` (bean bt-oox1, #10) is deliberately absent here: the flag-OFF
 	// footer already fills its two lines at 80 columns, so Fullscreen is
@@ -90,7 +90,7 @@ func TestBrowseRepoLocalBindingsUnchangedWithoutBoxForm(t *testing.T) {
 // detail pane, so its footer must thin out identically (backlogLocalBindings
 // delegates -- this pins that it keeps doing so).
 func TestBacklogFooterFollowsBrowseRepo(t *testing.T) {
-	t.Setenv("BT_BOXFORM", "1")
+	t.Setenv("LIF_TUI_BOXFORM", "1")
 	if a, b := bindingKeys(backlogLocalBindings()), bindingKeys(browseRepoLocalBindings()); strings.Join(a, "|") != strings.Join(b, "|") {
 		t.Fatalf("Backlog footer diverged from Browse: %v vs %v", a, b)
 	}
@@ -105,7 +105,7 @@ func TestBacklogFooterFollowsBrowseRepo(t *testing.T) {
 // actually appear as a literal (x) badge in that render. A future key
 // removed from the footer without a badge to justify it fails here.
 func TestBoxFormInlineKeysAllHaveAnInlineBadge(t *testing.T) {
-	t.Setenv("BT_BOXFORM", "1")
+	t.Setenv("LIF_TUI_BOXFORM", "1")
 
 	m := fixtureModel(t, fixtureBeans())
 	m.width, m.height = 120, 40
@@ -129,7 +129,7 @@ func TestBoxFormInlineKeysAllHaveAnInlineBadge(t *testing.T) {
 // source, TestHelpGroupsCoverEveryBindingExactlyOnce reflects over it), so
 // the Help overlay keeps documenting them and the handlers keep working.
 func TestBoxFormFooterKeysStayFunctional(t *testing.T) {
-	t.Setenv("BT_BOXFORM", "1")
+	t.Setenv("LIF_TUI_BOXFORM", "1")
 
 	registered := map[string]bool{}
 	for _, g := range keys.helpGroups() {
@@ -152,7 +152,7 @@ func TestBoxFormFooterKeysStayFunctional(t *testing.T) {
 // repeating the pane-swap's "focus in". The literals below carry the nbsp
 // renderBindings joins key and label with (view.go's wrap-atomic rule).
 func TestFooterNamesTabAsFieldNavInsideTheDetailRegion(t *testing.T) {
-	m := boxFormScrollModel(t) // BT_BOXFORM=1, Tree-focused
+	m := boxFormScrollModel(t) // LIF_TUI_BOXFORM=1, Tree-focused
 
 	if got := m.contextualLocalHint(browseRepoLocalBindings()); !strings.Contains(got, "focus\u00a0in") {
 		t.Fatalf("Tree-focused footer lost the pane-swap label: %q", got)
@@ -174,7 +174,7 @@ func TestFooterNamesTabAsFieldNavInsideTheDetailRegion(t *testing.T) {
 // experiment the Fokus-Modell does not exist and tab is still the pane swap,
 // in the footer as much as in handleKey.
 func TestFooterKeepsFocusLabelsWithoutBoxForm(t *testing.T) {
-	t.Setenv("BT_BOXFORM", "")
+	t.Setenv("LIF_TUI_BOXFORM", "")
 	m := fixtureModel(t, fixtureBeans())
 	m = step(t, m, tea.WindowSizeMsg{Width: 100, Height: 30})
 	m = step(t, m, keyMsg(tea.KeyTab))

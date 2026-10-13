@@ -83,15 +83,15 @@ func paletteActions(m model) []paletteItem {
 			paletteItem{kind: paletteKindAction, actionID: "parent", label: "set parent"},
 			paletteItem{kind: paletteKindAction, actionID: "blocking", label: "set blocking"},
 			paletteItem{kind: paletteKindAction, actionID: "edit_title", label: "set title"},
-			paletteItem{kind: paletteKindAction, actionID: "delete", label: "delete bean"},
+			paletteItem{kind: paletteKindAction, actionID: "delete", label: "delete item"},
 		)
 	}
 	items = append(items,
-		paletteItem{kind: paletteKindAction, actionID: "create", label: "create bean"},
+		paletteItem{kind: paletteKindAction, actionID: "create", label: "create item"},
 		paletteItem{kind: paletteKindAction, actionID: "go_backlog", label: "go to backlog"},
 		paletteItem{kind: paletteKindAction, actionID: "go_browse", label: "go to browse"},
 		paletteItem{kind: paletteKindAction, actionID: "filter", label: "filter facets"},
-		paletteItem{kind: paletteKindAction, actionID: "search", label: "search beans"},
+		paletteItem{kind: paletteKindAction, actionID: "search", label: "search items"},
 		paletteItem{kind: paletteKindAction, actionID: "reload", label: "reload data"},
 		// E5 Task 6 (bean bt-zhwl): a second entry point to the SAME
 		// keys.Picker dispatch (openLobby, view_lobby.go) -- mirrors every

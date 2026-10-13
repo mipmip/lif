@@ -19,12 +19,12 @@ import (
 )
 
 // TestValueMenuAnchoredGolden renders goldenTreeModel's own 100x30 fixture
-// with BT_BOXFORM=1, Detail-Pane focused on gld-tsk1, and the Status value
+// with LIF_TUI_BOXFORM=1, Detail-Pane focused on gld-tsk1, and the Status value
 // menu opened via the real `s` keypress -- compares against
 // testdata/value_menu_anchored.golden.
 // Regenerate with: go test ./internal/tui/ -run TestValueMenuAnchoredGolden -update
 func TestValueMenuAnchoredGolden(t *testing.T) {
-	t.Setenv("BT_BOXFORM", "1")
+	t.Setenv("LIF_TUI_BOXFORM", "1")
 	lipgloss.SetColorProfile(termenv.TrueColor)
 	defer lipgloss.SetColorProfile(termenv.Ascii)
 

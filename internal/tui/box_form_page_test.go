@@ -136,10 +136,10 @@ func TestBoxFormPageDownClampsAtEnd(t *testing.T) {
 }
 
 // TestBoxFormPageInertWithoutFlag guards the OFF-by-default contract: without
-// BT_BOXFORM, pgdn/pgup must never touch box-form scroll state (the whole
+// LIF_TUI_BOXFORM, pgdn/pgup must never touch box-form scroll state (the whole
 // paging path is experiment-gated, epic bt-vy1q "alles additiv + gated").
 func TestBoxFormPageInertWithoutFlag(t *testing.T) {
-	m := fixtureModel(t, boxFormLongBodyBeans()) // BT_BOXFORM left unset
+	m := fixtureModel(t, boxFormLongBodyBeans()) // LIF_TUI_BOXFORM left unset
 	m = step(t, m, tea.WindowSizeMsg{Width: 100, Height: 30})
 	m = focusBean(m, "tk-2")
 	m.detailFocus = true
@@ -213,7 +213,7 @@ func TestBoxFormPageIndicatorTracksPage(t *testing.T) {
 	}
 }
 
-// paneLines renders the box-form Detail pane in isolation (BT_BOXFORM on) at
+// paneLines renders the box-form Detail pane in isolation (LIF_TUI_BOXFORM on) at
 // the given scroll offset, using the SAME accW/height the live pipeline hands
 // renderAccordionPane, and returns its lines ANSI-stripped. Line 0 is the
 // outer ╭ top border, line len-1 the outer ╰ bottom border, the rest content.
@@ -303,7 +303,7 @@ func TestBoxFormBodyHeaderStickyWhenPaged(t *testing.T) {
 // a narrow pane makes the page count exceed the header's dot budget so the n/N
 // path is exercised.
 func TestBoxFormBodyIndicatorRendersWhenPagesExceedDotBudget(t *testing.T) {
-	t.Setenv("BT_BOXFORM", "1")
+	t.Setenv("LIF_TUI_BOXFORM", "1")
 	// A 500-item body yields far more pages than fit as dots, at a pane wide
 	// enough that the Body header itself still renders its "(e)" badge cleanly
 	// (so the only question under test is whether the indicator survives).
@@ -347,7 +347,7 @@ var pageCountRe = regexp.MustCompile(`\d+/\d+`)
 // box-form mode stay byte-identical to their pre-bt-adkn render (no golden
 // drift for the fits case).
 func TestBoxFormPageIndicatorAbsentWhenFits(t *testing.T) {
-	t.Setenv("BT_BOXFORM", "1")
+	t.Setenv("LIF_TUI_BOXFORM", "1")
 	m := fixtureModel(t, fixtureBeans()) // default fixture bodies are short
 	m = step(t, m, tea.WindowSizeMsg{Width: 100, Height: 30})
 	m = focusBean(m, "tk-1")
