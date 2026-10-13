@@ -2,6 +2,7 @@ package commands
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -246,5 +247,28 @@ func TestListSearchFailureNamesItems(t *testing.T) {
 	err := runListExpectingError(t, []string{"--search", `"unterminated`})
 	if err == nil || !strings.HasPrefix(err.Error(), "querying items: ") {
 		t.Errorf("error = %v, want it to start with %q", err, "querying items: ")
+	}
+}
+
+// AC3: check reports an item whose type the configuration does not define as
+// an item, and exits non-zero. The real binary runs it: check ends in
+// os.Exit(1), which no in-process test can survive.
+func TestCheckReportsAStrayTypeAsAnItem(t *testing.T) {
+	dir := t.TempDir()
+	store := filepath.Join(dir, ".lif")
+	if out, err := exec.Command(completionTestBinary, "init", "--lif-path", store).CombinedOutput(); err != nil {
+		t.Fatalf("init: %v\n%s", err, out)
+	}
+	stray := "---\n# aaa2\ntitle: Stray\nstatus: todo\ntype: chore\n---\n"
+	if err := os.WriteFile(filepath.Join(store, "aaa2--stray.md"), []byte(stray), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	out, err := exec.Command(completionTestBinary, "check", "--lif-path", store).CombinedOutput()
+	if err == nil {
+		t.Errorf("check exited 0, want a non-zero exit for the stray type:\n%s", out)
+	}
+	if want := "item aaa2 carries type 'chore', which the configuration does not define"; !strings.Contains(string(out), want) {
+		t.Errorf("check output lacks %q:\n%s", want, out)
 	}
 }

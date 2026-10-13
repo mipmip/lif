@@ -15,26 +15,6 @@ import (
 	"time"
 )
 
-// TestServeHelperProcess runs the real serve command as a subprocess of
-// TestServeLogLinesCarryTheLifPrefix: serve blocks until it is killed, so it
-// cannot run inside the test process.
-func TestServeHelperProcess(t *testing.T) {
-	if os.Getenv("LIF_SERVE_HELPER") != "1" {
-		t.Skip("only runs as a subprocess of TestServeLogLinesCarryTheLifPrefix")
-	}
-	// TestMain builds ./cmd/lif relative to this package's directory, with
-	// the caller's HOME and Go environment, so the subprocess moves into the
-	// project and onto its own HOME only after that has run.
-	if err := os.Chdir(os.Getenv("LIF_SERVE_DIR")); err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv("HOME", os.Getenv("LIF_SERVE_HOME"))
-	root := NewRootCmd()
-	RegisterServeCmd(root)
-	root.SetArgs([]string{"--lif-path", os.Getenv("LIF_SERVE_STORE"), "serve", "--port", os.Getenv("LIF_SERVE_PORT")})
-	Execute(root)
-}
-
 // syncBuffer lets the test read what the subprocess has printed so far.
 type syncBuffer struct {
 	mu  sync.Mutex
@@ -54,8 +34,20 @@ func (b *syncBuffer) String() string {
 }
 
 // AC5: the serve log lines carry the prefix [lif] instead of [beans], and the
-// GraphQL playground is titled for the product.
+// GraphQL playground is titled for the product. serve blocks until it is
+// killed, so the test runs the real lif-serve binary as a subprocess.
 func TestServeLogLinesCarryTheLifPrefix(t *testing.T) {
+	repoRoot, err := filepath.Abs(filepath.Join("..", ".."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	serveBin := filepath.Join(t.TempDir(), "lif-serve")
+	build := exec.Command("go", "build", "-o", serveBin, "./cmd/lif-serve")
+	build.Dir = repoRoot
+	if out, err := build.CombinedOutput(); err != nil {
+		t.Fatalf("building lif-serve: %v\n%s", err, out)
+	}
+
 	project := t.TempDir()
 	store := filepath.Join(project, ".lif")
 	// A leftover in-store worktrees directory makes serve print its warning.
@@ -87,14 +79,11 @@ func TestServeLogLinesCarryTheLifPrefix(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cmd := exec.Command(os.Args[0], "-test.run=^TestServeHelperProcess$")
+	cmd := exec.Command(serveBin, "--lif-path", store, "--port", fmt.Sprint(port))
+	cmd.Dir = project
 	cmd.Env = append(os.Environ(),
+		"HOME="+t.TempDir(),
 		"PATH="+stubDir+string(os.PathListSeparator)+os.Getenv("PATH"),
-		"LIF_SERVE_DIR="+project,
-		"LIF_SERVE_HOME="+t.TempDir(),
-		"LIF_SERVE_HELPER=1",
-		"LIF_SERVE_STORE="+store,
-		fmt.Sprintf("LIF_SERVE_PORT=%d", port),
 	)
 	cmd.Stdout, cmd.Stderr = pw, pw
 	if err := cmd.Start(); err != nil {
