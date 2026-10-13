@@ -7,13 +7,13 @@
   import AgentComposer from './AgentComposer.svelte';
 
   interface Props {
-    beanId: string;
+    itemId: string;
     store?: AgentChatStore;
     setupRunning?: boolean;
     scrollToBottomTrigger?: number;
   }
 
-  let { beanId, store: externalStore, setupRunning = false, scrollToBottomTrigger = 0 }: Props = $props();
+  let { itemId, store: externalStore, setupRunning = false, scrollToBottomTrigger = 0 }: Props = $props();
   let internalScrollTrigger = $state(0);
   const combinedScrollTrigger = $derived(scrollToBottomTrigger + internalScrollTrigger);
 
@@ -22,7 +22,7 @@
 
   // Subscribe to agent session updates (skip if parent owns the store)
   $effect(() => {
-    if (!externalStore) ownStore.subscribe(beanId);
+    if (!externalStore) ownStore.subscribe(itemId);
   });
 
   onDestroy(() => {
@@ -47,8 +47,8 @@
   const quickReplies = $derived(store.session?.quickReplies ?? []);
 
   function setAgentMode(mode: 'plan' | 'act') {
-    store.setPlanMode(beanId, mode === 'plan');
-    store.setActMode(beanId, mode === 'act');
+    store.setPlanMode(itemId, mode === 'plan');
+    store.setActMode(itemId, mode === 'act');
   }
 
   async function approveInteraction() {
@@ -56,9 +56,9 @@
     // Without this, the process would restart in plan mode and loop.
     // IMPORTANT: Must await mode changes before sending — if sendMessage arrives
     // at the backend first, the process respawns in plan mode and loops.
-    await store.setPlanMode(beanId, false);
-    await store.setActMode(beanId, true);
-    store.sendMessage(beanId, 'yes, proceed');
+    await store.setPlanMode(itemId, false);
+    await store.setActMode(itemId, true);
+    store.sendMessage(itemId, 'yes, proceed');
   }
 </script>
 
@@ -76,12 +76,12 @@
     <PendingInteraction
       interaction={pendingInteraction}
       onApprove={approveInteraction}
-      onSendMessage={(msg) => store.sendMessage(beanId, msg)}
+      onSendMessage={(msg) => store.sendMessage(itemId, msg)}
     />
   {/if}
 
   <AgentComposer
-    {beanId}
+    {itemId}
     {isRunning}
     hasMessages={messages.length > 0}
     {agentMode}
@@ -89,12 +89,12 @@
     {systemStatus}
     {subagentActivities}
     {quickReplies}
-    workspaceId={beanId}
-    onSend={(text, images, attachments) => { internalScrollTrigger++; store.sendMessage(beanId, text, images, attachments); }}
-    onStop={() => store.stop(beanId)}
+    workspaceId={itemId}
+    onSend={(text, images, attachments) => { internalScrollTrigger++; store.sendMessage(itemId, text, images, attachments); }}
+    onStop={() => store.stop(itemId)}
     onSetMode={setAgentMode}
-    onSetEffort={(effort) => store.setEffort(beanId, effort)}
-    onCompact={() => store.sendMessage(beanId, '/compact')}
-    onClear={() => store.clearSession(beanId)}
+    onSetEffort={(effort) => store.setEffort(itemId, effort)}
+    onCompact={() => store.sendMessage(itemId, '/compact')}
+    onClear={() => store.clearSession(itemId)}
   />
 </div>

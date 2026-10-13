@@ -9,5 +9,5 @@ export default defineConfig({
   use: {
     trace: 'on-first-retry'
   }
-  // No webServer — each test spawns its own beans-serve via fixtures
+  // No webServer — each test spawns its own lif-serve via fixtures
 });

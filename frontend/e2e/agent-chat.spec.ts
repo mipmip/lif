@@ -4,31 +4,31 @@ import { test, expect } from './fixtures';
 import { agentSession } from './agent-session';
 
 test.describe('Agent chat', () => {
-  test('Bean IDs are autolinked in tool and info messages', async ({ page, beans }) => {
-    await agentSession('__central__', beans)
+  test('Item IDs are autolinked in tool and info messages', async ({ page, lif }) => {
+    await agentSession('__central__', lif)
       .withMessages([
-        { role: 'user', content: 'update the bean' },
-        { role: 'tool', content: 'Bash: beans update beans-ab12 -s in-progress' },
+        { role: 'user', content: 'update the item' },
+        { role: 'tool', content: 'Bash: lif update beans-ab12 -s in-progress' },
         { role: 'info', content: 'Working on beans-cd34' },
         { role: 'assistant', content: 'Done updating beans-ab12.' }
       ])
       .open(page);
 
-    // Tool message should have an autolinked bean ID
-    const toolBeanLink = page.locator('.bean-link[data-bean-id="beans-ab12"]').first();
-    await expect(toolBeanLink).toBeVisible({ timeout: 5000 });
+    // Tool message should have an autolinked item ID
+    const toolItemLink = page.locator('.item-link[data-item-id="beans-ab12"]').first();
+    await expect(toolItemLink).toBeVisible({ timeout: 5000 });
 
-    // Info message should have an autolinked bean ID
-    const infoBeanLink = page.locator('.bean-link[data-bean-id="beans-cd34"]');
-    await expect(infoBeanLink).toBeVisible({ timeout: 5000 });
+    // Info message should have an autolinked item ID
+    const infoItemLink = page.locator('.item-link[data-item-id="beans-cd34"]');
+    await expect(infoItemLink).toBeVisible({ timeout: 5000 });
 
-    // Assistant message should also have an autolinked bean ID (via renderMarkdown)
-    const assistantBeanLink = page.locator('.bean-link[data-bean-id="beans-ab12"]').last();
-    await expect(assistantBeanLink).toBeVisible({ timeout: 5000 });
+    // Assistant message should also have an autolinked item ID (via renderMarkdown)
+    const assistantItemLink = page.locator('.item-link[data-item-id="beans-ab12"]').last();
+    await expect(assistantItemLink).toBeVisible({ timeout: 5000 });
   });
 
-  test('Clear button resets the conversation in the UI', async ({ page, beans }) => {
-    await agentSession('__central__', beans)
+  test('Clear button resets the conversation in the UI', async ({ page, lif }) => {
+    await agentSession('__central__', lif)
       .withMessages([
         { role: 'user', content: 'hello agent' },
         { role: 'assistant', content: 'Hi! How can I help?' }
@@ -59,7 +59,7 @@ test.describe('Agent chat', () => {
     await expect(clearBtn).toBeDisabled();
   });
 
-  test('Image attachments are displayed inline in user messages', async ({ page, beans }) => {
+  test('Image attachments are displayed inline in user messages', async ({ page, lif }) => {
     // Create a tiny 1x1 red PNG for testing
     const pngData = Buffer.from(
       'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==',
@@ -68,12 +68,12 @@ test.describe('Agent chat', () => {
     const imageId = 'test-image.png';
 
     // Write the image file to the attachments directory
-    const attachDir = join(beans.beansPath, '.conversations', 'attachments', '__central__');
+    const attachDir = join(lif.lifPath, '.conversations', 'attachments', '__central__');
     mkdirSync(attachDir, { recursive: true });
     writeFileSync(join(attachDir, imageId), pngData);
 
     // Seed a conversation with an image reference
-    await agentSession('__central__', beans)
+    await agentSession('__central__', lif)
       .withMessages([
         {
           role: 'user',

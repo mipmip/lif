@@ -1,8 +1,8 @@
 import { test, expect } from './fixtures';
 
 test.describe('Workspace creation', () => {
-  test('clicking + creates a workspace and navigates to it', async ({ beans, page }) => {
-    await page.goto(beans.baseURL + '/');
+  test('clicking + creates a workspace and navigates to it', async ({ lif, page }) => {
+    await page.goto(lif.baseURL + '/');
 
     // Wait for the Workspaces section to appear
     await expect(page.getByText('Workspaces')).toBeVisible({ timeout: 10_000 });
@@ -25,8 +25,8 @@ test.describe('Workspace creation', () => {
     await expect(composer).toBeFocused({ timeout: 5_000 });
   });
 
-  test('new workspace gets an auto-generated name', async ({ beans, page }) => {
-    await page.goto(beans.baseURL + '/');
+  test('new workspace gets an auto-generated name', async ({ lif, page }) => {
+    await page.goto(lif.baseURL + '/');
     await expect(page.getByText('Workspaces')).toBeVisible({ timeout: 10_000 });
 
     await page.getByRole('button', { name: 'Create worktree' }).click();
@@ -40,8 +40,8 @@ test.describe('Workspace creation', () => {
     expect(name).toMatch(/^[a-z]+-[a-z]+-[a-z0-9]{4}$/);
   });
 
-  test('creating multiple workspaces gives each a unique name', async ({ beans, page }) => {
-    await page.goto(beans.baseURL + '/');
+  test('creating multiple workspaces gives each a unique name', async ({ lif, page }) => {
+    await page.goto(lif.baseURL + '/');
     await expect(page.getByText('Workspaces')).toBeVisible({ timeout: 10_000 });
 
     // Create first workspace
@@ -71,8 +71,8 @@ test.describe('Workspace creation', () => {
     expect(allNames[0]).not.toBe(allNames[1]);
   });
 
-  test('destroy worktree removes it from sidebar', async ({ beans, page }) => {
-    await page.goto(beans.baseURL + '/');
+  test('destroy worktree removes it from sidebar', async ({ lif, page }) => {
+    await page.goto(lif.baseURL + '/');
     await expect(page.getByText('Workspaces')).toBeVisible({ timeout: 10_000 });
 
     // Create a workspace
@@ -106,8 +106,8 @@ test.describe('Workspace creation', () => {
     await expect(sidebar.getByText(wsName!)).not.toBeVisible({ timeout: 5_000 });
   });
 
-  test('navigating back to planning after creating workspace works', async ({ beans, page }) => {
-    await page.goto(beans.baseURL + '/');
+  test('navigating back to planning after creating workspace works', async ({ lif, page }) => {
+    await page.goto(lif.baseURL + '/');
     await expect(page.getByText('Workspaces')).toBeVisible({ timeout: 10_000 });
 
     // Create a workspace
@@ -125,8 +125,8 @@ test.describe('Workspace creation', () => {
     await expect(workspaceLabels).toHaveCount(2, { timeout: 5_000 });
   });
 
-  test('workspace shows main in sidebar as first item', async ({ beans, page }) => {
-    await page.goto(beans.baseURL + '/');
+  test('workspace shows main in sidebar as first item', async ({ lif, page }) => {
+    await page.goto(lif.baseURL + '/');
     await expect(page.getByText('Workspaces')).toBeVisible({ timeout: 10_000 });
 
     // "main" should be the first workspace

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { beanLinks } from '$lib/actions/beanLinks';
+  import { itemLinks } from '$lib/actions/itemLinks';
   import { renderMarkdown } from '$lib/markdown';
 
   interface Props {
@@ -23,7 +23,7 @@
 </script>
 
 {#if renderedHtml}
-  <div class={className} use:beanLinks>
+  <div class={className} use:itemLinks>
     {@html renderedHtml}
   </div>
 {/if}

@@ -1,20 +1,20 @@
 <script lang="ts">
-  import type { Bean } from '$lib/beans.svelte';
-  import BeanDetail from './BeanDetail.svelte';
+  import type { Item } from '$lib/items.svelte';
+  import ItemDetail from './ItemDetail.svelte';
 
   interface Props {
-    bean: Bean;
-    onSelect?: (bean: Bean) => void;
-    onEdit?: (bean: Bean) => void;
+    item: Item;
+    onSelect?: (item: Item) => void;
+    onEdit?: (item: Item) => void;
     onClose?: () => void;
   }
 
-  let { bean, onSelect, onEdit, onClose }: Props = $props();
+  let { item, onSelect, onEdit, onClose }: Props = $props();
 </script>
 
 <div class="flex h-full flex-col bg-surface">
   <div class="pane-toolbar">
-    <span>Bean</span>
+    <span>Item</span>
     <div class="flex-1"></div>
     {#if onClose}
       <button onclick={onClose} class="btn-icon" title="Close"> &#x2715; </button>
@@ -22,6 +22,6 @@
   </div>
 
   <div class="min-h-0 flex-1">
-    <BeanDetail {bean} {onSelect} {onEdit} />
+    <ItemDetail {item} {onSelect} {onEdit} />
   </div>
 </div>

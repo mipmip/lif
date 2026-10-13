@@ -4,7 +4,7 @@
   import { pipe, subscribe as wonkaSubscribe } from 'wonka';
   import { worktreeStore, MAIN_WORKSPACE_ID, type WorktreeStatus } from '$lib/worktrees.svelte';
   import { WorkspaceStatusesDocument } from '$lib/graphql/generated';
-  import { beansStore, type Bean } from '$lib/beans.svelte';
+  import { itemsStore, type Item } from '$lib/items.svelte';
   import { agentStatusesStore } from '$lib/agentStatuses.svelte';
   import { configStore } from '$lib/config.svelte';
   import { client } from '$lib/graphqlClient';
@@ -24,19 +24,19 @@
     id: string;
     label: string;
     description: string | null;
-    beans: Bean[];
+    items: Item[];
     settingUp: boolean;
     pullRequest: PullRequestInfo | null;
   }
 
-  /** Look up full Bean objects for a worktree's detected bean IDs. */
-  function beansForWorktree(beanIds: string[]): Bean[] {
-    return beanIds
-      .map((id) => beansStore.get(id))
-      .filter((b): b is Bean => b != null);
+  /** Look up full Item objects for a worktree's detected item IDs. */
+  function itemsForWorktree(itemIds: string[]): Item[] {
+    return itemIds
+      .map((id) => itemsStore.get(id))
+      .filter((b): b is Item => b != null);
   }
 
-  const mainWorkspace: WorkspaceItem = $derived({ id: MAIN_WORKSPACE_ID, label: configStore.mainBranch, description: null, beans: [], settingUp: false, pullRequest: null });
+  const mainWorkspace: WorkspaceItem = $derived({ id: MAIN_WORKSPACE_ID, label: configStore.mainBranch, description: null, items: [], settingUp: false, pullRequest: null });
 
   const workspaceItems = $derived([
     mainWorkspace,
@@ -44,7 +44,7 @@
       id: wt.id,
       label: wt.name ?? wt.branch,
       description: wt.description ?? null,
-      beans: beansForWorktree(wt.beanIds),
+      items: itemsForWorktree(wt.itemIds),
       settingUp: wt.setupStatus === 'RUNNING',
       pullRequest: wt.pullRequest ? {
         state: wt.pullRequest.state,
@@ -59,9 +59,9 @@
   // Items present when stores finish their initial load are seeded into the
   // set without animation; anything arriving afterwards gets the effect.
   let seenWorkspaceIds = new Set<string>();
-  let seenBeanIds = new Set<string>();
+  let seenItemIds = new Set<string>();
   let workspacesSettled = $state(false);
-  let beansSettled = $state(false);
+  let itemsSettled = $state(false);
 
   $effect(() => {
     if (!workspacesSettled && worktreeStore.initialized) {
@@ -72,9 +72,9 @@
   });
 
   $effect(() => {
-    if (!beansSettled && !beansStore.loading) {
-      seenBeanIds = new Set(beansStore.all.filter((b) => b.worktreeId).map((b) => b.id));
-      beansSettled = true;
+    if (!itemsSettled && !itemsStore.loading) {
+      seenItemIds = new Set(itemsStore.all.filter((b) => b.worktreeId).map((b) => b.id));
+      itemsSettled = true;
     }
   });
 
@@ -85,10 +85,10 @@
     return false;
   }
 
-  function isBeanSeen(id: string): boolean {
-    if (!beansSettled) return true;
-    if (seenBeanIds.has(id)) return true;
-    seenBeanIds.add(id);
+  function isItemSeen(id: string): boolean {
+    if (!itemsSettled) return true;
+    if (seenItemIds.has(id)) return true;
+    seenItemIds.add(id);
     return false;
   }
 
@@ -152,7 +152,7 @@
 
 <nav class="flex h-full flex-col bg-surface-alt">
   <div class="flex h-14 shrink-0 items-center border-b border-border p-3">
-    <span class="text-sm font-semibold text-text">{configStore.projectName || 'beans'}</span>
+    <span class="text-sm font-semibold text-text">{configStore.projectName || 'items'}</span>
   </div>
 
   <div class="flex-1 overflow-y-auto p-2">
@@ -283,21 +283,21 @@
             </div>
           </div>
 
-          {#if item.beans.length > 0}
+          {#if item.items.length > 0}
             <div class="flex flex-col gap-0.5 px-3 pb-2">
-              {#each item.beans as wtBean (wtBean.id)}
+              {#each item.items as wtItem (wtItem.id)}
                 <button
                   onclick={() => {
-                    ui.selectBeanForView(wtBean.id, item.id);
+                    ui.selectItemForView(wtItem.id, item.id);
                     ui.navigateTo(item.id);
                   }}
-                  aria-label={wtBean.title}
+                  aria-label={wtItem.title}
                   class={[
                     'flex min-w-0 cursor-pointer items-baseline gap-1.5 rounded border-l-2 bg-surface-alt/50 px-2 py-1 text-left shadow-sm transition-colors hover:bg-surface-alt',
-                    typeBorders[wtBean.type] ?? 'border-l-type-task-border'
+                    typeBorders[wtItem.type] ?? 'border-l-type-task-border'
                   ]}
                 >
-                  <span class="min-w-0 flex-1 text-xs text-text-muted" use:decryptText={{ text: wtBean.title, immediate: isBeanSeen(wtBean.id) }}></span>
+                  <span class="min-w-0 flex-1 text-xs text-text-muted" use:decryptText={{ text: wtItem.title, immediate: isItemSeen(wtItem.id) }}></span>
                 </button>
               {/each}
             </div>

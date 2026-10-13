@@ -3,7 +3,7 @@ import { client } from './graphqlClient';
 import { ActiveAgentStatusesDocument, AgentSessionStatus } from './graphql/generated';
 
 class AgentStatusesStore {
-  runningBeanIds = $state<Set<string>>(new Set());
+  runningItemIds = $state<Set<string>>(new Set());
 
   #unsubscribe: (() => void) | null = null;
 
@@ -21,7 +21,7 @@ class AgentStatusesStore {
 
           const statuses = result.data?.activeAgentStatuses;
           if (statuses) {
-            this.runningBeanIds = new Set(
+            this.runningItemIds = new Set(
               statuses.filter((s) => s.status === AgentSessionStatus.Running).map((s) => s.itemId)
             );
           }
@@ -39,8 +39,8 @@ class AgentStatusesStore {
     }
   }
 
-  isRunning(beanId: string): boolean {
-    return this.runningBeanIds.has(beanId);
+  isRunning(itemId: string): boolean {
+    return this.runningItemIds.has(itemId);
   }
 }
 

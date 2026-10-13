@@ -1,9 +1,9 @@
 import { goto } from '$app/navigation';
-import type { Bean } from '$lib/beans.svelte';
-import { beansStore } from '$lib/beans.svelte';
+import type { Item } from '$lib/items.svelte';
+import { itemsStore } from '$lib/items.svelte';
 
 class UIState {
-  // Active view: 'planning' or a beanId for workspace view (derived from URL)
+  // Active view: 'planning' or an itemId for workspace view (derived from URL)
   activeView = $state<'planning' | string>('planning');
 
   // Planning sub-view (derived from URL)
@@ -26,9 +26,9 @@ class UIState {
       this.planningView = pathname === '/planning/board' ? 'board' : 'backlog';
     }
 
-    // Restore the remembered bean selection in the URL only when switching views
+    // Restore the remembered item selection in the URL only when switching views
     if (viewChanged) {
-      this.syncSelectedBeanToUrl();
+      this.syncSelectedItemToUrl();
     }
   }
 
@@ -46,55 +46,55 @@ class UIState {
     goto(view === 'board' ? '/planning/board' : '/planning');
   }
 
-  // Per-view selected bean ID (keyed by activeView: 'planning' or worktree ID)
-  private selectedBeanByView = $state<Record<string, string | null>>({});
+  // Per-view selected item ID (keyed by activeView: 'planning' or worktree ID)
+  private selectedItemByView = $state<Record<string, string | null>>({});
 
-  // Selected bean ID for the current view
-  get selectedBeanId(): string | null {
-    return this.selectedBeanByView[this.activeView] ?? null;
+  // Selected item ID for the current view
+  get selectedItemId(): string | null {
+    return this.selectedItemByView[this.activeView] ?? null;
   }
 
-  set selectedBeanId(id: string | null) {
-    this.selectedBeanByView[this.activeView] = id;
+  set selectedItemId(id: string | null) {
+    this.selectedItemByView[this.activeView] = id;
   }
 
-  // Resolved bean from store
-  get currentBean(): Bean | null {
-    return this.selectedBeanId ? (beansStore.get(this.selectedBeanId) ?? null) : null;
+  // Resolved item from store
+  get currentItem(): Item | null {
+    return this.selectedItemId ? (itemsStore.get(this.selectedItemId) ?? null) : null;
   }
 
-  selectBean(bean: Bean) {
-    this.selectedBeanId = bean.id;
-    this.syncSelectedBeanToUrl();
+  selectItem(item: Item) {
+    this.selectedItemId = item.id;
+    this.syncSelectedItemToUrl();
   }
 
-  selectBeanById(id: string) {
-    this.selectedBeanId = id;
-    this.syncSelectedBeanToUrl();
+  selectItemById(id: string) {
+    this.selectedItemId = id;
+    this.syncSelectedItemToUrl();
   }
 
-  /** Pre-select a bean for a specific view (e.g. before navigating to that view). */
-  selectBeanForView(beanId: string, view: string) {
-    this.selectedBeanByView[view] = beanId;
+  /** Pre-select an item for a specific view (e.g. before navigating to that view). */
+  selectItemForView(itemId: string, view: string) {
+    this.selectedItemByView[view] = itemId;
     // If already on this view, sync to URL immediately
     if (view === this.activeView) {
-      this.syncSelectedBeanToUrl();
+      this.syncSelectedItemToUrl();
     }
     // Otherwise, syncFromUrl will pick it up when the navigation completes
   }
 
   clearSelection() {
-    this.selectedBeanId = null;
-    this.syncSelectedBeanToUrl();
+    this.selectedItemId = null;
+    this.syncSelectedItemToUrl();
   }
 
   /** Update the URL query param without navigation */
-  private syncSelectedBeanToUrl() {
+  private syncSelectedItemToUrl() {
     const url = new URL(window.location.href);
-    if (this.selectedBeanId) {
-      url.searchParams.set('bean', this.selectedBeanId);
+    if (this.selectedItemId) {
+      url.searchParams.set('item', this.selectedItemId);
     } else {
-      url.searchParams.delete('bean');
+      url.searchParams.delete('item');
     }
     window.history.replaceState(window.history.state, '', url);
   }
@@ -104,7 +104,7 @@ class UIState {
 
   togglePlanningChat() {
     this.showPlanningChat = !this.showPlanningChat;
-    localStorage.setItem('beans-planning-chat', this.showPlanningChat ? 'true' : 'false');
+    localStorage.setItem('lif-planning-chat', this.showPlanningChat ? 'true' : 'false');
   }
 
   // Changes pane (persisted to localStorage)
@@ -112,7 +112,7 @@ class UIState {
 
   toggleChanges() {
     this.showChanges = !this.showChanges;
-    localStorage.setItem('beans-changes-pane', this.showChanges ? 'true' : 'false');
+    localStorage.setItem('lif-changes-pane', this.showChanges ? 'true' : 'false');
   }
 
   // Terminal pane (always hidden by default, not persisted)
@@ -132,29 +132,29 @@ class UIState {
   setFilterText(text: string) {
     this.filterText = text;
     if (text) {
-      localStorage.setItem('beans-filter-text', text);
+      localStorage.setItem('lif-filter-text', text);
     } else {
-      localStorage.removeItem('beans-filter-text');
+      localStorage.removeItem('lif-filter-text');
     }
   }
 
   // Form modal
   showForm = $state(false);
-  editingBean = $state<Bean | null>(null);
+  editingItem = $state<Item | null>(null);
 
   openCreateForm() {
-    this.editingBean = null;
+    this.editingItem = null;
     this.showForm = true;
   }
 
-  openEditForm(bean: Bean) {
-    this.editingBean = bean;
+  openEditForm(item: Item) {
+    this.editingItem = item;
     this.showForm = true;
   }
 
   closeForm() {
     this.showForm = false;
-    this.editingBean = null;
+    this.editingItem = null;
   }
 }
 

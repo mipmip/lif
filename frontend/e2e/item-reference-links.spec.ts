@@ -1,46 +1,46 @@
 import { test, expect } from './fixtures';
 
 /**
- * Bean references in rendered markdown are real anchors (`href="?bean=…"`), so
- * keyboard users reach them. The beanLinks action intercepts the activation and
- * selects the bean in place.
+ * Item references in rendered markdown are real anchors (`href="?item=…"`), so
+ * keyboard users reach them. The itemLinks action intercepts the activation and
+ * selects the item in place.
  *
- * A reference whose bean is not in the store — archived, deleted, from another
+ * A reference whose item is not in the store — archived, deleted, from another
  * store, or a false positive of the `beans-xxxx` matcher — must do nothing at
  * all. If the action returns without preventDefault, the browser follows the
- * anchor to `?bean=<id>`; the selection does not follow (the layout applies
- * `selectedBeanId` exactly once), so the URL ends up advertising a bean that is
+ * anchor to `?item=<id>`; the selection does not follow (the layout applies
+ * `selectedItemId` exactly once), so the URL ends up advertising an item that is
  * neither selected nor existent, and a reload lands on a dangling selection.
  */
-test.describe('Bean reference links', () => {
-  test('a reference to a bean that is not in the store does not navigate', async ({
-    beans,
+test.describe('Item reference links', () => {
+  test('a reference to an item that is not in the store does not navigate', async ({
+    lif,
     backlogPage,
     page
   }) => {
-    const hostId = beans.create('Host Bean', { status: 'todo', type: 'task' });
-    // Shaped like a bean reference so the markdown matcher linkifies it, but no
-    // such bean exists in this store.
+    const hostId = lif.create('Host Item', { status: 'todo', type: 'task' });
+    // Shaped like an item reference so the markdown matcher linkifies it, but no
+    // such item exists in this store.
     const danglingId = 'beans-zzzz';
-    beans.run(['update', hostId, '--body-append', `Superseded by ${danglingId}.`]);
+    lif.run(['update', hostId, '--body-append', `Superseded by ${danglingId}.`]);
 
     await backlogPage.goto(1);
-    await backlogPage.selectBean('Host Bean');
+    await backlogPage.selectItem('Host Item');
 
-    const body = page.locator('.bean-body');
+    const body = page.locator('.item-body');
     await expect(body).toBeVisible({ timeout: 10_000 });
 
-    const link = body.locator(`a[data-bean-id="${danglingId}"]`);
+    const link = body.locator(`a[data-item-id="${danglingId}"]`);
     await expect(link).toBeVisible();
-    await expect(link).toHaveAttribute('href', `?bean=${danglingId}`);
+    await expect(link).toHaveAttribute('href', `?item=${danglingId}`);
 
     const urlBefore = page.url();
     const historyBefore = await page.evaluate(() => history.length);
     await link.click();
 
     // The click is a no-op: the browser must not follow the anchor. The URL
-    // alone is not enough evidence — uiState rewrites `?bean=` back to the
-    // selected bean via replaceState, which hides the navigation. The pushed
+    // alone is not enough evidence — uiState rewrites `?item=` back to the
+    // selected item via replaceState, which hides the navigation. The pushed
     // history entry does not get rewritten, so that is what pins it.
     await page.waitForTimeout(500);
     expect(await page.evaluate(() => history.length)).toBe(historyBefore);

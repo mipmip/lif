@@ -7,11 +7,8 @@ const planMessages = [
 ];
 
 test.describe('Plan mode approval flow', () => {
-  test('ExitPlanMode shows approval UI with plan content and hint text', async ({
-    page,
-    beans
-  }) => {
-    await agentSession('__central__', beans)
+  test('ExitPlanMode shows approval UI with plan content and hint text', async ({ page, lif }) => {
+    await agentSession('__central__', lif)
       .withMessages(planMessages)
       .inPlanMode()
       .withPendingInteraction({
@@ -39,8 +36,8 @@ test.describe('Plan mode approval flow', () => {
     await expect(page.locator('button:has-text("Reject")')).not.toBeVisible();
   });
 
-  test('ENTER_PLAN interaction type does not show approval UI', async ({ page, beans }) => {
-    await agentSession('__central__', beans)
+  test('ENTER_PLAN interaction type does not show approval UI', async ({ page, lif }) => {
+    await agentSession('__central__', lif)
       .withMessages(planMessages)
       .withPendingInteraction({ type: 'ENTER_PLAN' })
       .open(page);
@@ -54,11 +51,8 @@ test.describe('Plan mode approval flow', () => {
     ).not.toBeVisible();
   });
 
-  test('Plan/Act mode toggle reflects session state', async ({ page, beans }) => {
-    await agentSession('__central__', beans)
-      .withMessages(planMessages)
-      .inPlanMode()
-      .open(page);
+  test('Plan/Act mode toggle reflects session state', async ({ page, lif }) => {
+    await agentSession('__central__', lif).withMessages(planMessages).inPlanMode().open(page);
 
     // The mode toggle should show "Plan" is active
     const planButton = page.getByRole('button', { name: 'Plan', exact: true });

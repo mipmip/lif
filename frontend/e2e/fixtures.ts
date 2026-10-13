@@ -19,28 +19,28 @@ const GIT_ENV = {
 };
 
 function getBinaries() {
-  const beans = process.env.LIF_BINARY;
-  const beansServe = process.env.LIF_SERVE_BINARY;
-  if (!beans || !beansServe) {
+  const lif = process.env.LIF_BINARY;
+  const lifServe = process.env.LIF_SERVE_BINARY;
+  if (!lif || !lifServe) {
     throw new Error('LIF_BINARY and LIF_SERVE_BINARY must be set — run tests via e2e/run.sh');
   }
-  return { beans, beansServe };
+  return { lif, lifServe };
 }
 
 /**
- * Create a beans template directory via `beans init`.
+ * Create an items template directory via `lif init`.
  * Called once per worker. Each test gets a fresh git repo but copies the
  * pre-initialized .lif directory to avoid the expensive CLI invocation.
  */
-function createBeansTemplate(beansBin: string): string {
-  const templateDir = mkdtempSync(join(tmpdir(), 'beans-e2e-template-'));
+function createLifTemplate(lifBin: string): string {
+  const templateDir = mkdtempSync(join(tmpdir(), 'lif-e2e-template-'));
   execFileSync('git', ['init', '-b', 'main'], { cwd: templateDir, timeout: 10_000 });
   execFileSync('git', ['commit', '--allow-empty', '-m', 'init'], {
     cwd: templateDir,
     timeout: 10_000,
     env: GIT_ENV
   });
-  execFileSync(beansBin, ['init'], {
+  execFileSync(lifBin, ['init'], {
     cwd: templateDir,
     encoding: 'utf-8',
     timeout: 10_000
@@ -84,18 +84,18 @@ async function waitForServer(port: number, timeoutMs = 10_000): Promise<void> {
 }
 
 /**
- * Helper to run beans CLI commands against a specific beans path.
+ * Helper to run lif CLI commands against a specific lif path.
  */
-class BeansCLI {
+class LifCLI {
   constructor(
-    readonly beansPath: string,
+    readonly lifPath: string,
     readonly projectDir: string,
     private binaryPath: string,
     readonly baseURL: string
   ) {}
 
   run(args: string[]): string {
-    return execFileSync(this.binaryPath, ['--lif-path', this.beansPath, ...args], {
+    return execFileSync(this.binaryPath, ['--lif-path', this.lifPath, ...args], {
       cwd: this.projectDir,
       encoding: 'utf-8',
       timeout: 10_000
@@ -119,7 +119,7 @@ class BeansCLI {
     this.run(args);
   }
 
-  /** Run a GraphQL query against the running beans-serve instance. */
+  /** Run a GraphQL query against the running lif-serve instance. */
   async graphql<T = unknown>(query: string): Promise<T> {
     const res = await fetch(`${this.baseURL}/api/graphql`, {
       method: 'POST',
@@ -156,63 +156,59 @@ class BeansCLI {
 }
 
 type Fixtures = {
-  beans: BeansCLI;
-  beansWithRun: BeansCLI;
+  lif: LifCLI;
+  lifWithRun: LifCLI;
   backlogPage: BacklogPage;
   boardPage: BoardPage;
 };
 
 type WorkerFixtures = {
-  beansTemplate: string;
+  lifTemplate: string;
 };
 
 /**
  * Each test gets its own temp directory (copied from a worker-scoped template),
- * beans-serve process, and port. Full isolation — no shared state between tests.
+ * lif-serve process, and port. Full isolation — no shared state between tests.
  */
 export const test = base.extend<Fixtures, WorkerFixtures>({
-  // Worker-scoped: run `beans init` once per worker, copy .lif dir for each test.
+  // Worker-scoped: run `lif init` once per worker, copy .lif dir for each test.
   // Fresh git repos are created per test (avoids stale git index/worktree state).
-  beansTemplate: [
+  lifTemplate: [
     async ({}, use) => {
-      const { beans: beansBin } = getBinaries();
-      const templateDir = createBeansTemplate(beansBin);
+      const { lif: lifBin } = getBinaries();
+      const templateDir = createLifTemplate(lifBin);
       await use(templateDir);
       rmSync(templateDir, { recursive: true, force: true });
     },
     { scope: 'worker' }
   ],
 
-  beans: async ({ page, beansTemplate }, use, testInfo) => {
-    const { beans: beansBin, beansServe } = getBinaries();
+  lif: async ({ page, lifTemplate }, use, testInfo) => {
+    const { lif: lifBin, lifServe } = getBinaries();
 
     // Fresh git repo per test (needed for worktree operations)
-    const projectDir = mkdtempSync(join(tmpdir(), 'beans-e2e-'));
+    const projectDir = mkdtempSync(join(tmpdir(), 'lif-e2e-'));
     execFileSync('git', ['init', '-b', 'main'], { cwd: projectDir, timeout: 10_000 });
     execFileSync('git', ['commit', '--allow-empty', '-m', 'init'], {
       cwd: projectDir,
       timeout: 10_000,
       env: GIT_ENV
     });
-    // Copy pre-initialized beans files from template (avoids expensive `beans init` per test)
-    cpSync(join(beansTemplate, '.lif'), join(projectDir, '.lif'), { recursive: true });
-    cpSync(join(beansTemplate, '.lif.yml'), join(projectDir, '.lif.yml'));
+    // Copy pre-initialized lif files from template (avoids expensive `lif init` per test)
+    cpSync(join(lifTemplate, '.lif'), join(projectDir, '.lif'), { recursive: true });
+    cpSync(join(lifTemplate, '.lif.yml'), join(projectDir, '.lif.yml'));
 
-    const beansPath = join(projectDir, '.lif');
+    const lifPath = join(projectDir, '.lif');
 
     // Pick a unique port based on worker + test index
     const port = BASE_PORT + testInfo.workerIndex * 100 + testInfo.parallelIndex;
 
-    // Start beans-serve
-    const server: ChildProcess = spawn(
-      beansServe,
-      ['--port', String(port), '--lif-path', beansPath],
-      {
-        cwd: projectDir,
-        env: { ...process.env, GIN_MODE: 'release' },
-        stdio: 'pipe'
-      }
-    );
+    // Start lif-serve
+    const server: ChildProcess = spawn(lifServe, ['--port', String(port), '--lif-path', lifPath], {
+      cwd: projectDir,
+      env: { ...process.env, GIN_MODE: 'release' },
+      stdio: 'pipe'
+    });
 
     try {
       await waitForServer(port);
@@ -222,7 +218,7 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
       // Navigate away so tests start fresh with goto()
       await page.goto('about:blank');
 
-      const cli = new BeansCLI(beansPath, projectDir, beansBin, `http://localhost:${port}`);
+      const cli = new LifCLI(lifPath, projectDir, lifBin, `http://localhost:${port}`);
       await use(cli);
     } finally {
       server.kill();
@@ -230,43 +226,39 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
     }
   },
 
-  beansWithRun: async ({ page, beansTemplate }, use, testInfo) => {
-    const { beans: beansBin, beansServe } = getBinaries();
+  lifWithRun: async ({ page, lifTemplate }, use, testInfo) => {
+    const { lif: lifBin, lifServe } = getBinaries();
 
-    const projectDir = mkdtempSync(join(tmpdir(), 'beans-e2e-'));
+    const projectDir = mkdtempSync(join(tmpdir(), 'lif-e2e-'));
     execFileSync('git', ['init', '-b', 'main'], { cwd: projectDir, timeout: 10_000 });
     execFileSync('git', ['commit', '--allow-empty', '-m', 'init'], {
       cwd: projectDir,
       timeout: 10_000,
       env: GIT_ENV
     });
-    cpSync(join(beansTemplate, '.lif'), join(projectDir, '.lif'), { recursive: true });
-    cpSync(join(beansTemplate, '.lif.yml'), join(projectDir, '.lif.yml'));
+    cpSync(join(lifTemplate, '.lif'), join(projectDir, '.lif'), { recursive: true });
+    cpSync(join(lifTemplate, '.lif.yml'), join(projectDir, '.lif.yml'));
 
     // Add a run command to the config — a long-running process we can stop
     const configPath = join(projectDir, '.lif.yml');
     const config = readFileSync(configPath, 'utf-8');
     writeFileSync(configPath, config.replace(/run: ""/g, 'run: "sleep 300"'));
 
-    const beansPath = join(projectDir, '.lif');
+    const lifPath = join(projectDir, '.lif');
     const port = BASE_PORT + testInfo.workerIndex * 100 + testInfo.parallelIndex;
 
-    const server: ChildProcess = spawn(
-      beansServe,
-      ['--port', String(port), '--lif-path', beansPath],
-      {
-        cwd: projectDir,
-        env: { ...process.env, GIN_MODE: 'release' },
-        stdio: 'pipe'
-      }
-    );
+    const server: ChildProcess = spawn(lifServe, ['--port', String(port), '--lif-path', lifPath], {
+      cwd: projectDir,
+      env: { ...process.env, GIN_MODE: 'release' },
+      stdio: 'pipe'
+    });
 
     try {
       await waitForServer(port);
       await page.goto(`http://localhost:${port}/`);
       await page.goto('about:blank');
 
-      const cli = new BeansCLI(beansPath, projectDir, beansBin, `http://localhost:${port}`);
+      const cli = new LifCLI(lifPath, projectDir, lifBin, `http://localhost:${port}`);
       await use(cli);
     } finally {
       server.kill();
@@ -274,13 +266,13 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
     }
   },
 
-  backlogPage: async ({ page, beans }, use) => {
-    const backlog = new BacklogPage(page, beans.baseURL);
+  backlogPage: async ({ page, lif }, use) => {
+    const backlog = new BacklogPage(page, lif.baseURL);
     await use(backlog);
   },
 
-  boardPage: async ({ page, beans }, use) => {
-    const board = new BoardPage(page, beans.baseURL);
+  boardPage: async ({ page, lif }, use) => {
+    const board = new BoardPage(page, lif.baseURL);
     await use(board);
   }
 });

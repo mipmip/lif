@@ -1,26 +1,26 @@
 <script lang="ts">
-  import type { Bean } from '$lib/beans.svelte';
-  import { beansStore } from '$lib/beans.svelte';
+  import type { Item } from '$lib/items.svelte';
+  import { itemsStore } from '$lib/items.svelte';
   import { backlogDrag } from '$lib/backlogDrag.svelte';
   import { matchesFilter } from '$lib/filter';
-  import BeanCard from './BeanCard.svelte';
-  import BeanItem from './BeanItem.svelte';
+  import ItemCard from './ItemCard.svelte';
+  import ItemRow from './ItemRow.svelte';
 
   interface Props {
-    bean: Bean;
-    /** Parent ID of this bean's sibling group (null = top-level) */
+    item: Item;
+    /** Parent ID of this item's sibling group (null = top-level) */
     parentId?: string | null;
     index?: number;
     depth?: number;
     selectedId?: string | null;
-    onSelect?: (bean: Bean) => void;
+    onSelect?: (item: Item) => void;
     filterText?: string;
-    /** Status of the backlog section this bean is in (for cross-section drag) */
+    /** Status of the backlog section this item is in (for cross-section drag) */
     sectionStatus?: string;
   }
 
   let {
-    bean,
+    item,
     parentId = null,
     index = 0,
     depth = 0,
@@ -30,23 +30,23 @@
     sectionStatus
   }: Props = $props();
 
-  const children = $derived(beansStore.children(bean.id));
+  const children = $derived(itemsStore.children(item.id));
   const filteredChildren = $derived(
     filterText ? children.filter((child) => matchesFilter(child, filterText)) : children
   );
 
   function handleClick(e: MouseEvent) {
     e.stopPropagation();
-    onSelect?.(bean);
+    onSelect?.(item);
   }
 </script>
 
-<div class="bean-item my-1" role="listitem" data-bean-id={bean.id}>
+<div class="item-row my-1" role="listitem" data-item-id={item.id}>
   <!-- Drop indicator before this card -->
   <div
     class={[
       'mx-1 rounded-full transition-colors',
-      backlogDrag.showIndicator(parentId, index, bean.id, sectionStatus) ? 'h-0.5 bg-accent' : 'h-0'
+      backlogDrag.showIndicator(parentId, index, item.id, sectionStatus) ? 'h-0.5 bg-accent' : 'h-0'
     ]}
   ></div>
 
@@ -54,36 +54,36 @@
   <div
     class={[
       'rounded transition-all',
-      backlogDrag.draggedBeanId === bean.id && 'opacity-40',
-      backlogDrag.isReparentTarget(bean.id) && 'ring-2 ring-accent ring-offset-1'
+      backlogDrag.draggedItemId === item.id && 'opacity-40',
+      backlogDrag.isReparentTarget(item.id) && 'ring-2 ring-accent ring-offset-1'
     ]}
     draggable="true"
-    ondragstart={(e) => backlogDrag.startDrag(e, bean)}
+    ondragstart={(e) => backlogDrag.startDrag(e, item)}
     ondragend={() => backlogDrag.endDrag()}
-    ondragover={(e) => backlogDrag.hoverCard(e, parentId, index, bean.id, sectionStatus)}
+    ondragover={(e) => backlogDrag.hoverCard(e, parentId, index, item.id, sectionStatus)}
     onclick={handleClick}
     role="presentation"
   >
-    <BeanCard
-      {bean}
+    <ItemCard
+      {item}
       variant="list"
-      selected={selectedId === bean.id}
-      onclick={() => onSelect?.(bean)}
+      selected={selectedId === item.id}
+      onclick={() => onSelect?.(item)}
     />
   </div>
 
   {#if filteredChildren.length > 0}
     <div
       class="ml-6"
-      ondragover={(e) => backlogDrag.hoverList(e, bean.id, filteredChildren.length)}
-      ondragleave={(e) => backlogDrag.leaveList(e, e.currentTarget, bean.id)}
-      ondrop={(e) => backlogDrag.drop(e, bean.id, filteredChildren)}
+      ondragover={(e) => backlogDrag.hoverList(e, item.id, filteredChildren.length)}
+      ondragleave={(e) => backlogDrag.leaveList(e, e.currentTarget, item.id)}
+      ondrop={(e) => backlogDrag.drop(e, item.id, filteredChildren)}
       role="list"
     >
       {#each filteredChildren as child, i (child.id)}
-        <BeanItem
-          bean={child}
-          parentId={bean.id}
+        <ItemRow
+          item={child}
+          parentId={item.id}
           index={i}
           depth={depth + 1}
           {selectedId}
@@ -97,7 +97,7 @@
       <div
         class={[
           'mx-1 rounded-full transition-colors',
-          backlogDrag.showEndIndicator(bean.id, filteredChildren.length)
+          backlogDrag.showEndIndicator(item.id, filteredChildren.length)
             ? 'h-0.5 bg-accent'
             : 'h-0'
         ]}
