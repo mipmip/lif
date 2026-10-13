@@ -60,7 +60,7 @@ lif progress <id>                     # same, scoped to one item's descendants
 lif milestones                        # milestones with descendant completion counts
 ```
 
-`lif list -S "<keywords>"` (full-text search over title/slug/body, with Bleve query syntax: fuzzy `~`, wildcard `*`, phrase `"..."`, field-scoped `title:`/`body:`) is the way to check whether an item for some piece of work already exists before creating a duplicate one. Every read command accepts `--json` for machine-readable output; without it, `lif show` in particular follows stdout — styled on a terminal, raw unpadded/unwrapped Markdown into a pipe or file, so piped `show` output is safe to feed to a parser even without `--json`.
+`lif list -S "<keywords>"` (full-text search over title, slug and body, with Bleve query syntax: fuzzy `~`, wildcard `*`, phrase `"..."`, field-scoped `slug:`/`title:`/`body:`) is the way to check whether an item for some piece of work already exists before creating a duplicate one. `list`, `show`, `next`, `progress`, `milestones`, `roadmap` and every mutating command accept `--json` for machine-readable output (`graph` uses `--format json`; `path`, `prime` and `pick` print plain text only). Without `--json`, `lif show` in particular follows stdout — styled on a terminal, raw unpadded/unwrapped Markdown into a pipe or file, so piped `show` output is safe to feed to a parser even without `--json`.
 
 ## Write workflows
 
@@ -75,7 +75,7 @@ lif complete <id> [id...] --summary "what was done"       # ONLY once every todo
 lif scrap <id> [id...] --reason "why"                     # --reason is required
 ```
 
-`complete`/`scrap`/`start`/`tag`/`delete` all take multiple IDs in one call; every ID is resolved and policy-checked before the first write, so an unknown ID, a repeated ID, or a policy violation in the batch leaves every item in it untouched — there is no partial application to clean up after. A batch call that does fail after writes have already started (mid-batch I/O failure, not a validation failure) returns `{"success": false, "items": [...], "count": n, ...}` naming exactly which items were written before the failure.
+`complete`/`scrap`/`start`/`update`/`tag`/`delete` all take multiple IDs in one call; every ID is resolved and policy-checked before the first write, so an unknown ID, a repeated ID, or a policy violation in the batch leaves every item in it untouched — there is no partial application to clean up after. A batch call that does fail after writes have already started (mid-batch I/O failure, not a validation failure) returns `{"success": false, "items": [...], "count": n, ...}` naming exactly which items were written before the failure.
 
 `lif complete` and `lif scrap` are the only commands that both change `status` and append a body section (`## Summary of Changes`, `## Reason for Scrapping`) in one atomic write — do not hand-append those sections and then call `--status completed` separately.
 

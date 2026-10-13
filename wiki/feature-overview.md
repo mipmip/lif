@@ -12,7 +12,7 @@ Items are organized by type, and each type occupies a hierarchy rank: rank 1 is 
 
 ## Roadmap and progress reporting
 
-`lif roadmap` generates a Markdown roadmap document from the current milestones, epics, and their child items, either for the whole project or scoped to one item's subtree. `lif milestones` lists every top-container item with a rollup of how many of its descendants are complete, and `lif progress` reports counts by status across the whole workspace or a single parent's subtree, including a percent-complete figure. A type can opt out of both `lif roadmap` and `lif milestones` by setting `roadmap: false`, which is how the `bucket` type in the `simple` and `complex` profiles stays a genuine parking lot instead of cluttering release-facing views.
+`lif roadmap` renders a roadmap from the current milestones, epics, and their child items — as a colored terminal tree or table, or as a portable Markdown document with `--format markdown` — either for the whole project or scoped to one item's subtree. `lif milestones` lists every top-container item with a rollup of how many of its descendants are complete, and `lif progress` reports counts by status across the whole workspace or a single parent's subtree, including a percent-complete figure. A type can opt out of both `lif roadmap` and `lif milestones` by setting `roadmap: false`, which is how the `bucket` type in the `simple` and `complex` profiles stays a genuine parking lot instead of cluttering release-facing views.
 
 ## Querying and filtering
 
@@ -20,7 +20,7 @@ Items are organized by type, and each type occupies a hierarchy rank: rank 1 is 
 
 ## Structure and relationships
 
-Items can be nested (a feature under an epic, a task under a feature), reordered relative to their siblings with `lif order`, and connected through blocking and parent/child links. `lif graph` renders those relationships as Graphviz DOT, a terminal edge list, or JSON. `lif tag` adds or removes tags for cross-cutting grouping that does not depend on the type hierarchy. `lif rename` covers three distinct operations behind one command: renaming an item's slug, renaming a single item's ID with all references to it updated, and renaming the project-wide ID prefix across every item at once.
+Items can be nested (a feature under an epic, a task under a feature), reordered relative to their siblings with `lif order`, and connected through blocking and parent/child links. `lif graph` renders those relationships as Graphviz DOT, a terminal edge list, a Mermaid flowchart, or JSON. `lif tag` adds or removes tags for cross-cutting grouping that does not depend on the type hierarchy. `lif rename` covers three distinct operations behind one command: renaming an item's slug, renaming a single item's ID with all references to it updated, and renaming the project-wide ID prefix across every item at once.
 
 ## Validation and integrity
 
@@ -44,7 +44,7 @@ The core `lif` binary is deliberately narrow; the terminal UI and the web UI shi
 
 ## What is deliberately out of scope
 
-`lif` stores issues, not time tracking, not CI pipeline state, and not a general project wiki; its roadmap and progress views only ever reflect the type hierarchy and status table a project has configured, so a type marked `roadmap: false` — such as a profile's `bucket` type — is excluded from those views by design rather than by omission. The tool assumes a single-repository, file-based store per project; cross-project aggregation is not a built-in feature of the core CLI.
+`lif` stores items, not time tracking, not CI pipeline state, and not a general project wiki; its roadmap and progress views only ever reflect the type hierarchy and status table a project has configured, so a type marked `roadmap: false` — such as a profile's `bucket` type — is excluded from those views by design rather than by omission. The tool assumes a single-repository, file-based store per project; cross-project aggregation is not a built-in feature of the core CLI.
 
 ## Related documentation
 

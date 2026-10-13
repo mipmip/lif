@@ -1,12 +1,12 @@
 # Item Lifecycle
 
-This page covers the commands that create items and move them through their statuses: `create`, `start`, `complete`, `scrap`, `archive`, and `delete`. Read it alongside the destructive-versus-non-destructive distinction called out at the end, since `delete` is the only command here that removes data permanently.
+This page covers the commands that create items and move them through their statuses: `create`, `start`, `complete`, `scrap`, `archive`, and `delete`. Of these, `delete` is the only command that removes data permanently; `archive`, `complete` and `scrap` keep every item file.
 
 ## `lif create` (aliases `c`, `new`)
 
 `lif create [title]` creates a new item with a generated ID and an optional title. Flags: `-t`/`--type string` sets the item type (`milestone`, `epic`, `feature`, `bug`, `task` in the default profile; the actual set depends on the project's configured type profile, see `../project-profiles.md`); `-s`/`--status string` sets the initial status (`in-progress`, `todo`, `draft`, `completed`, `scrapped`); `-p`/`--priority string` sets the priority (`critical`, `high`, `normal`, `low`, `deferred`); `-d`/`--body string` sets body content (`-` reads it from stdin), or `--body-file` reads it from a file; `--parent string` sets a parent item ID; `--blocked-by`/`--blocking stringArray` record blocking relationships and can be repeated; `--tag stringArray` adds tags and can be repeated; `--order string` sets an explicit fractional-index order value; `--prefix string` overrides the configured ID prefix for this item; `--set`/`--unset stringArray` add or remove extra front matter `key=value` pairs and can be repeated; `--json` returns the created item as JSON.
 
-An item created without `-s` gets whatever status the project's profile defines as the default, which is not necessarily `todo` — check `lif list` after creating one if you expect it to show up under `lif next`.
+An item created without `-s` gets the project's configured `lif.default_status`, which is `todo` unless the configuration changes it — check `lif list` after creating one if you expect it to show up under `lif next`.
 
 ```
 lif --lif-path ./demo/.lif create "Fix login bug" -t bug -p high -s todo
@@ -42,7 +42,7 @@ lif --lif-path ./demo/.lif scrap lif-gng9 --reason "Out of scope"
 
 ## `lif archive`
 
-`lif archive` moves every item whose status is configured for archiving (`completed` and `scrapped` by default) into `.lif/archive/`. Archived items keep their relationships intact and remain visible in `lif list` and other queries; the command relocates files to keep the active directory tidy without deleting project history. It takes no ID arguments and processes every qualifying item. `--json` returns the result as JSON.
+`lif archive` moves every item whose status is configured for archiving (`completed` and `scrapped` by default) into `.lif/archive/`. Archived items keep their relationships intact and remain visible in `lif list` and other queries; the command relocates files to keep the active directory tidy without deleting project history. It takes no ID arguments and processes every qualifying item. The reported count includes items that already sit under `archive/`, so running it twice reports the same number twice; when nothing qualifies at all it prints `No items with archive status to archive.` `--json` returns the result as JSON.
 
 ```
 lif --lif-path ./demo/.lif archive

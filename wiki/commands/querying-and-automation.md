@@ -43,7 +43,7 @@ Error: graphql: Cannot query field "nope" on type "Query".
 Run 'lif graphql --help' for usage.
 ```
 
-The schema itself — every `Query`, `Mutation`, and `Subscription` field, with its own doc comments — is the authoritative reference for what can be queried; `lif graphql --schema` always reflects the binary actually running. The subset of the schema backed by `lif` alone (no server process) covers item data: `item(id)` and `items(filter)`, plus their relationship fields (`blockedBy`, `blocking`, `children`, `parent`, and similar). Fields describing worktrees, agent sessions, terminals, and file diffs are resolved by [`lif-serve`](../web-ui-and-api.md) and return empty or zero values when queried through the plain `lif` binary.
+The schema itself — every `Query`, `Mutation`, and `Subscription` field, with its own doc comments — is the authoritative reference for what can be queried; `lif graphql --schema` always reflects the binary actually running. The subset of the schema backed by `lif` alone (no server process) covers item data: `item(id)` and `items(filter)`, plus their relationship fields (`blockedBy`, `blocking`, `children`, `parent`, and similar). Fields that depend on a running [`lif-serve`](../web-ui-and-api.md) return empty or zero values through the plain `lif` binary: `worktrees` is `[]`, `agentSession` is `null`, `workspacePort` is `0`, and `isRunning` is `false`. Git-backed fields such as `fileChanges` and `allFileChanges` are answered from the repository of the current directory, and project fields such as `projectName` and `mainBranch` from the configuration.
 
 ## JSON output contract
 

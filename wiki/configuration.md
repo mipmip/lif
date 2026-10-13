@@ -4,7 +4,7 @@ This page documents every key `.lif.yml` accepts, in the shape the `lif`, `lif-s
 
 ## Minimal configuration
 
-A repository does not need a `.lif.yml` at all: `lif init` (with no `--profile`) writes one with only the fields that differ from the built-in defaults.
+A repository does not need a `.lif.yml` at all: without one, every key falls back to its built-in default. `lif init` (with no `--profile`) writes one that spells out the project name, the `lif` section, and the `worktree`, `agent` and `server` defaults; it writes no `types` table, so the built-in types apply. For a project in a directory named `myproject` it writes, with every key preceded by a comment line in the real file:
 
 ```yaml
 # Lif configuration
@@ -17,6 +17,16 @@ lif:
     id_length: 4
     default_status: todo
     default_type: task
+worktree:
+    base_ref: main
+    setup: ""
+    run: ""
+    integrate: local
+agent:
+    enabled: true
+    default_mode: act
+server:
+    port: 8080
 ```
 
 Every top-level section (`project`, `lif`, `worktree`, `agent`, `server`, `display`) is optional; an absent section, or an absent field within it, falls back to its documented default.
@@ -250,7 +260,7 @@ Projects created by an earlier release keep working without any change. These le
 | Worktree branch prefix | `lif/` | `beans/` |
 | Port variable in workspace sessions | `LIF_WORKSPACE_PORT` | `BEANS_WORKSPACE_PORT` (exported together with the current one) |
 
-- **Both at one level is an error.** The first four levels refuse to guess: if a project holds both a legacy name and its current name at the same level, the command fails with an error that names both. For example `both .lif.yml and .beans.yml exist in <dir>; keep one of them`, `<path>: both sections "lif:" and "beans:" are present; keep one of them`, `both .lif and .beans exist in <dir>; keep one of them`, and `both LIF_PATH and BEANS_PATH are set; unset one of them`.
+- **Both at one level is an error.** The first four levels refuse to guess: if a project holds both a legacy name and its current name at the same level, the command fails with an error that names both. The error appears wherever that level is consulted: `both .lif.yml and .beans.yml exist in <dir>; keep one of them`; `<path>: both sections "lif:" and "beans:" are present; keep one of them`; `both .lif and .beans exist in <dir>; keep one of them`, when the store directory is the default (the config file sets no `path:`); and `both LIF_PATH and BEANS_PATH are set; unset one of them`, only when the variables are consulted at all, that is when no config file was found and no `--lif-path` was given.
 - **The worktree levels have no such error.** The legacy worktree root and legacy-branch worktrees work beside the current ones; when both worktree roots exist, the legacy root wins. Worktrees already on a `beans/` branch are still listed and used; new ones are created on `lif/<id>`.
 - **`lif init` keeps legacy names.** In a project that already uses `.beans` or `.beans.yml`, it does not add the current names next to them.
 - **`lif check` warns.** It reports every legacy name in use as a warning in a `Legacy names` section, with the step that ends it; see [Validation and maintenance](commands/validation-and-maintenance.md) for the output. The warnings never fail the check.

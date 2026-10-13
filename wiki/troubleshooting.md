@@ -6,7 +6,7 @@ This page collects symptom-first fixes for the problems people actually hit runn
 
 Symptom: a command reports `no .lif directory found at <path> (run 'lif init' to create one)`, or `lif show`/`lif list` returns items you did not expect.
 
-Run `lif path` first. It prints the store directory the current invocation resolved to, following the same precedence every other command uses (`--lif-path`, then a found `.lif.yml`, then `LIF_PATH` when no config was found, then the default `.lif` directory), so you see exactly what a real command would have used without touching any data. An explicit relative `--lif-path` is echoed unchanged.
+If the symptom is a wrong store rather than a missing one, run `lif path`. It prints the store directory the current invocation resolved to, following the same precedence every other command uses (`--lif-path`, then a found `.lif.yml`, then `LIF_PATH` when no config was found, then the default `.lif` directory), so you see exactly what a real command would have used without touching any data. An explicit relative `--lif-path` is echoed unchanged. When the resolved directory does not exist, `lif path` fails like every other command with `no .lif directory found at <path>`; that error already names the directory that was looked up.
 
 If the printed path is wrong, pass the right one explicitly for a single call: `lif list --lif-path /path/to/.lif`. If the wrong path keeps coming back, check for a stray `.lif.yml` above your working directory (the search walks upward) or an exported `LIF_PATH` taking effect in a repository that has no config file of its own.
 
@@ -42,11 +42,11 @@ Symptom: `lif list --is-blocked` or `lif check` reports a circular dependency, o
 
 Diagnose with `lif check`, which reports every broken link, self-reference, and cycle in both `parent` and `blocking`/`blocked_by` links under its `Item Links` section, printing cycles as an arrow-joined path, e.g. `Circular dependency: lif-a1b2 → lif-c3d4 → lif-a1b2 (via blocking)`. `lif show <id>` on any item in the path lists its own `parent`, `blocking`, and `blocked_by` front matter directly.
 
-Fix a broken or self-referencing link with `lif update <id> --remove-blocked-by <target>` (or `--remove-blocking`, `--remove-parent`), naming the relationship the check reported. Cycles cannot be auto-fixed: `lif check --fix` prints `Cannot auto-fix cycle: <path> (via <link type>)`, then includes that cycle in its final count of issues that `require manual intervention`. Break one edge with the matching `--remove-*` flag and rerun `lif check`.
+Fix a broken or self-referencing link with `lif update <id> --remove-blocked-by <target>` (or `--remove-blocking`, `--remove-parent`), naming the relationship the check reported. Cycles cannot be auto-fixed: `lif check --fix` prints `Cannot auto-fix cycle: <path> (via <link type>)` and exits 1; when the same run also fixed other issues, its closing line reads `Fixed N issue(s), M require manual intervention`. Break one edge with the matching `--remove-*` flag and rerun `lif check`. Note that `lif update --blocking`/`--blocked-by` already refuses to add a link that would create a cycle, so a cycle appears only after a hand edit of item files.
 
 ## Completion policy failures
 
-Symptom: `lif complete`, `lif start`, `lif scrap`, or `lif update --status …` fails with `status "completed" requires front matter field(s) commit: supply them in the same write (e.g. `lif complete <id> --commit HEAD`)`.
+Symptom: `lif complete` or `lif update --status …` fails with `status "completed" requires front matter field(s) commit: supply them in the same write (e.g. `lif complete <id> --commit HEAD`)`. The policy gates only the statuses named under `lif.require_fields_on`; in the usual configuration that is `completed`, so `lif start` and `lif scrap` are not affected unless the configuration also names `in-progress` or `scrapped`.
 
 This is `lif.require_fields_on` in `.lif.yml`, a fork-specific policy that names front matter fields an item must carry before it can enter a given status. The check runs before any item in a batch is written, so a violation on one ID leaves every item in that call untouched — nothing to roll back. Diagnose the full policy with `lif check`, which lists every item currently missing a required field under its `Policy` section as a warning (pass `--strict` to also make `check` exit non-zero on these warnings).
 

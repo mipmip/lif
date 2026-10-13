@@ -68,12 +68,12 @@ Both link directions are stored explicitly (a `blocking` entry on one item is no
 lif order <id> --after <sibling-id>   # directly after a sibling that already has an order
 lif order <id> --before <sibling-id>  # directly before a sibling that already has an order
 lif order <id> --first                # before every sibling
-lif order <id> --last                 # after every sibling
+lif order <id> --last                 # after every sibling (needs one sibling that already has an order)
 lif list --json --sort order          # siblings without an order sort last
 lif create --json "Title" -t task --order V   # set an explicit order value at creation
 ```
 
-Placing an item relative to a sibling that has no `order` value yet fails — place that sibling first with `--last`. A single `order` operation writes exactly one file, the item being placed; it never touches its neighbors.
+Placing an item relative to a sibling that has no `order` value yet fails — place that sibling first, with `--first` when no sibling in the group has an order yet (`--last` also fails then). A single `order` operation writes exactly one file, the item being placed; it never touches its neighbors.
 
 ## Archive
 

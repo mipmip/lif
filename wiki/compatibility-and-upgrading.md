@@ -25,7 +25,7 @@ Each entry lists the old form, the new form and the migration step. Work through
 | Old form | New form | Migration step |
 | --- | --- | --- |
 | `beans` | `lif` | Install the new binary and replace every call in scripts, shell functions, CI jobs and agent instructions. |
-| `beans-serve` | `lif-serve` | Replace the call; the default port, routes and flags are unchanged. |
+| `beans-serve` | `lif-serve` | Replace the call; the default port and the routes are unchanged, and the data-path flag follows the `--lif-path` rename below. |
 | `beans-tui` | `lif-tui` | Replace the call. |
 | `--beans-path` | `--lif-path` | Replace the flag in every script and in `lif-serve` and `lif-tui` calls. |
 
@@ -73,7 +73,7 @@ Machine-readable output uses the new vocabulary. A parser that reads an old key 
 
 ### GraphQL
 
-The schema printed by `lif graphql --schema` is the reference. Every name that contained the old noun changed:
+The schema printed by `lif graphql --schema` is the reference. Every name that contained the old noun changed, including fields and arguments:
 
 | Old name | New name |
 | --- | --- |
@@ -84,9 +84,12 @@ The schema printed by `lif graphql --schema` is the reference. Every name that c
 | inputs `CreateBeanInput`, `UpdateBeanInput` | `CreateItemInput`, `UpdateItemInput` |
 | query `hasDirtyBeans` | `hasDirtyItems` |
 | subscription `beanChanged`, type `BeanChangeEvent` | `itemChanged`, `ItemChangeEvent` |
-| argument and field `beanId` | `itemId` |
+| fields of `BeanChangeEvent`: `bean`, `beans`, `beanId` | fields of `ItemChangeEvent`: `item`, `items`, `itemId` |
+| field `Worktree.beans` | `Worktree.items` |
+| fields `beanId` on `AgentSession` and `ActiveAgentStatus` | `itemId` |
+| argument `beanId` of `agentSession`, `agentActions`, `agentSessionChanged`, `sendAgentMessage`, `stopAgent`, `setAgentPlanMode`, `setAgentActMode`, `setAgentEffort`, `setAgentPendingInteraction`, `clearAgentSession`, `executeAgentAction` | `itemId` |
 
-Migration step: search your saved queries, scripts and client code for those names and replace them, then run the query again; `lif graphql --schema` lists every current name.
+Migration step: search your saved queries, scripts and client code for those names and replace them, then run the query again. A subscription client that read `beanChanged { bean { … } }` now reads `itemChanged { item { … } }`. `lif graphql --schema` lists every current name.
 
 ### Web UI
 
@@ -135,7 +138,7 @@ Where `lif-serve` exports a workspace port to shell and run sessions, it exports
 
 The rename in this section is optional. Lif reads legacy data names in place and never renames them for you, and nothing stops working if you leave them. Item files and ID prefixes do not change in either case: only the container names listed here move, the files inside the store keep their names, contents and IDs.
 
-`lif check` reports every legacy name in use as a warning, in a `Legacy names` section, and never changes its exit code for them. It prints exactly these warnings (paths shown here as `<dir>`, `<path>` and `<id>`):
+`lif check` reports every legacy name in use as a warning, in a `Legacy names` section, and never changes its exit code for them. These are the warnings (paths shown here as `<dir>`, `<path>` and `<id>`); the store directory warning ends in a different clause depending on where the directory name comes from, see the table below:
 
 ```
 Legacy names
@@ -153,8 +156,8 @@ Each warning has one step:
 | --- | --- |
 | config file `.beans.yml` | `git mv .beans.yml .lif.yml` |
 | section key `beans:` | Edit the config file and change the top-level key `beans:` to `lif:`. |
-| store directory `.beans` | `git mv .beans .lif`, then change the name wherever it is set: `path: .beans` to `path: .lif` in the config file, the value of `LIF_PATH` (or a legacy `BEANS_PATH`), or the value passed to `--lif-path`. Other tools that name the directory, such as CI jobs or ignore files, need the same edit. |
-| variable `BEANS_PATH` set and non-empty | Export `LIF_PATH` with the same value and unset `BEANS_PATH`. Both set at once is an error. |
+| store directory `.beans` | `git mv .beans .lif`, then change the name wherever it is set. The warning says which: for a name from the config file, `path: .beans` to `path: .lif` in that file (plus `git mv .beans.yml .lif.yml` if the config file is legacy too); for a name from `LIF_PATH` or `BEANS_PATH`, point the variable at the new directory (warning text `then point LIF_PATH at the new directory`); for a name from the flag, pass the new directory to `--lif-path` (warning text `then pass the new directory to --lif-path`); for the default name, nothing more. Other tools that name the directory, such as CI jobs or ignore files, need the same edit. |
+| variable `BEANS_PATH` set and non-empty | Export `LIF_PATH` with the same value and unset `BEANS_PATH`. With both set and no config file found, `lif` fails with an error that names both. |
 | worktree root `~/.beans/worktrees/<project>` in use | Finish or remove each remaining worktree in that root, then delete the root directory. New worktrees go to `~/.lif/worktrees/<project>/`. |
 | a worktree on a `beans/<id>` branch | Finish or remove the worktree, or rename its branch with `git branch -m beans/<id> lif/<id>`. New worktrees are created on `lif/<id>`. |
 
@@ -167,7 +170,7 @@ git mv .beans.yml .lif.yml
 lif check
 ```
 
-Run `lif check` afterwards; it must print no `Legacy names` section. Having a legacy name and its current name side by side at the same level (for example both `.beans.yml` and `.lif.yml`) is an error that names both, not a state to pass through; see [Legacy names](configuration.md#legacy-names) for the exact errors.
+Run `lif check` afterwards; it must print no `Legacy names` section. Having a legacy name and its current name side by side at the same level (for example both `.beans.yml` and `.lif.yml`) is an error that names both, not a state to pass through; see [Legacy names](configuration.md#legacy-names) for the exact errors and for when each one applies.
 
 ## After upgrading: validate your project
 

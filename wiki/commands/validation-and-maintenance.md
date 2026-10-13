@@ -10,7 +10,7 @@ This page documents `lif check` (including completion-policy validation and lega
 $ lif check
 Configuration
   ✓ Statuses defined (5 hardcoded)
-  ✓ Default status 'draft' exists
+  ✓ Default status 'todo' exists
   ✓ Default type 'task' is valid
   ✓ Every item carries a known type
   ✓ All status colors valid
