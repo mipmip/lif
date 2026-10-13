@@ -41,7 +41,7 @@ var (
 type checkResult struct {
 	Success           bool                      `json:"success"`
 	ConfigErrors      []string                  `json:"config_errors"`
-	ItemIssues        *itemcore.LinkCheckResult `json:"bean_issues,omitempty"`
+	ItemIssues        *itemcore.LinkCheckResult `json:"item_issues,omitempty"`
 	Fixed             int                       `json:"fixed,omitempty"`
 	PolicyWarnings    []string                  `json:"policy_warnings,omitempty"`
 	AttachmentOrphans []string                  `json:"attachment_orphans,omitempty"`

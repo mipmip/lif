@@ -108,7 +108,7 @@ class BeansCLI {
     if (opts.priority) args.push('-p', opts.priority);
     const output = this.run(args);
     const json = JSON.parse(output);
-    return (json.bean?.id ?? json.id) as string;
+    return json.id as string;
   }
 
   update(id: string, opts: { status?: string; priority?: string; type?: string }): void {

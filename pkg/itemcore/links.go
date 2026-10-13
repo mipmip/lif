@@ -17,14 +17,14 @@ type IncomingLink struct {
 
 // BrokenLink represents a link to a non-existent item.
 type BrokenLink struct {
-	ItemID   string `json:"bean_id"`
+	ItemID   string `json:"item_id"`
 	LinkType string `json:"link_type"`
 	Target   string `json:"target"`
 }
 
 // SelfLink represents an item linking to itself.
 type SelfLink struct {
-	ItemID   string `json:"bean_id"`
+	ItemID   string `json:"item_id"`
 	LinkType string `json:"link_type"`
 }
 

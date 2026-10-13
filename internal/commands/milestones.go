@@ -24,7 +24,7 @@ var (
 // milestoneEntry pairs a milestone item with its descendant progress
 // counts, per the descendantProgress percent-complete convention.
 type milestoneEntry struct {
-	Item      *item.Item `json:"bean"`
+	Item      *item.Item `json:"item"`
 	Completed int        `json:"completed"`
 	Total     int        `json:"total"`
 }
