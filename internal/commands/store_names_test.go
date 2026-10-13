@@ -389,6 +389,43 @@ func TestInit_NamesByDirectoryState(t *testing.T) {
 		}
 	})
 
+	// A directory with only a legacy config file is a project with only
+	// legacy names: init creates the legacy store beside it, as baseline
+	// `beans init` did, and no lif name appears.
+	for name, content := range map[string]string{
+		"default path":  "beans:\n    prefix: old-\n",
+		"explicit path": "beans:\n    path: ../store\n    prefix: old-\n",
+	} {
+		t.Run("only a legacy config file ("+name+") gets the legacy store", func(t *testing.T) {
+			dir := evalSymlinks(t, t.TempDir())
+			writeFixtureFile(t, filepath.Join(dir, config.LegacyConfigFileName), content)
+			if _, stderr, err := runInProject(t, dir, "init"); err != nil {
+				t.Fatalf("init error = %v\nstderr: %s", err, stderr)
+			}
+			if got := strings.Join(dirNames(t, dir), ","); got != config.LegacyDefaultStoreDir+","+config.LegacyConfigFileName {
+				t.Errorf("directory = %s, want only %s and %s", got, config.LegacyDefaultStoreDir, config.LegacyConfigFileName)
+			}
+			loaded, err := config.Load(filepath.Join(dir, config.LegacyConfigFileName))
+			if err != nil {
+				t.Fatalf("Load() error = %v", err)
+			}
+			if loaded.SectionKey() != config.LegacySectionKey || loaded.Items.Path != config.LegacyDefaultStoreDir {
+				t.Errorf("config: key %q, path %q; want %q and %q", loaded.SectionKey(), loaded.Items.Path, config.LegacySectionKey, config.LegacyDefaultStoreDir)
+			}
+		})
+	}
+
+	t.Run("only a new config file gets the new store", func(t *testing.T) {
+		dir := evalSymlinks(t, t.TempDir())
+		writeFixtureFile(t, filepath.Join(dir, config.ConfigFileName), "lif:\n    prefix: new-\n")
+		if _, stderr, err := runInProject(t, dir, "init"); err != nil {
+			t.Fatalf("init error = %v\nstderr: %s", err, stderr)
+		}
+		if got := strings.Join(dirNames(t, dir), ","); got != config.DefaultStoreDir+","+config.ConfigFileName {
+			t.Errorf("directory = %s, want only %s and %s", got, config.DefaultStoreDir, config.ConfigFileName)
+		}
+	})
+
 	ambiguous := map[string]struct {
 		setup func(t *testing.T, dir string)
 		names []string
@@ -688,4 +725,19 @@ func TestRoot_RecordsResolutionOutcome(t *testing.T) {
 			t.Errorf("resolution = %+v, want %+v", resolution, want)
 		}
 	})
+}
+
+// lif-serve builds its worktree manager from the resolved store: item changes
+// inside a worktree are detected under the directory that carries the main
+// store's name (AC-9). Nothing else wires that name into DetectItemIDs.
+func TestNewWorktreeManager_UsesTheMainStoreDirName(t *testing.T) {
+	for _, name := range []string{config.LegacyDefaultStoreDir, config.DefaultStoreDir} {
+		t.Run(name, func(t *testing.T) {
+			storeRoot := filepath.Join(evalSymlinks(t, t.TempDir()), name)
+			mgr := newWorktreeManager(config.Default(), storeRoot, t.TempDir())
+			if got := mgr.StoreDir(); got != name {
+				t.Errorf("StoreDir() = %q, want %q", got, name)
+			}
+		})
+	}
 }

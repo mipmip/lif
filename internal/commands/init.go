@@ -78,7 +78,7 @@ var initCmd = &cobra.Command{
 			// Resolve every name level that can fail -- store directory,
 			// config file, section key -- before the first side effect: an
 			// ambiguous project must be left exactly as it was.
-			storeDirName, err := config.ResolveDefaultStoreDir(dir)
+			storeDirName, err := config.ResolveInitStoreDir(dir)
 			if err != nil {
 				if initJSON {
 					return output.Error(output.ErrValidation, err.Error())

@@ -250,7 +250,7 @@ func resolveStorePath(flagPath string, c *config.Config) (string, storeResolutio
 	}
 	if configFound {
 		res.LegacyConfigFile = config.IsLegacyConfigFile(c.ConfigFile())
-		res.LegacySectionKey = c.SectionKey() == config.LegacySectionKey
+		res.LegacySectionKey = config.IsLegacySectionKey(c.SectionKey())
 	}
 	res.LegacyStoreDir = config.IsLegacyStoreDir(root)
 

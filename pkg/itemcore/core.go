@@ -680,7 +680,7 @@ type UpdateOption func(*updateOptions)
 
 type updateOptions struct {
 	persist      bool   // whether to write to disk (default: true)
-	worktreePath string // if set, write to this worktree's .beans/ dir instead of main
+	worktreePath string // if set, write to this worktree's store dir instead of main
 	extraSet     map[string]any
 	extraUnset   []string
 }
@@ -697,7 +697,7 @@ func WithPersist(persist bool) UpdateOption {
 	}
 }
 
-// WithWorktreePath writes the item to a worktree's .beans/ directory instead of main.
+// WithWorktreePath writes the item to a worktree's store directory instead of main.
 // The item is kept dirty in runtime (not persisted to main).
 func WithWorktreePath(path string) UpdateOption {
 	return func(o *updateOptions) {
@@ -1047,7 +1047,7 @@ func (c *Core) Update(b *item.Item, ifMatch *string, opts ...UpdateOption) error
 	b.UpdatedAt = &now
 
 	if wtPath != "" {
-		// Write to the worktree's .beans/ dir; keep dirty in main
+		// Write to the worktree's store dir; keep dirty in main
 		if err := c.saveToWorktree(b, wtPath); err != nil {
 			return err
 		}
@@ -1119,7 +1119,7 @@ func (c *Core) saveToDisk(b *item.Item) error {
 func (c *Core) saveToWorktree(b *item.Item, worktreePath string) error {
 	itemsDir := c.worktreeItemsDir(worktreePath)
 
-	// Ensure the .beans/ directory exists in the worktree
+	// Ensure the store directory exists in the worktree
 	if err := os.MkdirAll(itemsDir, 0755); err != nil {
 		return fmt.Errorf("creating worktree beans dir: %w", err)
 	}

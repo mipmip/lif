@@ -11,23 +11,23 @@ import (
 	"github.com/xRiErOS/lif/pkg/item"
 )
 
-// worktreeWatcher tracks a single worktree's .beans/ directory.
+// worktreeWatcher tracks a single worktree's store directory.
 type worktreeWatcher struct {
 	worktreePath string // root of the worktree (e.g., ~/.beans/worktrees/<project>/<id>)
-	itemsDir     string // .beans/ dir inside the worktree
+	itemsDir     string // store dir inside the worktree
 	done         chan struct{}
 }
 
-// WatchWorktreeItems starts watching a worktree's .beans/ directory for item changes.
+// WatchWorktreeItems starts watching a worktree's store directory for item changes.
 // When items change in the worktree, they are merged into the runtime state as dirty
 // (not persisted to the main repo's disk).
-// Returns nil if the worktree's .beans/ directory doesn't exist.
+// Returns nil if the worktree's store directory doesn't exist.
 func (c *Core) WatchWorktreeItems(worktreePath string) error {
 	itemsDir := c.worktreeItemsDir(worktreePath)
 
-	// Check if the worktree has a .beans/ directory
+	// Check if the worktree has a store directory
 	if _, err := os.Stat(itemsDir); os.IsNotExist(err) {
-		return nil // No .beans/ dir in this worktree, nothing to watch
+		return nil // No store dir in this worktree, nothing to watch
 	}
 
 	c.mu.Lock()
@@ -89,7 +89,7 @@ func (c *Core) WatchWorktreeItems(worktreePath string) error {
 	return nil
 }
 
-// loadWorktreeItemsInitial scans a worktree's .beans/ directory and loads
+// loadWorktreeItemsInitial scans a worktree's store directory and loads
 // item files that differ from the main version into runtime state.
 // Only items that are new or modified compared to main are loaded and linked.
 func (c *Core) loadWorktreeItemsInitial(wt *worktreeWatcher) {
@@ -134,7 +134,7 @@ func (c *Core) loadWorktreeItemsInitial(wt *worktreeWatcher) {
 	}
 }
 
-// UnwatchWorktreeItems stops watching a worktree's .beans/ directory.
+// UnwatchWorktreeItems stops watching a worktree's store directory.
 func (c *Core) UnwatchWorktreeItems(worktreePath string) {
 	c.mu.Lock()
 	wt, exists := c.worktreeWatchers[worktreePath]
@@ -155,7 +155,7 @@ func (c *Core) UnwatchWorktreeItems(worktreePath string) {
 	}
 }
 
-// UnwatchAllWorktrees stops watching all worktree .beans/ directories.
+// UnwatchAllWorktrees stops watching all worktree store directories.
 func (c *Core) UnwatchAllWorktrees() {
 	c.mu.Lock()
 	watchers := c.worktreeWatchers
@@ -194,7 +194,7 @@ func (c *Core) worktreeWatchLoop(wt *worktreeWatcher, watcher *fsnotify.Watcher)
 				continue
 			}
 
-			// Verify the file is within the worktree's .beans/ directory
+			// Verify the file is within the worktree's store directory
 			relPath, err := filepath.Rel(wt.itemsDir, event.Name)
 			if err != nil || strings.HasPrefix(relPath, "..") {
 				continue
@@ -264,7 +264,7 @@ func (c *Core) handleWorktreeChanges(wt *worktreeWatcher, changes map[string]fsn
 				continue
 			}
 
-			// Try to load from the main .beans/ directory.
+			// Try to load from the main store directory.
 			// The filename may differ (different slug), so search by ID.
 			mainPath := c.findMainItemFile(id)
 			if mainPath != "" {

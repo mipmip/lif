@@ -131,6 +131,11 @@ func (m *Manager) BaseRef() string {
 	return m.baseRef
 }
 
+// StoreDir returns the name of the store directory inside a worktree checkout.
+func (m *Manager) StoreDir() string {
+	return m.storeDir
+}
+
 // fetchBaseRef fetches the base ref from the remote so that worktrees branch
 // from the latest code. Handles both plain refs ("main") and remote-tracking
 // refs ("origin/main"). Logs warnings on failure but does not return an error —

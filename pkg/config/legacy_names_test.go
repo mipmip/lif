@@ -209,6 +209,20 @@ func TestResolveSectionKey(t *testing.T) {
 	}
 }
 
+func TestResolveSectionKey_UnparseableFileNamesTheFile(t *testing.T) {
+	path := filepath.Join(t.TempDir(), LegacyConfigFileName)
+	writeFile(t, path, "beans: [unclosed\n")
+	_, err := ResolveSectionKey(path)
+	requireNames(t, err, path)
+
+	unreadable := filepath.Join(t.TempDir(), LegacyConfigFileName)
+	if err := os.MkdirAll(unreadable, 0o755); err != nil { // a directory cannot be read as a file
+		t.Fatal(err)
+	}
+	_, err = ResolveSectionKey(unreadable)
+	requireNames(t, err, unreadable)
+}
+
 func TestResolveDefaultStoreDir(t *testing.T) {
 	t.Run("new directory only", func(t *testing.T) {
 		dir := t.TempDir()
@@ -519,4 +533,64 @@ func TestLegacyNamePredicates(t *testing.T) {
 	if !IsLegacyStoreDir(filepath.Join("x", LegacyDefaultStoreDir)) || IsLegacyStoreDir(filepath.Join("x", DefaultStoreDir)) {
 		t.Error("IsLegacyStoreDir does not tell the two store directory names apart")
 	}
+}
+
+func TestLegacySectionKeyPredicate(t *testing.T) {
+	if !IsLegacySectionKey(LegacySectionKey) || IsLegacySectionKey(SectionKey) {
+		t.Error("IsLegacySectionKey does not tell the two section keys apart")
+	}
+}
+
+// An init directory with only a legacy config file is a project with only
+// legacy names; every other state follows the default store directory rule.
+func TestResolveInitStoreDir(t *testing.T) {
+	cases := []struct {
+		name  string
+		setup func(t *testing.T, dir string)
+		want  string
+	}{
+		{"empty directory", func(t *testing.T, dir string) {}, DefaultStoreDir},
+		{"legacy config file only", func(t *testing.T, dir string) {
+			writeFile(t, filepath.Join(dir, LegacyConfigFileName), "beans:\n")
+		}, LegacyDefaultStoreDir},
+		{"new config file only", func(t *testing.T, dir string) {
+			writeFile(t, filepath.Join(dir, ConfigFileName), "lif:\n")
+		}, DefaultStoreDir},
+		{"legacy config file with the new store directory", func(t *testing.T, dir string) {
+			writeFile(t, filepath.Join(dir, LegacyConfigFileName), "beans:\n")
+			mustMkdir(t, filepath.Join(dir, DefaultStoreDir))
+		}, DefaultStoreDir},
+		{"new config file with the legacy store directory", func(t *testing.T, dir string) {
+			writeFile(t, filepath.Join(dir, ConfigFileName), "lif:\n")
+			mustMkdir(t, filepath.Join(dir, LegacyDefaultStoreDir))
+		}, LegacyDefaultStoreDir},
+		{"legacy store directory only", func(t *testing.T, dir string) {
+			mustMkdir(t, filepath.Join(dir, LegacyDefaultStoreDir))
+		}, LegacyDefaultStoreDir},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			tc.setup(t, dir)
+			got, err := ResolveInitStoreDir(dir)
+			if err != nil || got != tc.want {
+				t.Errorf("ResolveInitStoreDir() = %q, %v; want %q", got, err, tc.want)
+			}
+		})
+	}
+
+	t.Run("both store directories fail naming both", func(t *testing.T) {
+		dir := t.TempDir()
+		mustMkdir(t, filepath.Join(dir, DefaultStoreDir))
+		mustMkdir(t, filepath.Join(dir, LegacyDefaultStoreDir))
+		_, err := ResolveInitStoreDir(dir)
+		requireNames(t, err, DefaultStoreDir, LegacyDefaultStoreDir, dir)
+	})
+	t.Run("both config files fail naming both", func(t *testing.T) {
+		dir := t.TempDir()
+		writeFile(t, filepath.Join(dir, ConfigFileName), "lif:\n")
+		writeFile(t, filepath.Join(dir, LegacyConfigFileName), "beans:\n")
+		_, err := ResolveInitStoreDir(dir)
+		requireNames(t, err, ConfigFileName, LegacyConfigFileName, dir)
+	})
 }

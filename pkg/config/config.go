@@ -540,11 +540,11 @@ func ResolveSectionKey(path string) (string, error) {
 		if os.IsNotExist(err) {
 			return SectionKey, nil
 		}
-		return "", err
+		return "", fmt.Errorf("%s: %w", path, err)
 	}
 	var doc yaml.Node
 	if err := yaml.Unmarshal(data, &doc); err != nil {
-		return "", err
+		return "", fmt.Errorf("%s: %w", path, err)
 	}
 	_, key, err := itemsSection(&doc, path)
 	return key, err
@@ -593,6 +593,25 @@ func ResolveDefaultStoreDir(dir string) (string, error) {
 	}
 }
 
+// ResolveInitStoreDir resolves the store directory `init` creates or
+// re-initializes inside dir. It is ResolveDefaultStoreDir, except for a
+// directory that holds a legacy config file and no store directory yet: that
+// is a project with only legacy names, and init keeps it that way.
+func ResolveInitStoreDir(dir string) (string, error) {
+	name, err := ResolveDefaultStoreDir(dir)
+	if err != nil || exists(filepath.Join(dir, DefaultStoreDir)) {
+		return name, err
+	}
+	configFile, found, err := ResolveConfigFile(dir)
+	if err != nil {
+		return "", err
+	}
+	if found && IsLegacyConfigFile(configFile) {
+		return LegacyDefaultStoreDir, nil
+	}
+	return name, nil
+}
+
 // ResolveStoreEnv resolves the store-path env var. A variable counts as
 // present when it is non-empty. legacy reports that the value came from the
 // legacy variable; path is empty when neither is set.
@@ -616,6 +635,11 @@ func IsLegacyConfigFile(path string) bool {
 // IsLegacyStoreDir reports whether path names the legacy store directory.
 func IsLegacyStoreDir(path string) bool {
 	return filepath.Base(path) == LegacyDefaultStoreDir
+}
+
+// IsLegacySectionKey reports whether key is the legacy section key.
+func IsLegacySectionKey(key string) bool {
+	return key == LegacySectionKey
 }
 
 func exists(path string) bool {

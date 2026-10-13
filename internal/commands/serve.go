@@ -156,10 +156,7 @@ func runServer(port int, origins []string) error {
 		log.Printf("[beans] WARNING: found old worktrees in %s — worktrees are now created in %s. You may want to recreate existing worktrees and remove the old directory.", oldWorktreeDir, worktreeRoot)
 	}
 
-	wtManager := worktree.NewManager(cfg.ConfigDir(), worktreeRoot, cfg.GetWorktreeBaseRef(), cfg.GetWorktreeSetup(),
-		worktree.WithStoreDir(filepath.Base(core.Root())),
-		worktree.WithFetchTimeout(cfg.GetWorktreeFetchTimeout()),
-	)
+	wtManager := newWorktreeManager(cfg, core.Root(), worktreeRoot)
 
 	// Watch existing worktrees for item changes
 	if existingWTs, err := wtManager.List(); err == nil {
@@ -468,6 +465,16 @@ func runServer(port int, origins []string) error {
 	}
 
 	return nil
+}
+
+// newWorktreeManager builds the worktree manager for the store at storeRoot.
+// Item changes inside a worktree are looked up under the directory that
+// carries the same name as the main store's directory.
+func newWorktreeManager(c *config.Config, storeRoot, worktreeRoot string) *worktree.Manager {
+	return worktree.NewManager(c.ConfigDir(), worktreeRoot, c.GetWorktreeBaseRef(), c.GetWorktreeSetup(),
+		worktree.WithStoreDir(filepath.Base(storeRoot)),
+		worktree.WithFetchTimeout(c.GetWorktreeFetchTimeout()),
+	)
 }
 
 func RegisterServeCmd(root *cobra.Command) {
