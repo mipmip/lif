@@ -536,7 +536,6 @@ func TestGraphMermaidIsAValidFormat(t *testing.T) {
 	}
 }
 
-
 // TestGraphMermaidNeutralisesHTMLInLabels closes the gap the escaping had:
 // Mermaid renders node labels as HTML, so a title carrying markup would be
 // drawn as markup rather than as the title a user wrote. Angle brackets are
@@ -564,7 +563,6 @@ func TestGraphMermaidNeutralisesHTMLInLabels(t *testing.T) {
 		t.Errorf("the renderer's own line break was escaped away:\n%s", out)
 	}
 }
-
 
 // TestGraphMermaidHandlesAConfiguredPrefix covers the reason the handle is
 // not simply the id: beans.prefix is free-form configuration, so an id can
