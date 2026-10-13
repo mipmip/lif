@@ -27,8 +27,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/xRiErOS/lif/internal/tui/data"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/xRiErOS/lif/internal/tui/data"
 )
 
 // assertConflictSweep is the ONE shared assertion every subtest below drives

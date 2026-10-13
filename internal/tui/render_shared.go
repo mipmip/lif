@@ -15,8 +15,8 @@ import (
 	"hash/fnv"
 	"strings"
 
-	"github.com/xRiErOS/lif/internal/tui/theme"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/xRiErOS/lif/internal/tui/theme"
 )
 
 // pane is a bordered column (master lists, previews). PF-10 (design-spec.md

@@ -51,11 +51,13 @@ This index maps every top-level `lif` command to its canonical reference page. R
 - [`check`](validation-and-maintenance.md#lif-check) — validate configuration, files, links, policies, and optional commit references.
 - [`promote`](validation-and-maintenance.md#lif-promote) — turn selected review findings into items.
 
+## Terminal UI
+
+- [`tui`](../tui-companion.md#start-the-terminal-ui) — open the interactive terminal UI, optionally on a given repository.
+
 ## Separate applications
 
 - [`lif-serve`](separate-binaries.md#lif-serve) — run the browser workspace and GraphQL service.
-- [`lif-tui`](separate-binaries.md#lif-tui) — run the original terminal UI as a separate binary.
-- [`bt`](../tui-companion.md#layer-3-bt-the-separate-po-cockpit) — use the separately maintained Product Owner cockpit.
 
 ## Related documentation
 

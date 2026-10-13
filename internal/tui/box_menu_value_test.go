@@ -11,8 +11,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/xRiErOS/lif/internal/tui/data"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/xRiErOS/lif/internal/tui/data"
 )
 
 // focusBean expands every ancestor fixtureBeans' tk-1/tk-2 need (ms-1 ->

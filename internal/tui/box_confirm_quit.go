@@ -12,9 +12,9 @@ package tui
 // I01, bt-1u0t Fix-Runde 1: comment precision only, behavior unchanged).
 
 import (
-	"github.com/xRiErOS/lif/internal/tui/theme"
 	keybind "github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/xRiErOS/lif/internal/tui/theme"
 )
 
 // requestQuit opens the quit-confirm instead of quitting immediately.

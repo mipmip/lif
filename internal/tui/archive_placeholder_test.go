@@ -13,8 +13,8 @@ package tui
 import (
 	"testing"
 
-	"github.com/xRiErOS/lif/internal/tui/data"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/xRiErOS/lif/internal/tui/data"
 )
 
 // placeholderFixtureBeans builds the exact repro shape from the bean's own

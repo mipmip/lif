@@ -14,9 +14,9 @@ import (
 	"path/filepath"
 	"testing"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/xRiErOS/lif/internal/tui/config"
 	"github.com/xRiErOS/lif/internal/tui/data"
-	tea "github.com/charmbracelet/bubbletea"
 )
 
 // --- paletteActions: context-aware ordering (design decision b) ---

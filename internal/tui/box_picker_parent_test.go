@@ -12,10 +12,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/xRiErOS/lif/internal/tui/data"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/xRiErOS/lif/internal/tui/data"
 )
 
 // fixtureBeansForParentPicker is a deliberately deeper/wider hierarchy than

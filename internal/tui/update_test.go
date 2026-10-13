@@ -12,12 +12,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/xRiErOS/lif/internal/tui/data"
-	"github.com/xRiErOS/lif/internal/tui/theme"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/muesli/termenv"
+	"github.com/xRiErOS/lif/internal/tui/data"
+	"github.com/xRiErOS/lif/internal/tui/theme"
 )
 
 // fixtureBeans is a small milestone -> epic -> 2 tasks hierarchy shared by

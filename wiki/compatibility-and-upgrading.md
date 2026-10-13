@@ -26,8 +26,8 @@ Each entry lists the old form, the new form and the migration step. Work through
 | --- | --- | --- |
 | `beans` | `lif` | Install the new binary and replace every call in scripts, shell functions, CI jobs and agent instructions. |
 | `beans-serve` | `lif-serve` | Replace the call; the default port and the routes are unchanged, and the data-path flag follows the `--lif-path` rename below. |
-| `beans-tui` | `lif-tui` | Replace the call. |
-| `--beans-path` | `--lif-path` | Replace the flag in every script and in `lif-serve` and `lif-tui` calls. |
+| `bt` / `beans-tui` | `lif tui` | Replace the call; the terminal UI is a subcommand of `lif` and needs no separate install. Existing config in `~/.config/beans-tui/` is still read as a fallback; see [Terminal UI](tui-companion.md#configuration). |
+| `--beans-path` | `--lif-path` | Replace the flag in every script and in `lif-serve` and `lif tui` calls. |
 
 There is no `beans` alias: a script that still calls `beans` fails with `command not found` after you remove the old binary. Remove the old binaries once everything calls `lif`.
 

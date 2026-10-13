@@ -25,10 +25,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/xRiErOS/lif/internal/tui/data"
-	"github.com/xRiErOS/lif/internal/tui/theme"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/xRiErOS/lif/internal/tui/data"
+	"github.com/xRiErOS/lif/internal/tui/theme"
 )
 
 // beanSectionCount is the Single Source for the fixed section count (T6,

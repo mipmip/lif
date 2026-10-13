@@ -1,6 +1,6 @@
 # Tooling
 
-Entry point is `just` (`just --list`) — it wraps `mise` for the two most common side tasks (`just build`, `just test`) plus `just install`, which builds and installs `lif`/`lif-serve`/`lif-tui` to `LIF_BIN_DIR` (default `/opt/homebrew/bin`, where the active binary on this machine actually resolves). `mise` remains the underlying build implementation for everything else — use it directly for anything not covered by the justfile.
+Entry point is `just` (`just --list`) — it wraps `mise` for the two most common side tasks (`just build`, `just test`) plus `just install`, which builds and installs `lif`/`lif-serve` to `LIF_BIN_DIR` (default `/opt/homebrew/bin`, where the active binary on this machine actually resolves). `mise` remains the underlying build implementation for everything else — use it directly for anything not covered by the justfile.
 
 All build/dev/test tasks use `mise`. Key commands:
 

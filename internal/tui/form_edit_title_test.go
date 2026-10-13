@@ -14,9 +14,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/xRiErOS/lif/internal/tui/data"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/huh"
+	"github.com/xRiErOS/lif/internal/tui/data"
 )
 
 // TestEditTitleFormPrefilledAndNonEmptyValidated guards both halves of

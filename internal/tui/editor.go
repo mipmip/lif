@@ -38,8 +38,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/xRiErOS/lif/internal/tui/data"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/xRiErOS/lif/internal/tui/data"
 	"gopkg.in/yaml.v3"
 )
 
