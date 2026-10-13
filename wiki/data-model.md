@@ -1,14 +1,14 @@
 # Data Model
 
-This page describes how a bean is represented on disk — the file layout, the front matter schema, ID and slug rules, relationships, ordering, and the archive — so both humans and agents can read and, when necessary, hand-edit bean files safely. It reflects the `Bean` struct in `pkg/bean/bean.go` and the loader in `pkg/beancore/core.go`, not a separate specification that could drift from the code.
+This page describes how an item is represented on disk — the file layout, the front matter schema, ID and slug rules, relationships, ordering, and the archive — so both humans and agents can read and, when necessary, hand-edit item files safely. It reflects the `Item` struct in `pkg/item/item.go` and the loader in `pkg/itemcore/core.go`, not a separate specification that could drift from the code.
 
 ## File layout
 
-Every bean is one Markdown file with YAML front matter, stored under the beans directory (`.beans` by default, configurable via `beans.path` in `.beans.yml`, always overridable per-invocation with `--beans-path`). A bean's filename encodes its ID and an optional human-readable slug: `<id>--<slug>.md`, or just `<id>.md` when there is no slug. Two older separators (`<id>.<slug>.md` and `<id>-<slug>.md`) are still read for backward compatibility, but every bean `beans` writes uses the `--` separator.
+Every item is one Markdown file with YAML front matter, stored under the data directory (`.lif` by default, configurable via `lif.path` in `.lif.yml`, always overridable per-invocation with `--lif-path`). An item's filename encodes its ID and an optional human-readable slug: `<id>--<slug>.md`, or just `<id>.md` when there is no slug. Two older separators (`<id>.<slug>.md` and `<id>-<slug>.md`) are still read for backward compatibility, but every item `lif` writes uses the `--` separator.
 
 ```
 ---
-# beans-hrdk
+# lif-hrdk
 title: Test task
 status: todo
 type: task
@@ -19,16 +19,16 @@ updated_at: 2026-08-30T13:43:51Z
 desc
 ```
 
-The line `# <id>` immediately inside the front matter fence is a human-readable comment, not a parsed field — the bean's actual ID always comes from the filename (`pkg/bean.ParseFilename`), never from this comment. Renaming the file without going through `beans rename` desynchronizes the comment from the real ID; the comment is cosmetic and safe to ignore or leave stale, but the filename is authoritative and must never be hand-edited.
+The line `# <id>` immediately inside the front matter fence is a human-readable comment, not a parsed field — the item's actual ID always comes from the filename (`pkg/item.ParseFilename`), never from this comment. Renaming the file without going through `lif rename` desynchronizes the comment from the real ID; the comment is cosmetic and safe to ignore or leave stale, but the filename is authoritative and must never be hand-edited.
 
-Everything after the closing `---` fence is the body: free-form Markdown, commonly a description plus a `- [ ]`/`- [x]` todo list. `beans complete` and `beans scrap` each append one more section to the body (`## Summary of Changes` or `## Reason for Scrapping`) rather than replacing it.
+Everything after the closing `---` fence is the body: free-form Markdown, commonly a description plus a `- [ ]`/`- [x]` todo list. `lif complete` and `lif scrap` each append one more section to the body (`## Summary of Changes` or `## Reason for Scrapping`) rather than replacing it.
 
 ## Front matter fields
 
 | Field | YAML key | Type | Notes |
 |---|---|---|---|
-| ID | — (filename) | string | NanoID over a fixed lowercase alphanumeric alphabet, optionally prefixed with the project's configured `beans.prefix` (e.g. `beans-hrdk`). Never a YAML key. |
-| Slug | — (filename) | string | Optional, derived from the title at creation time or set explicitly with `beans rename --slug`/`--reslug`/`--no-slug`. Purely cosmetic; lookups work with or without it. |
+| ID | — (filename) | string | NanoID over a fixed lowercase alphanumeric alphabet, optionally prefixed with the project's configured `lif.prefix` (e.g. `lif-hrdk`). Never a YAML key. |
+| Slug | — (filename) | string | Optional, derived from the title at creation time or set explicitly with `lif rename --slug`/`--reslug`/`--no-slug`. Purely cosmetic; lookups work with or without it. |
 | Title | `title` | string | Required. |
 | Status | `status` | string | One of the project's configured statuses (defaults: `draft`, `todo`, `in-progress`, `completed`, `scrapped`). |
 | Type | `type` | string | One of the project's configured types (defaults: `milestone`, `epic`, `feature`, `bug`, `task`); each type occupies a hierarchy rank. |
@@ -37,60 +37,60 @@ Everything after the closing `---` fence is the body: free-form Markdown, common
 | CreatedAt | `created_at` | timestamp | Set once at creation. |
 | UpdatedAt | `updated_at` | timestamp | Refreshed on every write. |
 | Order | `order` | string | Optional fractional-index string for manual sibling ordering; see below. |
-| Parent | `parent` | string | Optional parent bean ID; see Relationships. |
-| Blocking | `blocking` | list of strings | Bean IDs that this bean blocks; see Relationships. |
-| BlockedBy | `blocked_by` | list of strings | Bean IDs that block this bean; see Relationships. |
+| Parent | `parent` | string | Optional parent item ID; see Relationships. |
+| Blocking | `blocking` | list of strings | Item IDs that this item blocks; see Relationships. |
+| BlockedBy | `blocked_by` | list of strings | Item IDs that block this item; see Relationships. |
 | Extra | any other key | any | Front matter keys outside the schema above are preserved verbatim rather than dropped, and surface in `list`/`show --json` under an `extra` object and over GraphQL as `extra`. |
 
 A key that names one of the fields above is rejected from `--set`/`--unset` (e.g. `--set status=done` fails; use `--status done`) — extra keys are strictly for project-specific metadata such as a release tag that doesn't warrant its own flag or hierarchy level.
 
 ## IDs and prefixes
 
-IDs are generated by `pkg/bean.NewID`, drawn from the alphabet `0123456789abcdefghijklmnopqrstuvwxyz` at a configurable length (`beans.id_length`, default 4), optionally prefixed with `beans.prefix` from `.beans.yml` (e.g. `myproject-`). Generation rejects a small set of offensive substrings and retries. `beans show`/`beans update`/etc. accept both the full ID and the bare suffix when a prefix is configured, so `beans show hrdk` and `beans show beans-hrdk` are equivalent once a prefix is set.
+IDs are generated by `pkg/item.NewID`, drawn from the alphabet `0123456789abcdefghijklmnopqrstuvwxyz` at a configurable length (`lif.id_length`, default 4), optionally prefixed with `lif.prefix` from `.lif.yml` (e.g. `myproject-`). Generation rejects a small set of offensive substrings and retries. `lif show`/`lif update`/etc. accept both the full ID and the bare suffix when a prefix is configured, so `lif show hrdk` and `lif show lif-hrdk` are equivalent once a prefix is set.
 
-A project-wide prefix rebrand goes through `beans rename --prefix "new-"`, which rewrites every bean's filename and cascades every reference to it (parent, blocking, blocked-by) atomically; it refuses to run while `beans-serve` is active or worktrees exist, and supports `--dry-run` to preview the plan first. Never rename bean files or prefixes by hand — cross-references are plain string IDs inside front matter, and a manual rename silently breaks every bean that pointed at the old ID.
+A project-wide prefix rebrand goes through `lif rename --prefix "new-"`, which rewrites every item's filename and cascades every reference to it (parent, blocking, blocked-by) atomically; it refuses to run while `lif-serve` is active or worktrees exist, and supports `--dry-run` to preview the plan first. Never rename item files or prefixes by hand — cross-references are plain string IDs inside front matter, and a manual rename silently breaks every item that pointed at the old ID.
 
 ## Relationships
 
-- **Parent** (`parent`): a bean may hang under any bean of a strictly higher hierarchy rank (ranks come from the project's configured type order; ranks can be skipped, and two beans of the same rank are never parent and child). Set with `beans update --parent <id>` or `beans create --parent <id>`; clear with `--remove-parent`. GraphQL exposes both the raw `parentId` and the resolved `parent` object, plus `children(filter:)` for the reverse direction.
-- **Blocking** (`blocking`): a list of bean IDs that *this* bean blocks — the listed beans cannot proceed until this one is done. Set with `--blocking <id>` (repeatable), remove with `--remove-blocking <id>`.
-- **Blocked-by** (`blocked_by`): a list of bean IDs that block *this* bean — this bean cannot proceed until the listed ones are done. Set with `--blocked-by <id>` (repeatable), remove with `--remove-blocked-by <id>`. Prefer `--blocked-by` over `--blocking` when creating new dependent work, since it lets you describe the dependency on the bean that has it, without also touching the beans it depends on.
-- **Implicit blocking**: a bean is also considered blocked if any ancestor in its `parent` chain is blocked, directly or implicitly. `beans list --ready`/`--is-blocked` and `beans next` account for this automatically; GraphQL's `BeanFilter` exposes it as `isBlocked`, `isExplicitlyBlocked`, and `isImplicitlyBlocked`.
-- **Implicit status**: if a bean's parent or any ancestor has a terminal status (`completed` or `scrapped`), the bean inherits that status implicitly for the purposes of `list --ready`/`next`, without its own `status` field changing. GraphQL exposes this as `implicitStatus` and `implicitStatusFrom` on `Bean`.
+- **Parent** (`parent`): an item may hang under any item of a strictly higher hierarchy rank (ranks come from the project's configured type order; ranks can be skipped, and two items of the same rank are never parent and child). Set with `lif update --parent <id>` or `lif create --parent <id>`; clear with `--remove-parent`. GraphQL exposes both the raw `parentId` and the resolved `parent` object, plus `children(filter:)` for the reverse direction.
+- **Blocking** (`blocking`): a list of item IDs that *this* item blocks — the listed items cannot proceed until this one is done. Set with `--blocking <id>` (repeatable), remove with `--remove-blocking <id>`.
+- **Blocked-by** (`blocked_by`): a list of item IDs that block *this* item — this item cannot proceed until the listed ones are done. Set with `--blocked-by <id>` (repeatable), remove with `--remove-blocked-by <id>`. Prefer `--blocked-by` over `--blocking` when creating new dependent work, since it lets you describe the dependency on the item that has it, without also touching the items it depends on.
+- **Implicit blocking**: an item is also considered blocked if any ancestor in its `parent` chain is blocked, directly or implicitly. `lif list --ready`/`--is-blocked` and `lif next` account for this automatically; GraphQL's `ItemFilter` exposes it as `isBlocked`, `isExplicitlyBlocked`, and `isImplicitlyBlocked`.
+- **Implicit status**: if an item's parent or any ancestor has a terminal status (`completed` or `scrapped`), the item inherits that status implicitly for the purposes of `list --ready`/`next`, without its own `status` field changing. GraphQL exposes this as `implicitStatus` and `implicitStatusFrom` on `Item`.
 
-Both link directions are stored explicitly (a `blocking` entry on one bean is not automatically mirrored as a `blocked_by` entry on the other); `beans check` reports broken links (a reference to an ID that no longer exists), self-references, and cycles across `parent`/`blocking`/`blocked_by`, and `--fix` can remove broken links and self-references automatically. Deleting a bean with `beans delete` removes incoming references to it from the beans that named it.
+Both link directions are stored explicitly (a `blocking` entry on one item is not automatically mirrored as a `blocked_by` entry on the other); `lif check` reports broken links (a reference to an ID that no longer exists), self-references, and cycles across `parent`/`blocking`/`blocked_by`, and `--fix` can remove broken links and self-references automatically. Deleting an item with `lif delete` removes incoming references to it from the items that named it.
 
 ## Manual ordering
 
-`order` is an optional fractional-index string (see `pkg/bean/fractional.go`) used to sequence siblings that share the same `parent` manually, independent of status/priority/type sort order. It is scoped strictly per parent — beans with different parents are never compared against each other by `order`.
+`order` is an optional fractional-index string (see `pkg/item/fractional.go`) used to sequence siblings that share the same `parent` manually, independent of status/priority/type sort order. It is scoped strictly per parent — items with different parents are never compared against each other by `order`.
 
 ```bash
-beans order <id> --after <sibling-id>   # directly after a sibling that already has an order
-beans order <id> --before <sibling-id>  # directly before a sibling that already has an order
-beans order <id> --first                # before every sibling
-beans order <id> --last                 # after every sibling
-beans list --json --sort order          # siblings without an order sort last
-beans create --json "Title" -t task --order V   # set an explicit order value at creation
+lif order <id> --after <sibling-id>   # directly after a sibling that already has an order
+lif order <id> --before <sibling-id>  # directly before a sibling that already has an order
+lif order <id> --first                # before every sibling
+lif order <id> --last                 # after every sibling
+lif list --json --sort order          # siblings without an order sort last
+lif create --json "Title" -t task --order V   # set an explicit order value at creation
 ```
 
-Placing a bean relative to a sibling that has no `order` value yet fails — place that sibling first with `--last`. A single `order` operation writes exactly one file, the bean being placed; it never touches its neighbors.
+Placing an item relative to a sibling that has no `order` value yet fails — place that sibling first with `--last`. A single `order` operation writes exactly one file, the item being placed; it never touches its neighbors.
 
 ## Archive
 
-`beans archive` moves every bean whose status is a configured archive status (by default, `completed` and `scrapped`) from the main beans directory into `<beans-path>/archive/`, preserving the filename and every relationship field. Archived beans remain visible in `list`/`show`/GraphQL queries and valid as relationship targets — archiving is filesystem tidiness, not deletion or query exclusion. `beans milestones` hides archived/terminal milestones by default; pass `--all` to include them. There is no `unarchive` verb, and updating an archived bean currently leaves it under `archive/`; move its file back into the main beans directory manually to reactivate it.
+`lif archive` moves every item whose status is a configured archive status (by default, `completed` and `scrapped`) from the main data directory into `<lif-path>/archive/`, preserving the filename and every relationship field. Archived items remain visible in `list`/`show`/GraphQL queries and valid as relationship targets — archiving is filesystem tidiness, not deletion or query exclusion. `lif milestones` hides archived/terminal milestones by default; pass `--all` to include them. There is no `unarchive` verb, and updating an archived item currently leaves it under `archive/`; move its file back into the main data directory manually to reactivate it.
 
 ## Concurrency and etags
 
-Every bean carries a content etag: the 16-character hex FNV-1a hash of the exact bytes it was last parsed from or written as (never a fresh in-memory re-render, which could diverge from the file by normalizing a default value the file never had). `beans show <id> --etag-only` prints it; `beans update <id> --if-match "$ETAG" ...` makes the write conditional and fails with the current etag on a mismatch, which is the supported way to avoid clobbering a concurrent edit.
+Every item carries a content etag: the 16-character hex FNV-1a hash of the exact bytes it was last parsed from or written as (never a fresh in-memory re-render, which could diverge from the file by normalizing a default value the file never had). `lif show <id> --etag-only` prints it; `lif update <id> --if-match "$ETAG" ...` makes the write conditional and fails with the current etag on a mismatch, which is the supported way to avoid clobbering a concurrent edit.
 
 ## Manual editing guidance
 
-Hand-editing a bean file works because it is plain Markdown with YAML front matter, but stay inside these limits:
+Hand-editing an item file works because it is plain Markdown with YAML front matter, but stay inside these limits:
 
-- Edit `title`, `status`, `priority`, `tags`, `order`, `parent`, `blocking`, `blocked_by`, extra keys, and the body freely; `beans` re-reads the file from disk on the next command.
-- Never rename the file or change the `# <id>` comment expecting it to change the bean's ID — the filename is the only source of truth for ID and slug. Use `beans rename` for any ID, slug, or prefix change so cross-references stay consistent.
+- Edit `title`, `status`, `priority`, `tags`, `order`, `parent`, `blocking`, `blocked_by`, extra keys, and the body freely; `lif` re-reads the file from disk on the next command.
+- Never rename the file or change the `# <id>` comment expecting it to change the item's ID — the filename is the only source of truth for ID and slug. Use `lif rename` for any ID, slug, or prefix change so cross-references stay consistent.
 - Do not hand-write `created_at`/`updated_at` inconsistently with reality; nothing enforces them, but every native write path refreshes `updated_at` automatically.
-- After a manual edit, run `beans check` (`--strict` to fail on policy warnings, not just structural errors) to catch a broken link, a self-reference, a cycle, or a status transition that violates a configured `require_fields_on` policy before it propagates further.
+- After a manual edit, run `lif check` (`--strict` to fail on policy warnings, not just structural errors) to catch a broken link, a self-reference, a cycle, or a status transition that violates a configured `require_fields_on` policy before it propagates further.
 
 ## Related documentation
 
