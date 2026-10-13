@@ -1856,7 +1856,36 @@ func TestShowFilterLeavingNothingIsAnError(t *testing.T) {
 	if err == nil {
 		t.Fatal("show error = nil, want error")
 	}
-	if !strings.Contains(stderr, "no bean matches the filters") {
-		t.Errorf("stderr = %q, want it to contain %q", stderr, "no bean matches the filters")
+	if !strings.Contains(stderr, "no item matches the filters") {
+		t.Errorf("stderr = %q, want it to contain %q", stderr, "no item matches the filters")
+	}
+}
+
+// AC3: show's lookup errors name the noun as item, in plain and in JSON mode.
+func TestShowErrorsNameItems(t *testing.T) {
+	setupShowTest(t)
+	seedStatusMix(t)
+	t.Cleanup(func() { resetFlags(sharedTestRoot(t)) })
+
+	for _, tc := range []struct {
+		name string
+		args []string
+		want string
+	}{
+		{"unknown id", []string{"show", "beans-nope9"}, "item not found: beans-nope9"},
+		{"unknown id as json", []string{"show", "--json", "beans-nope9"}, "item not found: beans-nope9"},
+		{"unknown parent", []string{"show", "--parent", "beans-nope9"}, "item not found: beans-nope9"},
+		{"parent without children", []string{"show", "--parent", "beans-mixtd"}, "item has no children: beans-mixtd"},
+		{"filter leaves nothing as json", []string{"show", "--json", "--parent", "beans-mix00", "--status", "completed"}, "no item matches the filters"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			stdout, stderr, err := runRootInDir(t, core.Root(), tc.args...)
+			if err == nil {
+				t.Fatal("show error = nil, want error")
+			}
+			if got := stdout + stderr + err.Error(); !strings.Contains(got, tc.want) {
+				t.Errorf("output = %q, want it to contain %q", got, tc.want)
+			}
+		})
 	}
 }

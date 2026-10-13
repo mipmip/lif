@@ -24,19 +24,19 @@ var (
 
 var renameCmd = &cobra.Command{
 	Use:   "rename [id] [new-id]",
-	Short: "Rename a bean slug, a single bean ID (cascading refs), or the project-wide ID prefix",
-	Long: `Renames beans in one of three modes:
+	Short: "Rename an item slug, a single item ID (cascading refs), or the project-wide ID prefix",
+	Long: `Renames items in one of three modes:
 
-  beans rename <id> --slug "neuer-slug"   set the slug
-  beans rename <id> --no-slug             clear the slug (filename becomes id.md)
-  beans rename <id> --reslug              regenerate the slug from the title
-  beans rename <id> <new-id>               full new ID (cascades refs)
-  beans rename <id> --suffix k7x2          new suffix, keep the configured prefix
-  beans rename --prefix "bew-"             project-wide ID-prefix rebrand (cascades refs)
+  lif rename <id> --slug "neuer-slug"   set the slug
+  lif rename <id> --no-slug             clear the slug (filename becomes id.md)
+  lif rename <id> --reslug              regenerate the slug from the title
+  lif rename <id> <new-id>               full new ID (cascades refs)
+  lif rename <id> --suffix k7x2          new suffix, keep the configured prefix
+  lif rename --prefix "bew-"             project-wide ID-prefix rebrand (cascades refs)
 
 --dry-run shows the plan without applying it (all modes). A prefix rebrand
 additionally requires --yes (or an interactive y/N confirm) before applying,
-and refuses outright while "beans serve" is running or active worktrees
+and refuses outright while "lif-serve" is running or active worktrees
 exist.`,
 	Args: cobra.MaximumNArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -61,7 +61,7 @@ exist.`,
 		}
 
 		if plan.Mode == "prefix" && !renameYes {
-			if !confirmRename(cmd, fmt.Sprintf("Rebrand %d bean(s) to prefix %q?", len(plan.Changes), plan.NewPrefix)) {
+			if !confirmRename(cmd, fmt.Sprintf("Rebrand %d item(s) to prefix %q?", len(plan.Changes), plan.NewPrefix)) {
 				if !renameJSON {
 					fmt.Fprintln(cmd.OutOrStdout(), "aborted")
 				}
@@ -80,7 +80,7 @@ exist.`,
 				"changed": len(plan.Changes),
 			})
 		}
-		fmt.Fprintf(cmd.OutOrStdout(), "Renamed %d bean(s).\n", len(plan.Changes))
+		fmt.Fprintf(cmd.OutOrStdout(), "Renamed %d item(s).\n", len(plan.Changes))
 		return nil
 	},
 }
@@ -89,9 +89,9 @@ exist.`,
 func RegisterRenameCmd(root *cobra.Command) {
 	renameCmd.Flags().StringVar(&renameSlug, "slug", "", "set the slug part of the filename")
 	renameCmd.Flags().BoolVar(&renameNoSlug, "no-slug", false, "remove the slug (filename becomes id.md)")
-	renameCmd.Flags().BoolVar(&renameReslug, "reslug", false, "regenerate the slug from the bean title")
+	renameCmd.Flags().BoolVar(&renameReslug, "reslug", false, "regenerate the slug from the item title")
 	renameCmd.Flags().StringVar(&renameSuffix, "suffix", "", "replace only the ID suffix, keeping the configured prefix")
-	renameCmd.Flags().StringVar(&renamePrefix, "prefix", "", "project-wide: rebrand all bean IDs to this prefix")
+	renameCmd.Flags().StringVar(&renamePrefix, "prefix", "", "project-wide: rebrand all item IDs to this prefix")
 	renameCmd.Flags().BoolVar(&renameDryRun, "dry-run", false, "show the planned changes without applying them")
 	renameCmd.Flags().BoolVar(&renameYes, "yes", false, "skip the confirmation prompt (prefix rebrand)")
 	renameCmd.Flags().BoolVar(&renameJSON, "json", false, "output as JSON")
@@ -149,7 +149,7 @@ func buildRenamePlan(c *itemcore.Core, args []string, f renameFlags) (*itemcore.
 	}
 
 	if len(args) == 0 {
-		return nil, fmt.Errorf("provide a bean id, or use --prefix")
+		return nil, fmt.Errorf("provide an item id, or use --prefix")
 	}
 	id := args[0]
 
@@ -167,7 +167,7 @@ func buildRenamePlan(c *itemcore.Core, args []string, f renameFlags) (*itemcore.
 	if f.suffixSet {
 		prefix := c.Config().Items.Prefix
 		if prefix != "" && !strings.HasPrefix(id, prefix) {
-			return nil, fmt.Errorf("bean %q does not start with the configured prefix %q; cannot apply --suffix", id, prefix)
+			return nil, fmt.Errorf("item %q does not start with the configured prefix %q; cannot apply --suffix", id, prefix)
 		}
 		return c.PlanRenameID(id, prefix+f.suffix)
 	}
@@ -229,7 +229,7 @@ func renderRenamePlan(cmd *cobra.Command, plan *itemcore.RenamePlan, jsonOut boo
 		for _, n := range plan.RefUpdates {
 			total += n
 		}
-		fmt.Fprintf(w, "ref updates: %d across %d bean(s)\n", total, len(plan.RefUpdates))
+		fmt.Fprintf(w, "ref updates: %d across %d item(s)\n", total, len(plan.RefUpdates))
 	}
 	for _, m := range plan.AttachmentMoves {
 		fmt.Fprintf(w, "  attachments: %s -> %s\n", m.OldPath, m.NewPath)

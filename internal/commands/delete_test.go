@@ -225,3 +225,51 @@ func TestDeleteRunNamesAttachments(t *testing.T) {
 		t.Fatalf("declined deletion still removed the bean: %v", err)
 	}
 }
+
+// AC3: delete's lookup error and both confirmation prompts name the noun as
+// item.
+func TestDeleteTextsNameItems(t *testing.T) {
+	t.Run("unknown id", func(t *testing.T) {
+		setupDeleteTest(t)
+		resetDeleteFlags(t)
+		err := deleteCmd.RunE(deleteCmd, []string{"beans-nope"})
+		if err == nil || err.Error() != "item not found: beans-nope" {
+			t.Errorf("error = %v, want %q", err, "item not found: beans-nope")
+		}
+	})
+
+	linked := func(t *testing.T) (*item.Item, []itemWithLinks) {
+		t.Helper()
+		setupDeleteTest(t)
+		resetDeleteFlags(t)
+		parent := mkDeleteItem(t, "beans-delp", "Parent")
+		child := &item.Item{ID: "beans-delc", Slug: "child", Title: "Child", Status: "todo", Type: "task", Parent: parent.ID}
+		if err := core.Create(child); err != nil {
+			t.Fatal(err)
+		}
+		return parent, []itemWithLinks{{item: parent, links: core.FindIncomingLinks(parent.ID)}}
+	}
+
+	t.Run("single prompt warns about linking items", func(t *testing.T) {
+		_, targets := linked(t)
+		out := answerDeletePrompt(t, "n\n", func() { confirmDeleteMultiple(targets) })
+		if want := "Warning: 1 item(s) link to 'Parent':"; !strings.Contains(out, want) {
+			t.Errorf("prompt = %q, want it to contain %q", out, want)
+		}
+	})
+
+	t.Run("batch prompt", func(t *testing.T) {
+		_, targets := linked(t)
+		other := mkDeleteItem(t, "beans-delo", "Other")
+		targets = append(targets, itemWithLinks{item: other})
+		out := answerDeletePrompt(t, "n\n", func() { confirmDeleteMultiple(targets) })
+		for _, want := range []string{
+			"About to delete 2 item(s):",
+			"Warning: 1 item(s) have incoming references (1 total) that will be removed.",
+		} {
+			if !strings.Contains(out, want) {
+				t.Errorf("prompt = %q, want it to contain %q", out, want)
+			}
+		}
+	})
+}

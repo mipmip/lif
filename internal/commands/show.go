@@ -41,8 +41,8 @@ var (
 
 var showCmd = &cobra.Command{
 	Use:   "show <id> [id...]",
-	Short: "Show a bean's contents",
-	Long: `Displays the full contents of one or more beans, including front matter and body.
+	Short: "Show an item's contents",
+	Long: `Displays the full contents of one or more items, including front matter and body.
 
 The representation follows stdout. On a terminal the output is styled and the
 body is rendered as markdown. When stdout is a pipe or a file, the output is the
@@ -52,13 +52,13 @@ unwrapped, so it can be fed to a parser.
 --meta drops the body from either representation and keeps the front matter:
 the styled header on a terminal, the source YAML block off one.
 
---parent <id> adds that bean's children to the ids given, so a container and
+--parent <id> adds that item's children to the ids given, so a container and
 its children reach one page without naming each child. Given ids come first,
-then the children in the order list --parent uses; a bean named twice is shown
+then the children in the order list --parent uses; an item named twice is shown
 once. Without ids, --parent shows the children alone.
 
 --status, --type, --priority and --tag, and their --no-* forms, narrow every
-bean shown — the ids given and the --parent children alike — with the same
+item shown — the ids given and the --parent children alike — with the same
 meaning as in list. Each takes a comma-separated list or can be repeated. A
 filter that leaves nothing to show is an error.`,
 	// --parent supplies the ids, so a bare `show --parent <id>` is complete
@@ -96,13 +96,13 @@ filter that leaves nothing to show is an error.`,
 				if showJSON {
 					return output.Error(output.ErrNotFound, err.Error())
 				}
-				return fmt.Errorf("failed to find bean: %w", err)
+				return fmt.Errorf("failed to find item: %w", err)
 			}
 			if b == nil {
 				if showJSON {
-					return output.Error(output.ErrNotFound, fmt.Sprintf("bean not found: %s", id))
+					return output.Error(output.ErrNotFound, fmt.Sprintf("item not found: %s", id))
 				}
-				return fmt.Errorf("bean not found: %s", id)
+				return fmt.Errorf("item not found: %s", id)
 			}
 			items = append(items, b)
 		}
@@ -114,9 +114,9 @@ filter that leaves nothing to show is an error.`,
 		}, core)
 		if len(items) == 0 {
 			if showJSON {
-				return output.Error(output.ErrNotFound, "no bean matches the filters")
+				return output.Error(output.ErrNotFound, "no item matches the filters")
 			}
-			return fmt.Errorf("no bean matches the filters")
+			return fmt.Errorf("no item matches the filters")
 		}
 
 		// JSON output
@@ -135,7 +135,7 @@ filter that leaves nothing to show is an error.`,
 				}
 				content, err := b.Render()
 				if err != nil {
-					return fmt.Errorf("failed to render bean: %w", err)
+					return fmt.Errorf("failed to render item: %w", err)
 				}
 				fmt.Print(string(content))
 			}
@@ -210,7 +210,7 @@ func showOutput(b *item.Item, isTTY, metaOnly bool, width int) (string, error) {
 		}
 		content, err := source.Render()
 		if err != nil {
-			return "", fmt.Errorf("failed to render bean: %w", err)
+			return "", fmt.Errorf("failed to render item: %w", err)
 		}
 		return string(content), nil
 	}
@@ -238,17 +238,17 @@ func showOutput(b *item.Item, isTTY, metaOnly bool, width int) (string, error) {
 func showChildIDs(resolver *itemgraph.CoreResolver, parentID string) ([]string, error) {
 	parent, err := resolver.Item(context.Background(), parentID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to find --parent bean: %w", err)
+		return nil, fmt.Errorf("failed to find --parent item: %w", err)
 	}
 	if parent == nil {
-		return nil, fmt.Errorf("bean not found: %s", parentID)
+		return nil, fmt.Errorf("item not found: %s", parentID)
 	}
 	children, err := resolver.ItemChildren(context.Background(), parent, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve children of %s: %w", parentID, err)
 	}
 	if len(children) == 0 {
-		return nil, fmt.Errorf("bean has no children: %s", parentID)
+		return nil, fmt.Errorf("item has no children: %s", parentID)
 	}
 	ids := make([]string, 0, len(children))
 	for _, c := range children {
@@ -580,7 +580,7 @@ func RegisterShowCmd(root *cobra.Command) {
 	showCmd.Flags().BoolVar(&showTable, "table", false,
 		"Arrange the front matter as a label/value grid (forces the grid into a pipe too)")
 	showCmd.Flags().StringVar(&showParent, "parent", "",
-		"Also show the children of this bean, in the order list --parent uses")
+		"Also show the children of this item, in the order list --parent uses")
 	showCmd.Flags().IntVar(&showMaxWidth, "max-width", 0,
 		"Cap the rendered width; 0 disables the cap (default: display.max_width, else 110)")
 	showCmd.Flags().StringSliceVarP(&showStatus, "status", "s", nil, "Filter by status (comma-separated or repeated)")
@@ -590,7 +590,7 @@ func RegisterShowCmd(root *cobra.Command) {
 	showCmd.Flags().StringSliceVarP(&showPriority, "priority", "p", nil, "Filter by priority (comma-separated or repeated)")
 	showCmd.Flags().StringSliceVar(&showNoPriority, "no-priority", nil, "Exclude by priority (comma-separated or repeated)")
 	showCmd.Flags().StringSliceVar(&showTag, "tag", nil, "Filter by tag (comma-separated or repeated, OR logic)")
-	showCmd.Flags().StringSliceVar(&showNoTag, "no-tag", nil, "Exclude beans with tag (comma-separated or repeated)")
+	showCmd.Flags().StringSliceVar(&showNoTag, "no-tag", nil, "Exclude items with tag (comma-separated or repeated)")
 	_ = showCmd.RegisterFlagCompletionFunc("status", statusFlagCompletion)
 	_ = showCmd.RegisterFlagCompletionFunc("type", typeFlagCompletion)
 	_ = showCmd.RegisterFlagCompletionFunc("priority", priorityFlagCompletion)

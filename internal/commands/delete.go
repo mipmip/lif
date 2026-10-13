@@ -7,11 +7,11 @@ import (
 	"os"
 	"strings"
 
+	"github.com/spf13/cobra"
+	"github.com/xRiErOS/lif/internal/output"
 	"github.com/xRiErOS/lif/pkg/item"
 	"github.com/xRiErOS/lif/pkg/itemcore"
 	"github.com/xRiErOS/lif/pkg/itemgraph"
-	"github.com/xRiErOS/lif/internal/output"
-	"github.com/spf13/cobra"
 )
 
 var (
@@ -31,10 +31,10 @@ type itemWithLinks struct {
 var deleteCmd = &cobra.Command{
 	Use:     "delete <id> [id...]",
 	Aliases: []string{"rm"},
-	Short:   "Delete one or more beans",
-	Long: `Deletes one or more beans after confirmation (use -f to skip confirmation).
+	Short:   "Delete one or more items",
+	Long: `Deletes one or more items after confirmation (use -f to skip confirmation).
 
-If other beans reference the target bean(s) (as parent or via blocking), you will be
+If other items reference the target item(s) (as parent or via blocking), you will be
 warned and those references will be removed after confirmation. Use -f to skip all warnings.`,
 	Args: cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -46,10 +46,10 @@ warned and those references will be removed after confirmation. Use -f to skip a
 		for _, id := range args {
 			b, err := resolver.Item(ctx, id)
 			if err != nil {
-				return cmdError(deleteJSON, output.ErrNotFound, "failed to find bean: %v", err)
+				return cmdError(deleteJSON, output.ErrNotFound, "failed to find item: %v", err)
 			}
 			if b == nil {
-				return cmdError(deleteJSON, output.ErrNotFound, "bean not found: %s", id)
+				return cmdError(deleteJSON, output.ErrNotFound, "item not found: %s", id)
 			}
 			atts, err := core.AttachmentNames(b.ID)
 			if err != nil {
@@ -76,7 +76,7 @@ warned and those references will be removed after confirmation. Use -f to skip a
 		for _, target := range targets {
 			_, err := resolver.DeleteItem(ctx, target.item.ID)
 			if err != nil {
-				return cmdError(deleteJSON, output.ErrFileError, "failed to delete bean %s: %v", target.item.ID, err)
+				return cmdError(deleteJSON, output.ErrFileError, "failed to delete item %s: %v", target.item.ID, err)
 			}
 			deleted = append(deleted, target.item)
 			totalLinksRemoved += len(target.links)
@@ -117,7 +117,7 @@ func confirmDeleteMultiple(targets []itemWithLinks) bool {
 	if len(targets) == 1 {
 		t := targets[0]
 		if len(t.links) > 0 {
-			fmt.Printf("Warning: %d bean(s) link to '%s':\n", len(t.links), t.item.Title)
+			fmt.Printf("Warning: %d item(s) link to '%s':\n", len(t.links), t.item.Title)
 			for _, link := range t.links {
 				fmt.Printf("  - %s (%s) via %s\n", link.FromItem.ID, link.FromItem.Title, link.LinkType)
 			}
@@ -141,7 +141,7 @@ func confirmDeleteMultiple(targets []itemWithLinks) bool {
 		// Multiple items: show batch summary. Attachments are counted
 		// here rather than listed -- a batch of twenty items would bury
 		// the question under file names.
-		fmt.Printf("About to delete %d bean(s):\n", len(targets))
+		fmt.Printf("About to delete %d item(s):\n", len(targets))
 		for _, t := range targets {
 			suffix := ""
 			if len(t.attachments) > 0 {
@@ -154,7 +154,7 @@ func confirmDeleteMultiple(targets []itemWithLinks) bool {
 			}
 		}
 		if itemsWithLinks > 0 {
-			fmt.Printf("\nWarning: %d bean(s) have incoming references (%d total) that will be removed.\n", itemsWithLinks, totalLinks)
+			fmt.Printf("\nWarning: %d item(s) have incoming references (%d total) that will be removed.\n", itemsWithLinks, totalLinks)
 		}
 		fmt.Print("\nProceed with deletion? [y/N] ")
 	}

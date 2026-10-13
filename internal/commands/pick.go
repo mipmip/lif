@@ -28,18 +28,18 @@ import (
 // an interactive picker is expected, ordinary use, not a failure worth a
 // stderr line -- reportExecutionError still keeps quiet while Execute still
 // exits 1.
-var errPickAborted = output.Silent("beans pick: no bean selected")
+var errPickAborted = output.Silent("lif pick: no item selected")
 
 var pickCmd = &cobra.Command{
 	Use:   "pick",
 	Args:  cobra.NoArgs,
-	Short: "Interactively pick a bean and print its ID",
-	Long: `Draws an interactive, fuzzy-filterable list of every bean in the
+	Short: "Interactively pick an item and print its ID",
+	Long: `Draws an interactive, fuzzy-filterable list of every item in the
 resolved store on the controlling terminal. Selecting one prints exactly
-that bean's ID to stdout and exits 0; aborting the picker, an empty
+that item's ID to stdout and exits 0; aborting the picker, an empty
 candidate list, or non-interactive stdin produce no stdout output and a
 non-zero exit, so scripts can safely capture the result with command
-substitution, e.g. id=$(beans pick).`,
+substitution, e.g. id=$(lif pick).`,
 	RunE: runPick,
 }
 
@@ -61,7 +61,7 @@ var (
 // and lands user-facing by falling into that default, the same way every
 // other non-plumbing verb does.
 func RegisterPickCmd(root *cobra.Command) {
-	pickCmd.Flags().StringVar(&pickScope, "scope", "", "Restrict candidates to a comma-separated list of bean types")
+	pickCmd.Flags().StringVar(&pickScope, "scope", "", "Restrict candidates to a comma-separated list of item types")
 	pickCmd.Flags().StringVar(&pickLine, "line", "", "Partial command line to derive scope from (used with --cursor)")
 	pickCmd.Flags().IntVar(&pickCursor, "cursor", -1, "Byte offset of the cursor within --line")
 	root.AddCommand(pickCmd)
@@ -97,7 +97,7 @@ func newPickModel(pickable []*item.Item) pickModel {
 		rows[i] = pickItem{id: b.ID, title: b.Title}
 	}
 	l := list.New(rows, list.NewDefaultDelegate(), 0, 0)
-	l.Title = "Pick a bean"
+	l.Title = "Pick an item"
 	l.SetShowHelp(false)
 	l.SetShowStatusBar(false)
 	return pickModel{list: l}
@@ -153,16 +153,16 @@ func runPick(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 	if len(items) == 0 {
-		return errors.New("beans pick: store has no beans to pick from")
+		return errors.New("lif pick: store has no items to pick from")
 	}
 
 	if !term.IsTerminal(int(os.Stdin.Fd())) {
-		return errors.New("beans pick: stdin is not a terminal")
+		return errors.New("lif pick: stdin is not a terminal")
 	}
 
 	tty, err := os.OpenFile("/dev/tty", os.O_RDWR, 0)
 	if err != nil {
-		return fmt.Errorf("beans pick: opening controlling terminal: %w", err)
+		return fmt.Errorf("lif pick: opening controlling terminal: %w", err)
 	}
 	defer tty.Close()
 
@@ -182,7 +182,7 @@ func runPickWith(cmd *cobra.Command, items []*item.Item, in io.Reader, out io.Wr
 	program := tea.NewProgram(newPickModel(items), tea.WithInput(in), tea.WithOutput(out), tea.WithAltScreen())
 	final, err := program.Run()
 	if err != nil {
-		return fmt.Errorf("beans pick: %w", err)
+		return fmt.Errorf("lif pick: %w", err)
 	}
 
 	result, ok := final.(pickModel)
@@ -206,7 +206,7 @@ func resolvePickCandidates(cmd *cobra.Command) ([]*item.Item, error) {
 		return scopeFilteredCandidates(pickScope)
 	case cmd.Flags().Changed("line"):
 		if !cmd.Flags().Changed("cursor") {
-			return nil, errors.New("beans pick: --line requires --cursor")
+			return nil, errors.New("lif pick: --line requires --cursor")
 		}
 		return partialLineCandidates(cmd, pickLine, pickCursor)
 	default:
@@ -250,12 +250,12 @@ func parseScopeTypes(scope string) (map[string]bool, error) {
 			continue
 		}
 		if !cfg.IsValidType(name) {
-			return nil, fmt.Errorf("beans pick: invalid --scope type: %s (must be %s)", name, strings.Join(cfg.TypeNames(), ", "))
+			return nil, fmt.Errorf("lif pick: invalid --scope type: %s (must be %s)", name, strings.Join(cfg.TypeNames(), ", "))
 		}
 		types[name] = true
 	}
 	if len(types) == 0 {
-		return nil, errors.New("beans pick: --scope requires at least one bean type")
+		return nil, errors.New("lif pick: --scope requires at least one item type")
 	}
 	return types, nil
 }
@@ -384,7 +384,7 @@ func deriveParentContext(toks []lineToken, flagIdx int) (itemIDs, itemTypes []st
 		}
 	}
 	if len(itemIDs) == 0 {
-		return nil, nil, errors.New("beans pick: cannot resolve --parent context: no known bean id precedes --parent")
+		return nil, nil, errors.New("lif pick: cannot resolve --parent context: no known item id precedes --parent")
 	}
 	return itemIDs, itemTypes, nil
 }
@@ -406,11 +406,11 @@ func deriveParentContext(toks []lineToken, flagIdx int) (itemIDs, itemTypes []st
 // resolve to the same scope.
 func partialLineCandidates(cmd *cobra.Command, line string, cursor int) ([]*item.Item, error) {
 	if cursor < 0 || cursor > len(line) {
-		return nil, fmt.Errorf("beans pick: --cursor %d is out of range for a %d-byte --line", cursor, len(line))
+		return nil, fmt.Errorf("lif pick: --cursor %d is out of range for a %d-byte --line", cursor, len(line))
 	}
 	toks := tokenizeLine(line)
 	if len(toks) == 0 {
-		return nil, errors.New("beans pick: --line has no verb to resolve")
+		return nil, errors.New("lif pick: --line has no verb to resolve")
 	}
 	idx := cursorTokenIndex(toks, cursor)
 
@@ -418,10 +418,10 @@ func partialLineCandidates(cmd *cobra.Command, line string, cursor int) ([]*item
 		toks = toks[1:]
 		idx--
 		if len(toks) == 0 {
-			return nil, errors.New("beans pick: --line has no verb after the program name")
+			return nil, errors.New("lif pick: --line has no verb after the program name")
 		}
 		if idx < 0 {
-			return nil, errors.New("beans pick: cursor position is not understood by scope derivation (it sits on the program name)")
+			return nil, errors.New("lif pick: cursor position is not understood by scope derivation (it sits on the program name)")
 		}
 	}
 
@@ -440,17 +440,17 @@ func partialLineCandidates(cmd *cobra.Command, line string, cursor int) ([]*item
 	}
 	resolvedCmd, _, err := cmd.Root().Find(tokenTexts)
 	if err != nil {
-		return nil, fmt.Errorf("beans pick: partial line verb does not resolve: %w", err)
+		return nil, fmt.Errorf("lif pick: partial line verb does not resolve: %w", err)
 	}
 	if resolvedCmd == cmd.Root() {
-		return nil, errors.New("beans pick: partial line has no resolvable verb")
+		return nil, errors.New("lif pick: partial line has no resolvable verb")
 	}
 	if !IsUserFacing(resolvedCmd) {
-		return nil, fmt.Errorf("beans pick: %q is not a user-facing verb", resolvedCmd.Name())
+		return nil, fmt.Errorf("lif pick: %q is not a user-facing verb", resolvedCmd.Name())
 	}
 	types, ok := verbScopeTypes(resolvedCmd)
 	if !ok {
-		return nil, fmt.Errorf("beans pick: verb %q has no known scope-derivation mapping", resolvedCmd.Name())
+		return nil, fmt.Errorf("lif pick: verb %q has no known scope-derivation mapping", resolvedCmd.Name())
 	}
 	return filterByTypes(types), nil
 }
