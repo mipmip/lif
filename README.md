@@ -195,6 +195,8 @@ Network binding, CORS, routes, and authentication posture matter before exposing
 
 The terminal UI is built into the main binary. Run `lif tui` to browse and manage items interactively, or `lif tui <repo-path>` to open a specific repository. It replaces the former separate TUI binary and the `bt` (beans-tui) companion.
 
+![lif tui: browse view with item detail](wiki/screenshots/browse.png)
+
 [Read the terminal UI guide](wiki/tui-companion.md) · [Review the separate binary `lif-serve`](wiki/commands/separate-binaries.md)
 
 ## Full feature reference

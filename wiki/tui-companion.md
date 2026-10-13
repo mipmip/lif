@@ -42,11 +42,9 @@ The item detail renders as titled boxes (Title, Status/Type/Priority, Parent/Tag
 
 ## Screenshots
 
-The images were captured with the former `bt` binary.
-
-| Lobby / repository picker | Box-form detail |
-|---|---|
-| ![Lobby](screenshots/lobby.png) | ![Box-form detail](screenshots/boxform.png) |
+| Repository picker |
+|---|
+| ![Repository picker](screenshots/lobby.png) |
 
 | Browse | Backlog |
 |---|---|
@@ -55,8 +53,6 @@ The images were captured with the former `bt` binary.
 | Command center | Fullscreen detail |
 |---|---|
 | ![Command center](screenshots/command-center.png) | ![Fullscreen detail](screenshots/detail-fullscreen.png) |
-
-![Walkthrough](screenshots/beans-tui-demo.gif)
 
 ## Configuration
 
