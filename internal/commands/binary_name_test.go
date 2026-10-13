@@ -20,8 +20,12 @@ func TestVersionLineStartsWithLif(t *testing.T) {
 }
 
 func TestDeprecatedStubsNameLifBinaries(t *testing.T) {
+	dir := t.TempDir()
+	if out, err := exec.Command(completionTestBinary, "init", "--beans-path", dir+"/.beans").CombinedOutput(); err != nil {
+		t.Fatalf("lif init: %v\n%s", err, out)
+	}
 	for verb, want := range map[string]string{"serve": "lif-serve", "tui": "lif-tui"} {
-		cmd := exec.Command(completionTestBinary, verb)
+		cmd := exec.Command(completionTestBinary, "--beans-path", dir+"/.beans", verb)
 		out, err := cmd.CombinedOutput()
 		ee, ok := err.(*exec.ExitError)
 		if !ok || ee.ExitCode() != 1 {
