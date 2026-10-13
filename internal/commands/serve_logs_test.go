@@ -121,9 +121,17 @@ func TestServeLogLinesCarryTheLifPrefix(t *testing.T) {
 		t.Errorf("serve output still carries the prefix [beans]:\n%s", got)
 	}
 
-	resp, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/playground", port))
-	if err != nil {
-		t.Fatalf("GET /playground: %v", err)
+	// The startup line prints just before the listener accepts, so poll.
+	var resp *http.Response
+	for {
+		resp, err = http.Get(fmt.Sprintf("http://127.0.0.1:%d/playground", port))
+		if err == nil {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("GET /playground: %v", err)
+		}
+		time.Sleep(50 * time.Millisecond)
 	}
 	defer resp.Body.Close()
 	page, _ := io.ReadAll(resp.Body)
