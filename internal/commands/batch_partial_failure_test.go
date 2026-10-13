@@ -102,13 +102,13 @@ func TestTagBatchPartialFailure(t *testing.T) {
 		if success, _ := doc["success"].(bool); success {
 			t.Errorf("success = %v, want false", doc["success"])
 		}
-		items, ok := doc["beans"].([]any)
+		items, ok := doc["items"].([]any)
 		if !ok || len(items) != 1 {
-			t.Fatalf("beans = %v, want a one-element array naming %s", doc["beans"], first.ID)
+			t.Fatalf("items = %v, want a one-element array naming %s", doc["items"], first.ID)
 		}
 		gotID, _ := items[0].(map[string]any)["id"].(string)
 		if gotID != first.ID {
-			t.Errorf("beans[0].id = %q, want %q (the target written before the failure)", gotID, first.ID)
+			t.Errorf("items[0].id = %q, want %q (the target written before the failure)", gotID, first.ID)
 		}
 		count, _ := doc["count"].(float64)
 		if int(count) != 1 {
@@ -150,8 +150,8 @@ func TestTagBatchPartialFailure(t *testing.T) {
 		// output.Response tags Items and Count with `omitempty` (output.go:26-27):
 		// an empty slice and a zero int both drop their key entirely, so "nothing
 		// written yet" is observable as key absence, not as an empty array or 0.
-		if v, ok := doc["beans"]; ok {
-			t.Errorf(`"beans" key = %v, want the key absent (empty done, omitempty)`, v)
+		if v, ok := doc["items"]; ok {
+			t.Errorf(`"items" key = %v, want the key absent (empty done, omitempty)`, v)
 		}
 		if v, ok := doc["count"]; ok {
 			t.Errorf(`"count" key = %v, want the key absent (zero count, omitempty)`, v)
@@ -260,13 +260,13 @@ func TestTagBatchPartialFailureJSONSuppressesStderr(t *testing.T) {
 	if success, _ := doc["success"].(bool); success {
 		t.Errorf("success = %v, want false", success)
 	}
-	items, ok := doc["beans"].([]any)
+	items, ok := doc["items"].([]any)
 	if !ok || len(items) != 1 {
-		t.Fatalf("beans = %v, want a one-element array naming %s", doc["beans"], first.ID)
+		t.Fatalf("items = %v, want a one-element array naming %s", doc["items"], first.ID)
 	}
 	gotID, _ := items[0].(map[string]any)["id"].(string)
 	if gotID != first.ID {
-		t.Errorf("beans[0].id = %q, want %q (the target written before the failure)", gotID, first.ID)
+		t.Errorf("items[0].id = %q, want %q (the target written before the failure)", gotID, first.ID)
 	}
 }
 

@@ -375,7 +375,7 @@ func TestUpdateCmdJSONReturnsResultingItem(t *testing.T) {
 	if err := json.Unmarshal(captured, &got); err != nil {
 		t.Fatalf("unmarshaling captured stdout: %v (raw: %s)", err, captured)
 	}
-	for _, envelopeKey := range []string{"success", "message", "bean"} {
+	for _, envelopeKey := range []string{"success", "message", "item"} {
 		if _, ok := got[envelopeKey]; ok {
 			t.Errorf("captured JSON has envelope key %q; want the raw bean, same shape as `show --json`", envelopeKey)
 		}

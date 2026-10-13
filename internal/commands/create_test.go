@@ -76,7 +76,7 @@ func TestCreateCmdJSONReturnsBareItem(t *testing.T) {
 	if err := json.Unmarshal(out, &got); err != nil {
 		t.Fatalf("decoding JSON: %v; output = %s", err, out)
 	}
-	for _, envelopeKey := range []string{"success", "message", "bean"} {
+	for _, envelopeKey := range []string{"success", "message", "item"} {
 		if _, ok := got[envelopeKey]; ok {
 			t.Errorf("captured JSON has envelope key %q; want the raw bean", envelopeKey)
 		}

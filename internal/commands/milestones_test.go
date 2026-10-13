@@ -341,7 +341,7 @@ func TestMilestonesProgressExcludesHiddenSubtree(t *testing.T) {
 	})
 
 	var entries []struct {
-		Item      *item.Item `json:"bean"`
+		Item      *item.Item `json:"item"`
 		Completed int        `json:"completed"`
 		Total     int        `json:"total"`
 	}
@@ -380,7 +380,7 @@ func TestMilestonesJSONOutput(t *testing.T) {
 	})
 
 	var entries []struct {
-		Item      *item.Item `json:"bean"`
+		Item      *item.Item `json:"item"`
 		Completed int        `json:"completed"`
 		Total     int        `json:"total"`
 	}

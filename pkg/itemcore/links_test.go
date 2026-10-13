@@ -1,6 +1,7 @@
 package itemcore
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/xRiErOS/lif/pkg/config"
@@ -911,5 +912,39 @@ func TestConfiguredSiblingRankForbidsNesting(t *testing.T) {
 	}
 	if !IsValidParentRank(cfg, "feature", "milestone") {
 		t.Error("feature under milestone must stay allowed")
+	}
+}
+
+// BrokenLink and SelfLink name the offending item with the item vocabulary.
+func TestLinkIssueJSONKeysUseItemID(t *testing.T) {
+	core, _ := setupTestCore(t)
+	for _, b := range []*item.Item{
+		{ID: "aaa1", Title: "A", Status: "todo", Parent: "nonexistent"},
+		{ID: "bbb2", Title: "B", Status: "todo", Blocking: []string{"bbb2"}},
+	} {
+		if err := core.Create(b); err != nil {
+			t.Fatalf("Create error: %v", err)
+		}
+	}
+
+	data, err := json.Marshal(core.CheckAllLinks())
+	if err != nil {
+		t.Fatalf("Marshal error: %v", err)
+	}
+	var doc map[string][]map[string]any
+	if err := json.Unmarshal(data, &doc); err != nil {
+		t.Fatalf("Unmarshal error: %v; data = %s", err, data)
+	}
+	for list, want := range map[string]string{"broken_links": "aaa1", "self_links": "bbb2"} {
+		if len(doc[list]) != 1 {
+			t.Fatalf("%s = %v, want one entry; data = %s", list, doc[list], data)
+		}
+		entry := doc[list][0]
+		if entry["item_id"] != want {
+			t.Errorf("%s[0].item_id = %v, want %q", list, entry["item_id"], want)
+		}
+		if _, ok := entry["bean_id"]; ok {
+			t.Errorf("%s[0] still carries legacy key bean_id", list)
+		}
 	}
 }

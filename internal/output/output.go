@@ -23,8 +23,8 @@ const (
 // Response is the standard JSON response envelope.
 type Response struct {
 	Success  bool         `json:"success"`
-	Item     *item.Item   `json:"bean,omitempty"`
-	Items    []*item.Item `json:"beans,omitempty"`
+	Item     *item.Item   `json:"item,omitempty"`
+	Items    []*item.Item `json:"items,omitempty"`
 	Count    int          `json:"count,omitempty"`
 	Message  string       `json:"message,omitempty"`
 	Warnings []string     `json:"warnings,omitempty"`
