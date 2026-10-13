@@ -425,6 +425,13 @@ func TestLoadRequireFieldsOn(t *testing.T) {
 		if err := cfg.Save(tmpDir); err != nil {
 			t.Fatalf("Save() error = %v", err)
 		}
+		saved, err := os.ReadFile(filepath.Join(tmpDir, ConfigFileName))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if want := "# Front matter keys that must be set when an item enters a status"; !strings.Contains(string(saved), want) {
+			t.Errorf("saved config lacks the comment %q:\n%s", want, saved)
+		}
 
 		loaded, err := Load(filepath.Join(tmpDir, ConfigFileName))
 		if err != nil {
@@ -1053,7 +1060,7 @@ func TestSaveIncludesComments(t *testing.T) {
 		"# Length of the random ID suffix",
 		"# Default status for new items",
 		"# Default type for new items",
-		"# Port for the web UI",
+		"# Port for the web UI (used by `lif-serve`)",
 	}
 	for _, comment := range expectedComments {
 		if !strings.Contains(content, comment) {
