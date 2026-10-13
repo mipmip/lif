@@ -4,8 +4,8 @@ package tui
 // detail render (../docs/topics/jira-style-experiment/, S2b). Mirrors
 // theme.asciiIcons()'s env pattern (internal/theme/theme.go) 1:1: read
 // per-call (no caching), so tests can flip it via t.Setenv without any
-// package-state reset dance. Default OFF -> every existing golden/behavior
-// stays byte-identical; opt in via LIF_TUI_BOXFORM=1|true|yes|on.
+// package-state reset dance. Default ON (since lif 0.13.0); set
+// LIF_TUI_BOXFORM=0|false|no|off for the classic accordion detail.
 
 import (
 	"os"
@@ -13,12 +13,12 @@ import (
 )
 
 // boxFormEnabled reports whether the experimental jira-style box-form detail
-// render is active (env LIF_TUI_BOXFORM=1|true|yes|on). Default off — existing
-// goldens/behavior unchanged. Read per-call (no caching), like asciiIcons().
+// render is active. Default on; LIF_TUI_BOXFORM=0|false|no|off disables it.
+// Read per-call (no caching), like asciiIcons().
 func boxFormEnabled() bool {
 	switch strings.ToLower(strings.TrimSpace(os.Getenv("LIF_TUI_BOXFORM"))) {
-	case "1", "true", "yes", "on":
-		return true
+	case "0", "false", "no", "off":
+		return false
 	}
-	return false
+	return true
 }

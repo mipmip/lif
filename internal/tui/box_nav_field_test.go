@@ -340,7 +340,7 @@ func TestBoxFormTabWalksFieldsInTheBacklogToo(t *testing.T) {
 // LIF_TUI_BOXFORM tab remains PF-13's bidirectional pane toggle and shift+tab
 // remains the deterministic exit.
 func TestTabStillSwapsPanesWithoutBoxForm(t *testing.T) {
-	t.Setenv("LIF_TUI_BOXFORM", "")
+	t.Setenv("LIF_TUI_BOXFORM", "0")
 	m := fixtureModel(t, fixtureBeans())
 	m = step(t, m, tea.WindowSizeMsg{Width: 100, Height: 30})
 

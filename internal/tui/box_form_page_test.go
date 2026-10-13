@@ -379,3 +379,14 @@ func TestBoxFormPageBadgeConstantWidthAcrossPages(t *testing.T) {
 		t.Fatalf("badge width not constant across pages: 1->%d 50->%d 100->%d -- a widening page number must not shift or drop the indicator mid-paging", w1, w50, w100)
 	}
 }
+
+func TestBoxFormDefaultOn(t *testing.T) {
+	t.Setenv("LIF_TUI_BOXFORM", "")
+	if !boxFormEnabled() {
+		t.Fatal("box-form must be on by default")
+	}
+	t.Setenv("LIF_TUI_BOXFORM", "0")
+	if boxFormEnabled() {
+		t.Fatal("LIF_TUI_BOXFORM=0 must select the classic detail")
+	}
+}

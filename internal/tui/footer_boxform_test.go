@@ -73,7 +73,7 @@ func TestBrowseRepoLocalBindingsDropInlineKeysWhileBoxForm(t *testing.T) {
 // (bean bt-fy5d Akzeptanz: "Bei Flag AUS ist der Footer unveraendert"):
 // without the box form nothing is shown inline, so nothing may be dropped.
 func TestBrowseRepoLocalBindingsUnchangedWithoutBoxForm(t *testing.T) {
-	t.Setenv("LIF_TUI_BOXFORM", "")
+	t.Setenv("LIF_TUI_BOXFORM", "0")
 
 	// `v` (bean bt-oox1, #10) is deliberately absent here: the flag-OFF
 	// footer already fills its two lines at 80 columns, so Fullscreen is
@@ -174,7 +174,7 @@ func TestFooterNamesTabAsFieldNavInsideTheDetailRegion(t *testing.T) {
 // experiment the Fokus-Modell does not exist and tab is still the pane swap,
 // in the footer as much as in handleKey.
 func TestFooterKeepsFocusLabelsWithoutBoxForm(t *testing.T) {
-	t.Setenv("LIF_TUI_BOXFORM", "")
+	t.Setenv("LIF_TUI_BOXFORM", "0")
 	m := fixtureModel(t, fixtureBeans())
 	m = step(t, m, tea.WindowSizeMsg{Width: 100, Height: 30})
 	m = step(t, m, keyMsg(tea.KeyTab))

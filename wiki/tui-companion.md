@@ -36,6 +36,28 @@ Global Flags:
 
 The terminal UI drives the same `lif` build that runs it, so it never mixes versions with a second installed binary.
 
+## Detail view
+
+The item detail renders as titled boxes (Title, Status/Type/Priority, Parent/Tags, Body, Relations, History) with a filter-chip row on top. Set `LIF_TUI_BOXFORM=0` for the classic accordion detail.
+
+## Screenshots
+
+The images were captured with the former `bt` binary.
+
+| Lobby / repository picker | Box-form detail |
+|---|---|
+| ![Lobby](screenshots/lobby.png) | ![Box-form detail](screenshots/boxform.png) |
+
+| Browse | Backlog |
+|---|---|
+| ![Browse](screenshots/browse.png) | ![Backlog](screenshots/backlog.png) |
+
+| Command center | Fullscreen detail |
+|---|---|
+| ![Command center](screenshots/command-center.png) | ![Fullscreen detail](screenshots/detail-fullscreen.png) |
+
+![Walkthrough](screenshots/beans-tui-demo.gif)
+
 ## Configuration
 
 The terminal UI reads `~/.config/lif/tui/config.yaml` and keeps lightweight runtime state in `~/.config/lif/tui/state.json`. A missing or malformed `config.yaml` is not an error; defaults apply.
