@@ -648,3 +648,31 @@ func TestPickerBoxesFitIn80Columns(t *testing.T) {
 		})
 	}
 }
+
+// TestPickersDefaultToOpenStatuses: both pickers open on Status=open (todo,
+// in-progress, draft); ^n cycles on to single statuses and finally (any),
+// which shows closed items again.
+func TestPickersDefaultToOpenStatuses(t *testing.T) {
+	beans := append(filterBeansFixture(),
+		data.Bean{ID: "done-1", Title: "Old Task", Status: "completed", Type: "task", Priority: "normal", Parent: "ep-1"})
+
+	m := fixtureModel(t, beans)
+	m = focusBeanFull(m, "ms-1")
+	m = step(t, m, runeMsg('r'))
+	if m.blockFilter.facetStatus != "open" || pickerItemIDs(m.blockFiltered)["done-1"] || len(m.blockFiltered) != 4 {
+		t.Fatalf("blocking picker default: chip=%q filtered=%+v, want open and no done-1", m.blockFilter.facetStatus, m.blockFiltered)
+	}
+	for i := 0; i < len(data.StatusValues())+1; i++ {
+		m = step(t, m, keyMsg(tea.KeyCtrlN))
+	}
+	if m.blockFilter.facetStatus != "" || !pickerItemIDs(m.blockFiltered)["done-1"] {
+		t.Fatalf("after full cycle: chip=%q filtered=%+v, want (any) incl. done-1", m.blockFilter.facetStatus, m.blockFiltered)
+	}
+
+	p := fixtureModel(t, beans)
+	p = focusBeanFull(p, "tk-2")
+	p = step(t, p, runeMsg('a'))
+	if p.parentFilter.facetStatus != "open" || pickerItemIDs(p.parentFiltered)["done-1"] {
+		t.Fatalf("parent picker default: chip=%q filtered=%+v", p.parentFilter.facetStatus, p.parentFiltered)
+	}
+}

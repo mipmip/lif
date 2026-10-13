@@ -186,8 +186,16 @@ func newPickerFilter() pickerFilter {
 	ti.Prompt = ""
 	ti.CharLimit = 60
 	ti.Focus()
-	return pickerFilter{input: ti}
+	return pickerFilter{input: ti, facetStatus: statusOpen}
 }
+
+// statusOpen is the Status chip's default value: todo, in-progress and draft.
+// Cycle ^n past it to reach single statuses, then "(any)".
+const statusOpen = "open"
+
+func isOpenStatus(s string) bool { return s == "todo" || s == "in-progress" || s == "draft" }
+
+func statusFacetOptions() []string { return append([]string{statusOpen}, data.StatusValues()...) }
 
 // matchesBean is the AND-combined predicate: every SET chip must match, and
 // the typed query must substring-match the title or the ID (D4). An unset
@@ -200,7 +208,11 @@ func (f pickerFilter) matchesBean(b *data.Bean) bool {
 	if f.facetType != "" && b.Type != f.facetType {
 		return false
 	}
-	if f.facetStatus != "" && b.Status != f.facetStatus {
+	if f.facetStatus == statusOpen {
+		if !isOpenStatus(b.Status) {
+			return false
+		}
+	} else if f.facetStatus != "" && b.Status != f.facetStatus {
 		return false
 	}
 	if f.facetPriority != "" && b.Priority != f.facetPriority {
@@ -333,7 +345,7 @@ func (m model) keyPickerFilter(f pickerFilter, msg tea.KeyMsg) (out pickerFilter
 		f.facetType = cycleFilterValue(f.facetType, data.TypeValues())
 		return f, nil, true
 	case tea.KeyCtrlN:
-		f.facetStatus = cycleFilterValue(f.facetStatus, data.StatusValues())
+		f.facetStatus = cycleFilterValue(f.facetStatus, statusFacetOptions())
 		return f, nil, true
 	case tea.KeyCtrlP:
 		f.facetPriority = cycleFilterValue(f.facetPriority, data.PriorityValues())
