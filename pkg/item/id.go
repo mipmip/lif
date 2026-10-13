@@ -88,9 +88,14 @@ func ParseFilename(name string) (id, slug string) {
 }
 
 // BuildFilename constructs a filename from ID and optional slug.
-// Uses double-dash separator: id--slug.md
+// Uses double-dash separator: id--slug.md. An ID containing "-" or "." and no
+// slug gets an empty slug ("id--.md"): a bare "id.md" would be read back by
+// ParseFilename's dot/single-dash legacy formats as a different ID.
 func BuildFilename(id, slug string) string {
 	if slug == "" {
+		if strings.ContainsAny(id, "-.") {
+			return id + "--.md"
+		}
 		return id + ".md"
 	}
 	return id + "--" + slug + ".md"

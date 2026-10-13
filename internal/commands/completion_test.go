@@ -64,11 +64,8 @@ func TestMain(m *testing.M) {
 // package-global core setupCompletionTest swaps in) with a single item
 // named "<idPrefix>-only", so a completion test driven through a
 // subprocess can tell which store answered by grepping its stdout. The
-// explicit Slug forces BuildFilename's double-dash "id--slug.md" form;
-// without it, an ID containing a dash and no slug round-trips through
-// ParseFilename's single-dash legacy fallback and gets cut at the first
-// dash on reload -- a filename-format quirk unrelated to this bug that
-// would otherwise corrupt the fixture IDs this test greps for.
+// explicit Slug keeps the fixture filename in BuildFilename's "id--slug.md"
+// form.
 func writeFixtureStore(t *testing.T, itemsDir string, idPrefix string) {
 	t.Helper()
 	if err := os.MkdirAll(itemsDir, 0755); err != nil {
