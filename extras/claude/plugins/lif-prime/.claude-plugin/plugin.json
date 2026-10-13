@@ -1,7 +1,7 @@
 {
-  "name": "beans-prime",
+  "name": "lif-prime",
   "version": "1.0.0",
-  "description": "Configure Claude Code to track work using Beans.",
+  "description": "Configure Claude Code to track work using Lif.",
   "author": {
     "name": "Hendrik Mans",
     "email": "hendrik@mans.de"
