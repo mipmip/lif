@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/xRiErOS/lif/pkg/config"
 )
 
 func TestWorktreeWatcher(t *testing.T) {
@@ -22,7 +24,7 @@ func TestWorktreeWatcher(t *testing.T) {
 
 		// Create a fake worktree directory with a .beans/ subdir
 		wtDir := t.TempDir()
-		wtItemsDir := filepath.Join(wtDir, BeansDir)
+		wtItemsDir := filepath.Join(wtDir, config.DefaultStoreDir)
 		if err := os.MkdirAll(wtItemsDir, 0755); err != nil {
 			t.Fatalf("failed to create worktree .beans dir: %v", err)
 		}
@@ -108,7 +110,7 @@ Working on this in a worktree.
 
 		// Create a worktree with a modified version of the item
 		wtDir := t.TempDir()
-		wtItemsDir := filepath.Join(wtDir, BeansDir)
+		wtItemsDir := filepath.Join(wtDir, config.DefaultStoreDir)
 		os.MkdirAll(wtItemsDir, 0755)
 
 		content := "---\ntitle: Modified in Worktree\nstatus: in-progress\ntype: task\n---\n"
@@ -179,7 +181,7 @@ Working on this in a worktree.
 
 		// Create a worktree with an item that doesn't exist in main
 		wtDir := t.TempDir()
-		wtItemsDir := filepath.Join(wtDir, BeansDir)
+		wtItemsDir := filepath.Join(wtDir, config.DefaultStoreDir)
 		os.MkdirAll(wtItemsDir, 0755)
 
 		content := "---\ntitle: Worktree Only\nstatus: todo\ntype: task\n---\n"
@@ -235,7 +237,7 @@ Working on this in a worktree.
 
 		// Create a worktree with an item
 		wtDir := t.TempDir()
-		wtItemsDir := filepath.Join(wtDir, BeansDir)
+		wtItemsDir := filepath.Join(wtDir, config.DefaultStoreDir)
 		os.MkdirAll(wtItemsDir, 0755)
 
 		content := "---\ntitle: Linked Bean\nstatus: todo\ntype: task\n---\n"
@@ -265,7 +267,7 @@ Working on this in a worktree.
 
 		// Create a worktree with an item
 		wtDir := t.TempDir()
-		wtItemsDir := filepath.Join(wtDir, BeansDir)
+		wtItemsDir := filepath.Join(wtDir, config.DefaultStoreDir)
 		os.MkdirAll(wtItemsDir, 0755)
 
 		content := "---\ntitle: Unlink Bean\nstatus: todo\ntype: task\n---\n"
@@ -296,7 +298,7 @@ Working on this in a worktree.
 
 		// Create a worktree with a modified version
 		wtDir := t.TempDir()
-		wtItemsDir := filepath.Join(wtDir, BeansDir)
+		wtItemsDir := filepath.Join(wtDir, config.DefaultStoreDir)
 		os.MkdirAll(wtItemsDir, 0755)
 
 		content := "---\ntitle: WT Version\nstatus: in-progress\ntype: task\n---\n"
@@ -357,7 +359,7 @@ Working on this in a worktree.
 
 		// Create a worktree with one modified item and one identical to main
 		wtDir := t.TempDir()
-		wtItemsDir := filepath.Join(wtDir, BeansDir)
+		wtItemsDir := filepath.Join(wtDir, config.DefaultStoreDir)
 		os.MkdirAll(wtItemsDir, 0755)
 
 		// Modified item — should be linked
@@ -414,7 +416,7 @@ Working on this in a worktree.
 		// Create two worktrees
 		for i := 0; i < 2; i++ {
 			wtDir := t.TempDir()
-			wtItemsDir := filepath.Join(wtDir, BeansDir)
+			wtItemsDir := filepath.Join(wtDir, config.DefaultStoreDir)
 			os.MkdirAll(wtItemsDir, 0755)
 			if err := core.WatchWorktreeItems(wtDir); err != nil {
 				t.Fatalf("WatchWorktreeBeans() error = %v", err)

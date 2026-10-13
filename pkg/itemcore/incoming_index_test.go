@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/xRiErOS/lif/pkg/config"
 	"github.com/xRiErOS/lif/pkg/item"
 )
 
@@ -244,7 +245,7 @@ func TestIncomingIndexStaysConsistent(t *testing.T) {
 		warmIncoming(core, "target")
 
 		wtDir := t.TempDir()
-		wtItemsDir := filepath.Join(wtDir, BeansDir)
+		wtItemsDir := filepath.Join(wtDir, config.DefaultStoreDir)
 		if err := os.MkdirAll(wtItemsDir, 0755); err != nil {
 			t.Fatalf("creating worktree beans dir: %v", err)
 		}

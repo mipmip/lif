@@ -12,7 +12,7 @@ var pathCmd = &cobra.Command{
 	Short: "Print the resolved beans directory",
 	Long: `Prints the absolute path of the beans directory this invocation resolved to.
 
-Resolution follows the usual precedence (--beans-path, then the .beans.yml found
+Resolution follows the usual precedence (--lif-path, then the .beans.yml found
 upward or named via --config, then BEANS_PATH, then the config directory), so
 scripts that need the store can ask for it here instead of re-deriving it and
 drifting from the CLI.`,

@@ -62,7 +62,7 @@ func TestCreateValidArgsSilentOnceTitleStarted(t *testing.T) {
 // filtered only by the two structural exclusions that are never
 // "create's own primary flags": cobra's own injected --help, and any
 // flag inherited from the root command's PersistentFlags (--config,
-// --beans-path). A newly added create-specific flag that createHint
+// --lif-path). A newly added create-specific flag that createHint
 // fails to surface would fail this test.
 func TestCreateHintNamesEveryRegisteredFlag(t *testing.T) {
 	root := sharedTestRoot(t)

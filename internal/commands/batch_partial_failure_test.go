@@ -212,7 +212,7 @@ func runRootInDir(t *testing.T, itemsDir string, args ...string) (stdout, stderr
 
 	var errBuf bytes.Buffer
 	root.SetErr(&errBuf)
-	root.SetArgs(append([]string{"--beans-path", itemsDir}, args...))
+	root.SetArgs(append([]string{"--lif-path", itemsDir}, args...))
 
 	out := captureTagStdout(t, func() {
 		var cmd *cobra.Command

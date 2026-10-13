@@ -229,7 +229,7 @@ func createBlockingLikeFlagCompletion(cmd *cobra.Command, args []string, toCompl
 
 // createFlagNames holds the names of create's own registered flags,
 // captured once by RegisterCreateCmd right after it defines them (before
-// cobra ever merges root's persistent flags -- --config, --beans-path,
+// cobra ever merges root's persistent flags -- --config, --lif-path,
 // --help -- into createCmd's flag set). createHint reads this slice
 // instead of re-deriving it at completion time, which is what keeps
 // those unrelated global/help flags out of the hint (beans-u93j

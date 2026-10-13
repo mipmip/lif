@@ -16,7 +16,7 @@ import (
 // package globals promoteCmd/listCmd.RunE read, mirroring setupPromoteTest
 // and setupListTest. The store lives entirely under tmpDir/.beans and
 // core/cfg point straight at it -- RunE never resolves config via cwd or
-// --beans-path, so the store is driven from inside its own directory by
+// --lif-path, so the store is driven from inside its own directory by
 // construction (Constraints/AC-01), never through the cwd-resolution path
 // that corrupted this hull's real .beans.yml earlier in this wave.
 func setupE2ETriageTest(t *testing.T) (tmpDir, itemsDir string) {

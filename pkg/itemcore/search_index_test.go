@@ -292,7 +292,7 @@ func setupTestCoreWithHome(t *testing.T, home string) (*Core, string) {
 	t.Helper()
 	t.Setenv("HOME", home)
 	tmpDir := t.TempDir()
-	itemsDir := filepath.Join(tmpDir, BeansDir)
+	itemsDir := filepath.Join(tmpDir, config.DefaultStoreDir)
 	if err := os.MkdirAll(itemsDir, 0755); err != nil {
 		t.Fatalf("failed to create test .beans dir: %v", err)
 	}
@@ -372,7 +372,7 @@ func TestIndexDir_Marker(t *testing.T) {
 func TestIndexDir_PruneOnOpen_RemovesOrphan(t *testing.T) {
 	home := t.TempDir()
 	tmpA := t.TempDir()
-	itemsDirA := filepath.Join(tmpA, BeansDir)
+	itemsDirA := filepath.Join(tmpA, config.DefaultStoreDir)
 	if err := os.MkdirAll(itemsDirA, 0755); err != nil {
 		t.Fatalf("failed to create store A .beans dir: %v", err)
 	}

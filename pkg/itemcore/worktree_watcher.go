@@ -23,7 +23,7 @@ type worktreeWatcher struct {
 // (not persisted to the main repo's disk).
 // Returns nil if the worktree's .beans/ directory doesn't exist.
 func (c *Core) WatchWorktreeItems(worktreePath string) error {
-	itemsDir := filepath.Join(worktreePath, BeansDir)
+	itemsDir := c.worktreeItemsDir(worktreePath)
 
 	// Check if the worktree has a .beans/ directory
 	if _, err := os.Stat(itemsDir); os.IsNotExist(err) {

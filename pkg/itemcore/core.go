@@ -18,7 +18,14 @@ import (
 	"github.com/xRiErOS/lif/pkg/item"
 )
 
-const BeansDir = ".beans"
+// worktreeItemsDir returns where this store lives inside the worktree at
+// worktreePath: the directory carries the same name as the main store's
+// directory, so a project with a legacy store and one with a new store both
+// find their items in a worktree checkout.
+func (c *Core) worktreeItemsDir(worktreePath string) string {
+	return filepath.Join(worktreePath, filepath.Base(c.root))
+}
+
 const ArchiveDir = "archive"
 
 // AttachmentsDir holds machine evidence artifacts belonging to an item, one
@@ -846,7 +853,7 @@ func (c *Core) statusOnDisk(relPath, worktreePath string) (status string, ok boo
 	}
 	var path string
 	if worktreePath != "" {
-		path = filepath.Join(worktreePath, BeansDir, relPath)
+		path = filepath.Join(c.worktreeItemsDir(worktreePath), relPath)
 	} else {
 		path = filepath.Join(c.root, relPath)
 	}
@@ -1108,9 +1115,9 @@ func (c *Core) saveToDisk(b *item.Item) error {
 	return nil
 }
 
-// saveToWorktree writes an item to a worktree's .beans/ directory.
+// saveToWorktree writes an item to the store directory inside a worktree.
 func (c *Core) saveToWorktree(b *item.Item, worktreePath string) error {
-	itemsDir := filepath.Join(worktreePath, BeansDir)
+	itemsDir := c.worktreeItemsDir(worktreePath)
 
 	// Ensure the .beans/ directory exists in the worktree
 	if err := os.MkdirAll(itemsDir, 0755); err != nil {
@@ -1502,17 +1509,6 @@ func (c *Core) ValidatePrefixConsistency() string {
 	}
 
 	return ""
-}
-
-// Init creates the .beans directory at the given path if it doesn't exist,
-// and writes a .gitignore to exclude generated content.
-// This is a standalone function for use before a Core is created.
-func Init(dir string) error {
-	beansPath := filepath.Join(dir, BeansDir)
-	if err := os.MkdirAll(beansPath, 0755); err != nil {
-		return err
-	}
-	return writeGitignore(beansPath)
 }
 
 // writeGitignore creates or overwrites a .gitignore in the items directory

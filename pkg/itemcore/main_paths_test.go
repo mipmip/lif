@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/xRiErOS/lif/pkg/config"
 )
 
 // mainPath is the store-relative counterpart of findMainItemFile, for assertions.
@@ -149,7 +151,7 @@ func TestFindMainItemFile(t *testing.T) {
 		createTestItem(t, core, "wt-path-1", "Main Title", "todo")
 
 		wtDir := t.TempDir()
-		wtItemsDir := filepath.Join(wtDir, BeansDir)
+		wtItemsDir := filepath.Join(wtDir, config.DefaultStoreDir)
 		if err := os.MkdirAll(wtItemsDir, 0755); err != nil {
 			t.Fatalf("creating worktree beans dir: %v", err)
 		}

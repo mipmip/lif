@@ -25,9 +25,9 @@ func primeCmdOutput(t *testing.T, cfg *config.Config) string {
 	}
 	t.Chdir(dir)
 
-	origItemsPath, origConfigPath := beansPath, configPath
-	beansPath, configPath = "", ""
-	t.Cleanup(func() { beansPath, configPath = origItemsPath, origConfigPath })
+	origItemsPath, origConfigPath := storePath, configPath
+	storePath, configPath = "", ""
+	t.Cleanup(func() { storePath, configPath = origItemsPath, origConfigPath })
 
 	out := captureListStdout(t, func() {
 		if err := primeCmd.RunE(primeCmd, nil); err != nil {

@@ -12,10 +12,10 @@ const GIT_ENV = {
 };
 
 /**
- * Helper: commit .beans/ directory to git so worktrees inherit bean files.
+ * Helper: commit .lif/ directory to git so worktrees inherit bean files.
  */
 function commitBeansDir(projectDir: string) {
-  execFileSync('git', ['add', '.beans', '.beans.yml'], {
+  execFileSync('git', ['add', '.lif', '.lif.yml'], {
     cwd: projectDir,
     timeout: 10_000
   });
@@ -27,7 +27,7 @@ function commitBeansDir(projectDir: string) {
 }
 
 /**
- * Helper: find the bean file in a .beans/ directory by bean ID prefix.
+ * Helper: find the bean file in a .lif/ directory by bean ID prefix.
  */
 function findBeanFile(beansDir: string, beanId: string): string {
   const files = readdirSync(beansDir);
@@ -63,7 +63,7 @@ test.describe('Workspace bean association', () => {
     beans,
     page
   }) => {
-    // Create a bean and commit .beans/ to git so worktrees inherit it
+    // Create a bean and commit .lif/ to git so worktrees inherit it
     const beanId = beans.create('WT Association Bean', { type: 'task', status: 'todo' });
     commitBeansDir(beans.projectDir);
 
@@ -73,9 +73,9 @@ test.describe('Workspace bean association', () => {
     // Create a workspace
     const { wsName, wtPath } = await createWorkspaceAndGetPath(page, () => beans.getWorktrees());
 
-    // Modify the bean file in the worktree's .beans/ directory
-    const beanFile = findBeanFile(join(wtPath, '.beans'), beanId);
-    const beanPath = join(wtPath, '.beans', beanFile);
+    // Modify the bean file in the worktree's .lif/ directory
+    const beanFile = findBeanFile(join(wtPath, '.lif'), beanId);
+    const beanPath = join(wtPath, '.lif', beanFile);
     const content = readFileSync(beanPath, 'utf-8');
     writeFileSync(beanPath, content.replace('status: todo', 'status: in-progress'));
 
@@ -89,7 +89,7 @@ test.describe('Workspace bean association', () => {
   });
 
   test('committed bean changes in worktree appear under workspace', async ({ beans, page }) => {
-    // Create a bean and commit .beans/ to git
+    // Create a bean and commit .lif/ to git
     const beanId = beans.create('Committed Bean Change', { type: 'bug', status: 'todo' });
     commitBeansDir(beans.projectDir);
 
@@ -99,11 +99,11 @@ test.describe('Workspace bean association', () => {
     const { wsName, wtPath } = await createWorkspaceAndGetPath(page, () => beans.getWorktrees());
 
     // Modify and commit the bean in the worktree
-    const beanFile = findBeanFile(join(wtPath, '.beans'), beanId);
-    const beanPath = join(wtPath, '.beans', beanFile);
+    const beanFile = findBeanFile(join(wtPath, '.lif'), beanId);
+    const beanPath = join(wtPath, '.lif', beanFile);
     const content = readFileSync(beanPath, 'utf-8');
     writeFileSync(beanPath, content.replace('status: todo', 'status: in-progress'));
-    execFileSync('git', ['add', '.beans'], { cwd: wtPath, timeout: 10_000 });
+    execFileSync('git', ['add', '.lif'], { cwd: wtPath, timeout: 10_000 });
     execFileSync('git', ['commit', '-m', 'update bean status'], {
       cwd: wtPath,
       timeout: 10_000,
@@ -119,7 +119,7 @@ test.describe('Workspace bean association', () => {
   });
 
   test('unmodified beans do not appear under workspace', async ({ beans, page }) => {
-    // Create a bean and commit .beans/ to git
+    // Create a bean and commit .lif/ to git
     beans.create('Unchanged Bean', { type: 'task', status: 'todo' });
     commitBeansDir(beans.projectDir);
 

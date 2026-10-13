@@ -157,6 +157,7 @@ func runServer(port int, origins []string) error {
 	}
 
 	wtManager := worktree.NewManager(cfg.ConfigDir(), worktreeRoot, cfg.GetWorktreeBaseRef(), cfg.GetWorktreeSetup(),
+		worktree.WithStoreDir(filepath.Base(core.Root())),
 		worktree.WithFetchTimeout(cfg.GetWorktreeFetchTimeout()),
 	)
 

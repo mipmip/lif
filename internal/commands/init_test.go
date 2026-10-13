@@ -21,9 +21,9 @@ func runInitCmd(t *testing.T, profile string, json bool) (dir string, err error)
 	dir = t.TempDir()
 	t.Chdir(dir)
 
-	origProfile, origJSON, origItemsPath := initProfile, initJSON, beansPath
-	initProfile, initJSON, beansPath = profile, json, ""
-	t.Cleanup(func() { initProfile, initJSON, beansPath = origProfile, origJSON, origItemsPath })
+	origProfile, origJSON, origItemsPath := initProfile, initJSON, storePath
+	initProfile, initJSON, storePath = profile, json, ""
+	t.Cleanup(func() { initProfile, initJSON, storePath = origProfile, origJSON, origItemsPath })
 
 	err = initCmd.RunE(initCmd, nil)
 	return dir, err
