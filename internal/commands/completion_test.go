@@ -30,6 +30,13 @@ import (
 var completionTestBinary string
 
 func TestMain(m *testing.M) {
+	// Helper subprocesses (re-exec of this test binary, e.g. check_test.go's
+	// BEANS_CHECK_HELPER) may end via os.Exit/SIGKILL and would leak the
+	// build dir; they never use the lif binary, so skip the build.
+	if os.Getenv("BEANS_CHECK_HELPER") == "1" {
+		os.Exit(m.Run())
+	}
+
 	binDir, err := os.MkdirTemp("", "beans-completion-bin")
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "beans-completion-bin mkdtemp:", err)
