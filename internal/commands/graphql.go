@@ -30,32 +30,32 @@ var graphqlCmd = &cobra.Command{
 	Use:     "graphql <query>",
 	Aliases: []string{"query"},
 	Short:   "Execute a GraphQL query or mutation",
-	Long: `Execute a GraphQL query or mutation against the beans data.
+	Long: `Execute a GraphQL query or mutation against the item data.
 
 The argument should be a valid GraphQL query or mutation string.
 
 Examples:
-  # List all beans
-  beans graphql '{ beans { id title status } }'
+  # List all items
+  lif graphql '{ items { id title status } }'
 
-  # Get a specific bean
-  beans graphql '{ bean(id: "abc") { title status body } }'
+  # Get a specific item
+  lif graphql '{ item(id: "abc") { title status body } }'
 
-  # Filter beans by status
-  beans graphql '{ beans(filter: { status: ["todo", "in-progress"] }) { id title } }'
+  # Filter items by status
+  lif graphql '{ items(filter: { status: ["todo", "in-progress"] }) { id title } }'
 
-  # Get beans with relationships
-  beans graphql '{ beans { id title blockedBy { id title } children { id title } } }'
+  # Get items with relationships
+  lif graphql '{ items { id title blockedBy { id title } children { id title } } }'
 
   # Use variables
-  beans graphql -v '{"id": "abc"}' 'query GetBean($id: ID!) { bean(id: $id) { title } }'
+  lif graphql -v '{"id": "abc"}' 'query GetItem($id: ID!) { item(id: $id) { title } }'
 
   # Read from stdin (useful for complex queries or escaping issues)
-  echo '{ beans { id title } }' | beans graphql
-  cat query.graphql | beans graphql
+  echo '{ items { id title } }' | lif graphql
+  cat query.graphql | lif graphql
 
   # Print the schema
-  beans graphql --schema`,
+  lif graphql --schema`,
 	Args: func(cmd *cobra.Command, args []string) error {
 		if querySchemaOnly {
 			return nil

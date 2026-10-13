@@ -64,7 +64,7 @@ func rankLines(c *config.Config) []string {
 var primeCmd = &cobra.Command{
 	Use:   "prime",
 	Short: "Output instructions for AI coding agents",
-	Long:  `Outputs a prompt that primes AI coding agents on how to use the beans CLI to manage project issues.`,
+	Long:  `Outputs a prompt that primes AI coding agents on how to use the lif CLI to manage project items.`,
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		// Load the project's actual config so the required-fields policy

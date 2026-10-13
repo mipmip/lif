@@ -110,7 +110,7 @@ var DefaultStatuses = []StatusConfig{
 // individual entries; see (*Config).TypeList.
 var DefaultTypes = []TypeConfig{
 	{Name: "milestone", Color: "mauve", Rank: 1, Short: "M", Emphasis: true, Description: "A target release or checkpoint; group work that should ship together"},
-	{Name: "epic", Color: "blue", Rank: 2, Short: "E", Emphasis: true, Description: "A thematic container for related work; should have child beans, not be worked on directly"},
+	{Name: "epic", Color: "blue", Rank: 2, Short: "E", Emphasis: true, Description: "A thematic container for related work; should have child items, not be worked on directly"},
 	{Name: "feature", Color: "sapphire", Rank: 3, Short: "F", Description: "A user-facing capability or enhancement"},
 	{Name: "bug", Color: "maroon", Rank: LeafRank, Short: "B", Description: "Something that is broken and needs fixing"},
 	{Name: "task", Color: "", Rank: LeafRank, Short: "T", Description: "A concrete piece of work to complete (eg. a chore, or a sub-task for a feature)"},
