@@ -51,9 +51,9 @@ builds:
       - darwin
     ldflags:
       - -s -w
-      - -X github.com/xRiErOS/beans/internal/version.Version={{.Version}}
-      - -X github.com/xRiErOS/beans/internal/version.Commit={{.ShortCommit}}
-      - -X github.com/xRiErOS/beans/internal/version.Date={{.Date}}
+      - -X github.com/xRiErOS/lif/internal/version.Version={{.Version}}
+      - -X github.com/xRiErOS/lif/internal/version.Commit={{.ShortCommit}}
+      - -X github.com/xRiErOS/lif/internal/version.Date={{.Date}}
 
 archives:
   - formats: [tar.gz]
