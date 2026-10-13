@@ -1,152 +1,84 @@
 package tui
 
+// modal.go — render-component layer for floating overlays (ported from devd
+// DD2 I01, ~/dev/DeveloperDashboard/apps/cli-go/internal/tui/
+// modal.go): single source against drift, new modals/menus become a handful
+// of lines instead of ~20.
+//   modalBox   — the box chrome (RoundedBorder, Base BG, Padding)
+//   modalPanel — header title + body + optional dim footer, inside modalBox
+//   menuList   — selection list with a ▸ cursor (Accent) before the active entry
+//
+// rebaseBg is ported alongside modalBox from devd's forms_shared.go (not a
+// separate forms.go — forms land in E3, this is its only caller here) since
+// modalBox depends on it for the Base-BG fix (devd B02/B03).
+
 import (
 	"strings"
 
+	"github.com/xRiErOS/lif/internal/tui/theme"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/xRiErOS/lif/internal/ui"
+	"github.com/muesli/termenv"
 )
 
-// pickerModalConfig holds configuration for rendering a picker modal
-type pickerModalConfig struct {
-	Title       string // e.g., "Select Status"
-	ItemTitle   string // the item's title
-	ItemID      string // the item's ID
-	ListContent string // the rendered list
-	Description string // optional description shown below list
-	Width       int    // screen width
-	WidthPct    int    // modal width percentage (default 50)
-	MaxWidth    int    // max modal width (default 60)
+// rebaseBg re-opens the modal's Base background color after every inner
+// ESC[0m reset (devd B03): without this, inner resets (e.g. theme.Header/
+// Accent.Render, later huh forms) leave cells falling back to the terminal's
+// default background (usually black) instead of the modal's Base — visible
+// e.g. as a selected menu entry rendered fg+bold with no bg. Profile-aware
+// (TrueColor/256/16); under the Ascii profile the color the profile resolves
+// to carries no real color escape (empty SGR), so no visible color leaks in
+// even though the string is technically still rewritten.
+func rebaseBg(s string) string {
+	c := lipgloss.ColorProfile().Color(string(theme.Base))
+	if c == nil {
+		return s
+	}
+	open := termenv.CSI + c.Sequence(true) + "m"
+	return strings.ReplaceAll(s, "\x1b[0m", "\x1b[0m"+open)
 }
 
-// renderPickerModal renders a standard picker modal with consistent styling
-func renderPickerModal(cfg pickerModalConfig) string {
-	// Default values
-	widthPct := cfg.WidthPct
-	if widthPct == 0 {
-		widthPct = 50
-	}
-	maxWidth := cfg.MaxWidth
-	if maxWidth == 0 {
-		maxWidth = 60
-	}
-
-	modalWidth := max(40, min(maxWidth, cfg.Width*widthPct/100))
-
-	// Header with item title (truncated if needed)
-	titleWidth := modalWidth - 4
-	itemTitle := cfg.ItemTitle
-	if len(itemTitle) > titleWidth {
-		itemTitle = itemTitle[:titleWidth-3] + "..."
-	}
-	header := lipgloss.NewStyle().Bold(true).Render(itemTitle)
-
-	// Subtitle with item ID
-	subtitle := ui.Muted.Render(cfg.ItemID)
-
-	// Help footer
-	help := helpKeyStyle.Render("enter") + " " + helpStyle.Render("select") + "  " +
-		helpKeyStyle.Render("/") + " " + helpStyle.Render("filter") + "  " +
-		helpKeyStyle.Render("esc") + " " + helpStyle.Render("cancel")
-
-	// Border style
-	border := lipgloss.NewStyle().
+// modalBox frames pre-rendered content as a floating overlay modal.
+// border = theme.Mauve (default) or theme.Red (destructive dialogs).
+func modalBox(inner string, width int, border lipgloss.Color) string {
+	// B02: BorderBackground(theme.Base) — otherwise the border cells fall back
+	// to the terminal's default background (black) instead of matching the
+	// modal body's Base background.
+	return lipgloss.NewStyle().
+		Width(width).
 		Border(lipgloss.RoundedBorder()).
-		BorderForeground(ui.ColorPrimary).
+		BorderForeground(border).
+		BorderBackground(theme.Base).
+		Background(theme.Base).
 		Padding(0, 1).
-		Width(modalWidth)
-
-	// Assemble content
-	var content string
-	if cfg.Description != "" {
-		content = header + "\n" + subtitle + "\n\n" + cfg.ListContent + "\n\n" + cfg.Description + "\n\n" + help
-	} else {
-		content = header + "\n" + subtitle + "\n\n" + cfg.ListContent + "\n\n" + help
-	}
-
-	return border.Render(content)
+		Render(rebaseBg(inner))
 }
 
-// overlayModal places a modal on top of a background view
-func overlayModal(bgView, modal string, width, height int) string {
-	// Split background into lines
-	bgLines := strings.Split(bgView, "\n")
-
-	// Pad or truncate background to fill the screen
-	for len(bgLines) < height {
-		bgLines = append(bgLines, "")
+// modalPanel builds a standard modal: header title + body + optional dim
+// footer, wrapped by modalBox. The body brings its own inner line breaks
+// (subtitle/separator/items). Single source for command-center/menu-style
+// overlays (T8+).
+func modalPanel(title, body, footer string, width int, border lipgloss.Color) string {
+	var b strings.Builder
+	b.WriteString(theme.Header.Render(title) + "\n")
+	b.WriteString(body)
+	if footer != "" {
+		b.WriteString("\n" + theme.Dim.Render(footer))
 	}
-	if len(bgLines) > height {
-		bgLines = bgLines[:height]
-	}
-
-	// Dim the background
-	dimStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#555"))
-	for i, line := range bgLines {
-		bgLines[i] = dimStyle.Render(stripAnsi(line))
-	}
-
-	// Split modal into lines
-	modalLines := strings.Split(modal, "\n")
-	modalHeight := len(modalLines)
-	modalWidth := lipgloss.Width(modal)
-
-	// Calculate center position
-	startY := (height - modalHeight) / 2
-	startX := (width - modalWidth) / 2
-	if startY < 0 {
-		startY = 0
-	}
-	if startX < 0 {
-		startX = 0
-	}
-
-	// Overlay modal onto background
-	for i, modalLine := range modalLines {
-		bgY := startY + i
-		if bgY >= 0 && bgY < len(bgLines) {
-			bgLines[bgY] = overlayLine(bgLines[bgY], modalLine, startX, width)
-		}
-	}
-
-	return strings.Join(bgLines, "\n")
+	return modalBox(b.String(), width, border)
 }
 
-// overlayLine places a modal line on top of a background line at position x
-func overlayLine(bgLine, modalLine string, startX, maxWidth int) string {
-	bgRunes := []rune(stripAnsi(bgLine))
-	for len(bgRunes) < maxWidth {
-		bgRunes = append(bgRunes, ' ')
-	}
-
-	prefix := string(bgRunes[:startX])
-	modalWidth := lipgloss.Width(modalLine)
-	suffixStart := startX + modalWidth
-	suffix := ""
-	if suffixStart < len(bgRunes) {
-		suffix = string(bgRunes[suffixStart:])
-	}
-
-	dimStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#555"))
-	return dimStyle.Render(prefix) + modalLine + dimStyle.Render(suffix)
-}
-
-// stripAnsi removes ANSI escape codes from a string
-func stripAnsi(s string) string {
-	result := strings.Builder{}
-	inEscape := false
-	for _, r := range s {
-		if r == '\x1b' {
-			inEscape = true
-			continue
+// menuList renders a selection list with a ▸ cursor (Accent) before the
+// active entry. render(i, selected) returns the entry text AFTER the cursor
+// — the caller controls label/marker/highlight. Every line ends with "\n".
+func menuList(n, cursor int, render func(i int, selected bool) string) string {
+	var b strings.Builder
+	for i := 0; i < n; i++ {
+		sel := i == cursor
+		c := "  "
+		if sel {
+			c = theme.Accent.Render("▸ ")
 		}
-		if inEscape {
-			if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') {
-				inEscape = false
-			}
-			continue
-		}
-		result.WriteRune(r)
+		b.WriteString(c + render(i, sel) + "\n")
 	}
-	return result.String()
+	return b.String()
 }

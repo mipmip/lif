@@ -1,283 +1,61 @@
 package tui
 
-import (
-	"testing"
+import "testing"
 
-	"github.com/xRiErOS/lif/pkg/item"
-)
+// TestListStateSetLenClampsCursor guards the clamp behavior of setLen: the
+// cursor must never point outside [0, n).
+func TestListStateSetLenClampsCursor(t *testing.T) {
+	l := &listState{cursor: 5}
+	l.setLen(3)
+	if l.cursor != 2 {
+		t.Errorf("cursor=%d, want 2 (clamped to len-1)", l.cursor)
+	}
 
-func TestSortItems(t *testing.T) {
-	// Define the expected order from DefaultStatuses, DefaultPriorities, and DefaultTypes
-	statusNames := []string{"draft", "todo", "in-progress", "completed", "scrapped"}
-	priorityNames := []string{"critical", "high", "normal", "low", "deferred"}
-	typeNames := []string{"milestone", "epic", "bug", "feature", "task"}
+	l2 := &listState{cursor: -1}
+	l2.setLen(3)
+	if l2.cursor != 0 {
+		t.Errorf("cursor=%d, want 0 (clamped up from negative)", l2.cursor)
+	}
 
-	t.Run("sorts by status order first", func(t *testing.T) {
-		items := []*item.Item{
-			{ID: "1", Status: "completed", Type: "task", Title: "A"},
-			{ID: "2", Status: "draft", Type: "task", Title: "B"},
-			{ID: "3", Status: "in-progress", Type: "task", Title: "C"},
-			{ID: "4", Status: "todo", Type: "task", Title: "D"},
-			{ID: "5", Status: "scrapped", Type: "task", Title: "E"},
-		}
-
-		item.SortByStatusPriorityAndType(items, statusNames, priorityNames, typeNames)
-
-		expected := []string{"draft", "todo", "in-progress", "completed", "scrapped"}
-		for i, want := range expected {
-			if items[i].Status != want {
-				t.Errorf("index %d: got status %q, want %q", i, items[i].Status, want)
-			}
-		}
-	})
-
-	t.Run("sorts by priority within same status", func(t *testing.T) {
-		items := []*item.Item{
-			{ID: "1", Status: "todo", Type: "task", Priority: "low", Title: "A"},
-			{ID: "2", Status: "todo", Type: "task", Priority: "critical", Title: "B"},
-			{ID: "3", Status: "todo", Type: "task", Priority: "high", Title: "C"},
-			{ID: "4", Status: "todo", Type: "task", Priority: "", Title: "D"},       // empty = normal
-			{ID: "5", Status: "todo", Type: "task", Priority: "deferred", Title: "E"},
-		}
-
-		item.SortByStatusPriorityAndType(items, statusNames, priorityNames, typeNames)
-
-		// Order: critical, high, normal (empty), low, deferred
-		expectedPriorities := []string{"critical", "high", "", "low", "deferred"}
-		for i, want := range expectedPriorities {
-			if items[i].Priority != want {
-				t.Errorf("index %d: got priority %q, want %q", i, items[i].Priority, want)
-			}
-		}
-	})
-
-	t.Run("sorts by type order within same status and priority", func(t *testing.T) {
-		items := []*item.Item{
-			{ID: "1", Status: "todo", Type: "task", Title: "A"},
-			{ID: "2", Status: "todo", Type: "milestone", Title: "B"},
-			{ID: "3", Status: "todo", Type: "bug", Title: "C"},
-			{ID: "4", Status: "todo", Type: "epic", Title: "D"},
-			{ID: "5", Status: "todo", Type: "feature", Title: "E"},
-		}
-
-		item.SortByStatusPriorityAndType(items, statusNames, priorityNames, typeNames)
-
-		expected := []string{"milestone", "epic", "bug", "feature", "task"}
-		for i, want := range expected {
-			if items[i].Type != want {
-				t.Errorf("index %d: got type %q, want %q", i, items[i].Type, want)
-			}
-		}
-	})
-
-	t.Run("sorts by title within same status, priority, and type", func(t *testing.T) {
-		items := []*item.Item{
-			{ID: "1", Status: "todo", Type: "task", Title: "Zebra"},
-			{ID: "2", Status: "todo", Type: "task", Title: "Apple"},
-			{ID: "3", Status: "todo", Type: "task", Title: "Mango"},
-		}
-
-		item.SortByStatusPriorityAndType(items, statusNames, priorityNames, typeNames)
-
-		expected := []string{"Apple", "Mango", "Zebra"}
-		for i, want := range expected {
-			if items[i].Title != want {
-				t.Errorf("index %d: got title %q, want %q", i, items[i].Title, want)
-			}
-		}
-	})
-
-	t.Run("title sort is case-insensitive", func(t *testing.T) {
-		items := []*item.Item{
-			{ID: "1", Status: "todo", Type: "task", Title: "zebra"},
-			{ID: "2", Status: "todo", Type: "task", Title: "Apple"},
-			{ID: "3", Status: "todo", Type: "task", Title: "MANGO"},
-		}
-
-		item.SortByStatusPriorityAndType(items, statusNames, priorityNames, typeNames)
-
-		expected := []string{"Apple", "MANGO", "zebra"}
-		for i, want := range expected {
-			if items[i].Title != want {
-				t.Errorf("index %d: got title %q, want %q", i, items[i].Title, want)
-			}
-		}
-	})
-
-	t.Run("combined sort order: status > priority > type > title", func(t *testing.T) {
-		items := []*item.Item{
-			{ID: "1", Status: "completed", Type: "bug", Title: "Z"},
-			{ID: "2", Status: "todo", Type: "task", Priority: "low", Title: "A"},
-			{ID: "3", Status: "todo", Type: "bug", Priority: "high", Title: "B"},
-			{ID: "4", Status: "todo", Type: "bug", Priority: "high", Title: "A"},
-			{ID: "5", Status: "draft", Type: "epic", Title: "X"},
-		}
-
-		item.SortByStatusPriorityAndType(items, statusNames, priorityNames, typeNames)
-
-		// Expected order:
-		// 1. draft/epic/X (ID: 5)
-		// 2. todo/high/bug/A (ID: 4)
-		// 3. todo/high/bug/B (ID: 3)
-		// 4. todo/low/task/A (ID: 2)
-		// 5. completed/bug/Z (ID: 1)
-		expectedIDs := []string{"5", "4", "3", "2", "1"}
-		for i, want := range expectedIDs {
-			if items[i].ID != want {
-				t.Errorf("index %d: got ID %q, want %q (status=%s, priority=%s, type=%s, title=%s)",
-					i, items[i].ID, want, items[i].Status, items[i].Priority, items[i].Type, items[i].Title)
-			}
-		}
-	})
-
-	t.Run("unrecognized status sorts last", func(t *testing.T) {
-		items := []*item.Item{
-			{ID: "1", Status: "unknown", Type: "task", Title: "A"},
-			{ID: "2", Status: "todo", Type: "task", Title: "B"},
-			{ID: "3", Status: "draft", Type: "task", Title: "C"},
-		}
-
-		item.SortByStatusPriorityAndType(items, statusNames, priorityNames, typeNames)
-
-		// unknown status should be last
-		if items[2].Status != "unknown" {
-			t.Errorf("unrecognized status should be last, got %q at position 2", items[2].Status)
-		}
-	})
-
-	t.Run("unrecognized type sorts last within status", func(t *testing.T) {
-		items := []*item.Item{
-			{ID: "1", Status: "todo", Type: "unknown", Title: "A"},
-			{ID: "2", Status: "todo", Type: "task", Title: "B"},
-			{ID: "3", Status: "todo", Type: "bug", Title: "C"},
-		}
-
-		item.SortByStatusPriorityAndType(items, statusNames, priorityNames, typeNames)
-
-		// unknown type should be last within todo status
-		if items[2].Type != "unknown" {
-			t.Errorf("unrecognized type should be last, got %q at position 2", items[2].Type)
-		}
-	})
-
-	t.Run("empty slice does not panic", func(t *testing.T) {
-		items := []*item.Item{}
-		item.SortByStatusPriorityAndType(items, statusNames, priorityNames, typeNames)
-		// No assertion needed, just checking it doesn't panic
-	})
-
-	t.Run("single bean does not panic", func(t *testing.T) {
-		items := []*item.Item{
-			{ID: "1", Status: "todo", Type: "task", Title: "A"},
-		}
-		item.SortByStatusPriorityAndType(items, statusNames, priorityNames, typeNames)
-		if items[0].ID != "1" {
-			t.Error("single bean should remain unchanged")
-		}
-	})
+	l3 := &listState{cursor: 0}
+	l3.setLen(0)
+	if l3.cursor != 0 {
+		t.Errorf("cursor=%d, want 0 on empty list", l3.cursor)
+	}
 }
 
-func TestCompareItemsByStatusPriorityAndType(t *testing.T) {
-	statusNames := []string{"draft", "todo", "in-progress", "completed", "scrapped"}
-	priorityNames := []string{"critical", "high", "normal", "low", "deferred"}
-	typeNames := []string{"milestone", "epic", "bug", "feature", "task"}
+// TestListStateMoveClamps guards move()'s bounds: it never leaves [0, length).
+func TestListStateMoveClamps(t *testing.T) {
+	l := &listState{length: 5}
+	l.move(2)
+	if l.cursor != 2 {
+		t.Errorf("cursor=%d, want 2", l.cursor)
+	}
+	l.move(-10)
+	if l.cursor != 0 {
+		t.Errorf("cursor=%d, want 0 (clamped at floor)", l.cursor)
+	}
+	l.move(10)
+	if l.cursor != 4 {
+		t.Errorf("cursor=%d, want 4 (clamped at length-1)", l.cursor)
+	}
+}
 
-	t.Run("compares by status first", func(t *testing.T) {
-		a := &item.Item{ID: "1", Status: "todo", Type: "task", Title: "A"}
-		b := &item.Item{ID: "2", Status: "draft", Type: "task", Title: "B"}
+// TestListStateMoveOnEmptyList guards the length==0 special case: move must
+// pin the cursor to 0 rather than letting it drift negative/positive.
+func TestListStateMoveOnEmptyList(t *testing.T) {
+	l := &listState{length: 0, cursor: 3}
+	l.move(1)
+	if l.cursor != 0 {
+		t.Errorf("cursor=%d, want 0 on empty list", l.cursor)
+	}
+}
 
-		// draft < todo, so b should come before a
-		if compareItemsByStatusPriorityAndType(a, b, statusNames, priorityNames, typeNames) {
-			t.Error("draft bean should come before todo bean")
-		}
-		if !compareItemsByStatusPriorityAndType(b, a, statusNames, priorityNames, typeNames) {
-			t.Error("draft bean should come before todo bean")
-		}
-	})
-
-	t.Run("compares by priority within same status", func(t *testing.T) {
-		a := &item.Item{ID: "1", Status: "todo", Type: "task", Priority: "low", Title: "A"}
-		b := &item.Item{ID: "2", Status: "todo", Type: "task", Priority: "high", Title: "B"}
-
-		// high < low, so b should come before a
-		if compareItemsByStatusPriorityAndType(a, b, statusNames, priorityNames, typeNames) {
-			t.Error("high priority bean should come before low priority bean")
-		}
-		if !compareItemsByStatusPriorityAndType(b, a, statusNames, priorityNames, typeNames) {
-			t.Error("high priority bean should come before low priority bean")
-		}
-	})
-
-	t.Run("compares by type within same status and priority", func(t *testing.T) {
-		a := &item.Item{ID: "1", Status: "todo", Type: "task", Title: "A"}
-		b := &item.Item{ID: "2", Status: "todo", Type: "bug", Title: "B"}
-
-		// bug < task, so b should come before a
-		if compareItemsByStatusPriorityAndType(a, b, statusNames, priorityNames, typeNames) {
-			t.Error("bug bean should come before task bean")
-		}
-		if !compareItemsByStatusPriorityAndType(b, a, statusNames, priorityNames, typeNames) {
-			t.Error("bug bean should come before task bean")
-		}
-	})
-
-	t.Run("compares by title within same status, priority, and type", func(t *testing.T) {
-		a := &item.Item{ID: "1", Status: "todo", Type: "task", Title: "Zebra"}
-		b := &item.Item{ID: "2", Status: "todo", Type: "task", Title: "Apple"}
-
-		// Apple < Zebra, so b should come before a
-		if compareItemsByStatusPriorityAndType(a, b, statusNames, priorityNames, typeNames) {
-			t.Error("Apple bean should come before Zebra bean")
-		}
-		if !compareItemsByStatusPriorityAndType(b, a, statusNames, priorityNames, typeNames) {
-			t.Error("Apple bean should come before Zebra bean")
-		}
-	})
-
-	t.Run("title comparison is case-insensitive", func(t *testing.T) {
-		a := &item.Item{ID: "1", Status: "todo", Type: "task", Title: "zebra"}
-		b := &item.Item{ID: "2", Status: "todo", Type: "task", Title: "APPLE"}
-
-		// apple < zebra (case-insensitive), so b should come before a
-		if compareItemsByStatusPriorityAndType(a, b, statusNames, priorityNames, typeNames) {
-			t.Error("APPLE bean should come before zebra bean (case-insensitive)")
-		}
-	})
-
-	t.Run("empty priority treated as normal", func(t *testing.T) {
-		a := &item.Item{ID: "1", Status: "todo", Type: "task", Priority: "", Title: "A"}
-		b := &item.Item{ID: "2", Status: "todo", Type: "task", Priority: "normal", Title: "B"}
-
-		// Both should be equivalent in priority ordering
-		// Since titles differ, A < B, so a should come before b
-		if !compareItemsByStatusPriorityAndType(a, b, statusNames, priorityNames, typeNames) {
-			t.Error("empty priority should be treated as normal")
-		}
-	})
-
-	t.Run("unrecognized status sorts last", func(t *testing.T) {
-		a := &item.Item{ID: "1", Status: "unknown", Type: "task", Title: "A"}
-		b := &item.Item{ID: "2", Status: "scrapped", Type: "task", Title: "B"}
-
-		// scrapped is last known status, unknown should be after it
-		if compareItemsByStatusPriorityAndType(a, b, statusNames, priorityNames, typeNames) {
-			t.Error("unknown status should sort after scrapped")
-		}
-		if !compareItemsByStatusPriorityAndType(b, a, statusNames, priorityNames, typeNames) {
-			t.Error("scrapped should sort before unknown")
-		}
-	})
-
-	t.Run("unrecognized type sorts last within status", func(t *testing.T) {
-		a := &item.Item{ID: "1", Status: "todo", Type: "unknown", Title: "A"}
-		b := &item.Item{ID: "2", Status: "todo", Type: "task", Title: "B"}
-
-		// task is last known type, unknown should be after it
-		if compareItemsByStatusPriorityAndType(a, b, statusNames, priorityNames, typeNames) {
-			t.Error("unknown type should sort after task")
-		}
-		if !compareItemsByStatusPriorityAndType(b, a, statusNames, priorityNames, typeNames) {
-			t.Error("task should sort before unknown")
-		}
-	})
+// TestListStateReset guards reset(): always back to cursor 0.
+func TestListStateReset(t *testing.T) {
+	l := &listState{length: 5, cursor: 3}
+	l.reset()
+	if l.cursor != 0 {
+		t.Errorf("cursor=%d, want 0 after reset", l.cursor)
+	}
 }

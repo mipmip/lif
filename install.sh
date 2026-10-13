@@ -1,5 +1,5 @@
 #!/bin/sh
-# Installs the xRiErOS/lif project's lif, lif-serve, and lif-tui
+# Installs the xRiErOS/lif project's lif and lif-serve
 # binaries from a GitHub release.
 #
 # Usage:
@@ -102,7 +102,7 @@ main() {
 	tar -xzf "$tmp/$archive" -C "$tmp"
 
 	mkdir -p "$LIF_BIN_DIR"
-	install -m 755 "$tmp/lif" "$tmp/lif-serve" "$tmp/lif-tui" "$LIF_BIN_DIR/" ||
+	install -m 755 "$tmp/lif" "$tmp/lif-serve" "$LIF_BIN_DIR/" ||
 		err "failed to install binaries into ${LIF_BIN_DIR}. Set LIF_BIN_DIR to a writable directory."
 
 	"$LIF_BIN_DIR/lif" version

@@ -49,7 +49,7 @@ var tryAcquireSharedIndexLock = tryAcquireIndexLock
 //
 // Use OpenRead for a read caller (search/list queries): it acquires the
 // lock in shared mode instead, so concurrent readers -- including two
-// long-lived processes such as lif serve and lif-tui -- can each get
+// long-lived processes such as lif serve and lif tui -- can each get
 // the warm, persisted index instead of forcing every reader but the first
 // into the cold in-memory rebuild (AC-03). OpenRead's persisted index, when
 // obtained, is backed by Bleve's read-only mode (see openOrCreatePersistent):

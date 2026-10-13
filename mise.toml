@@ -74,7 +74,6 @@ LDFLAGS="\
   -X github.com/xRiErOS/lif/internal/version.TreeKind=$TREE_KIND"
 go build -ldflags "$LDFLAGS" -o lif ./cmd/lif
 go build -ldflags "$LDFLAGS" -o lif-serve ./cmd/lif-serve
-go build -ldflags "$LDFLAGS" -o lif-tui ./cmd/lif-tui
 """
 
 [tasks.lif]
@@ -86,16 +85,11 @@ description = "Build and run the lif-serve server"
 run = "go build -o /tmp/lif-serve-dev ./cmd/lif-serve && /tmp/lif-serve-dev --port ${LIF_PORT:-22880}"
 sources = ["**/*.go"]
 
-[tasks.lif-tui]
-description = "Build and run the lif-tui terminal UI"
-run = "go run ./cmd/lif-tui"
-
 [tasks.install]
 depends = "build"
 run = """
 cp lif ~/.local/bin/lif
 cp lif-serve ~/.local/bin/lif-serve
-cp lif-tui ~/.local/bin/lif-tui
 """
 
 [tasks."release:patch"]

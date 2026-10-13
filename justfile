@@ -23,7 +23,7 @@ wip_suffix := env_var_or_default("LIF_WIP_SUFFIX", "wip")
 default:
     @just --list
 
-# Build lif, lif-serve und lif-tui mit Version/Commit/Date-Stempel
+# Build lif und lif-serve mit Version/Commit/Date-Stempel
 build:
     mise run build
 
@@ -34,17 +34,16 @@ build:
 # LIF_INSTALL_FORCE=1.
 install: build
     bash scripts/install-guard.sh
-    install -m 755 lif lif-serve lif-tui "{{bin_dir}}/"
+    install -m 755 lif lif-serve "{{bin_dir}}/"
     @"{{bin_dir}}/lif" version
 
 # Teststand des ungemergten CLI unter eigenem Namen nach {{bin_dir}}
 # installieren — aus jedem Baum erlaubt, auch aus Container-Worktrees
-# (beans-nji1). Alle drei Binaries folgen derselben Namensregel, keines
+# (beans-nji1). Beide Binaries folgen derselben Namensregel, keines
 # überschreibt je sein reguläres Gegenstück.
 install-wip: build
     install -m 755 lif "{{bin_dir}}/lif-{{wip_suffix}}"
     install -m 755 lif-serve "{{bin_dir}}/lif-serve-{{wip_suffix}}"
-    install -m 755 lif-tui "{{bin_dir}}/lif-tui-{{wip_suffix}}"
     @"{{bin_dir}}/lif-{{wip_suffix}}" version
 
 # Wegwerf-Store plus zsh mit geladener Vervollständigung in einer
@@ -66,7 +65,7 @@ demo-stop SESSION='lif-demo':
 
 # Teststand wieder aus {{bin_dir}} entfernen
 uninstall-wip:
-    rm -f "{{bin_dir}}/lif-{{wip_suffix}}" "{{bin_dir}}/lif-serve-{{wip_suffix}}" "{{bin_dir}}/lif-tui-{{wip_suffix}}"
+    rm -f "{{bin_dir}}/lif-{{wip_suffix}}" "{{bin_dir}}/lif-serve-{{wip_suffix}}"
 
 # Paket mit der //go:generate-Zeile für gqlgen (einzige Quelle des Pfads)
 gqlgen_pkg := "./internal/graph"

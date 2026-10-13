@@ -2,16 +2,16 @@ package commands
 
 import "testing"
 
-// TestNoArgsCommandsRejectPositionalArguments pins SC-01/SC-02: the eight
-// no-argument verbs among the nine previously Args-less commands (archive,
-// check, init, list, path, version, plus the deprecated serve/tui stubs) now
+// TestNoArgsCommandsRejectPositionalArguments pins SC-01/SC-02: the seven
+// no-argument verbs among the previously Args-less commands (archive,
+// check, init, list, path, version, plus the deprecated serve stub) now
 // declare an explicit arity policy instead of relying on cobra's implicit
 // "accept anything" default. A stray positional argument must be a usage
 // error, and zero arguments must still be accepted.
 func TestNoArgsCommandsRejectPositionalArguments(t *testing.T) {
 	root := sharedTestRoot(t)
 
-	for _, name := range []string{"archive", "check", "init", "list", "path", "version", "serve", "tui"} {
+	for _, name := range []string{"archive", "check", "init", "list", "path", "version", "serve"} {
 		name := name
 		t.Run(name, func(t *testing.T) {
 			cmd, _, err := root.Find([]string{name})
@@ -84,7 +84,7 @@ func TestArchiveRejectsPositionalArgumentEndToEnd(t *testing.T) {
 // TestEveryCoreVerbDeclaresArity pins AC-01 across the whole tree, not just
 // the nine files this leaf touches: every one of the 26 commands
 // RegisterCoreCommands puts on the root (24 Register*Cmd calls plus the
-// serve/tui stubs) must declare an explicit Args policy, so a future verb
+// serve stub) must declare an explicit Args policy, so a future verb
 // that forgets one is caught here rather than by nobody. Cobra's own
 // completion/help builtins are excluded on purpose — their arity is
 // cobra's, not this leaf's, per beans-t7sv Requirement 1 AC1. This
