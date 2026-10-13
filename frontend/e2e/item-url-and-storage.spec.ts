@@ -1,4 +1,11 @@
+import type { Page } from '@playwright/test';
 import { test, expect } from './fixtures';
+
+/** Open the main workspace: the changes toggle lives in its ViewToolbar. */
+async function openMainWorkspace(page: Page) {
+  await page.locator('nav button:has(span.truncate)').first().click();
+  await expect(page).toHaveURL(/\/workspace\//, { timeout: 10_000 });
+}
 
 /**
  * The selected item lives in the `item` query parameter and the layout/filter
@@ -61,6 +68,7 @@ test.describe('Persisted UI state keys', () => {
   }) => {
     lif.create('Alpha Item', { status: 'todo', type: 'task' });
     await backlogPage.goto(1);
+    await openMainWorkspace(page);
 
     await page.getByTitle('Show changes').click();
     await expect
@@ -68,6 +76,7 @@ test.describe('Persisted UI state keys', () => {
       .toBe('true');
 
     await page.reload();
+    await expect(page).toHaveURL(/\/workspace\//);
     await expect(page.getByTitle('Hide changes')).toBeVisible({ timeout: 10_000 });
   });
 
@@ -75,6 +84,7 @@ test.describe('Persisted UI state keys', () => {
     lif.create('Alpha Item', { status: 'todo', type: 'task' });
     await backlogPage.goto(1);
 
+    await openMainWorkspace(page);
     await page.evaluate(() => localStorage.setItem('beans-changes-pane', 'true'));
     await page.reload();
 
