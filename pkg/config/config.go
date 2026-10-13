@@ -38,6 +38,34 @@ const (
 	// LegacyStoreEnvVar is the former env var that names the store directory.
 	LegacyStoreEnvVar = "BEANS_PATH"
 
+	// Legacy names of the worktree, crash-backup and port levels. Like the
+	// four above they are read in place and never renamed, but these levels
+	// have no ambiguity error: the legacy name works beside the new one.
+	//
+	// HomeDir is the directory in the user's home that holds the default
+	// worktree roots (<home>/<HomeDir>/worktrees/<project>).
+	HomeDir = ".lif"
+	// LegacyHomeDir is the former home directory of the default worktree roots.
+	LegacyHomeDir = ".beans"
+	// WorktreeBranchPrefix is the branch prefix of every new worktree.
+	WorktreeBranchPrefix = "lif/"
+	// LegacyWorktreeBranchPrefix is the former worktree branch prefix. Worktrees
+	// on such branches are still listed and used.
+	LegacyWorktreeBranchPrefix = "beans/"
+	// StagingDirPrefix starts the name of the staging directory of an atomic swap.
+	StagingDirPrefix = ".lif-staging-"
+	// BackupDirPrefix starts the name of the backup directory of an atomic swap.
+	BackupDirPrefix = ".lif.bak-"
+	// LegacyBackupDirPrefix starts the name of a backup directory left by the
+	// former tool; the orphan scan matches it like BackupDirPrefix.
+	LegacyBackupDirPrefix = ".beans.bak-"
+	// WorkspacePortEnvVar names the port of a workspace in the terminal
+	// environment of its shell and run sessions.
+	WorkspacePortEnvVar = "LIF_WORKSPACE_PORT"
+	// LegacyWorkspacePortEnvVar is the former name of the same variable; it is
+	// exported with the same value.
+	LegacyWorkspacePortEnvVar = "BEANS_WORKSPACE_PORT"
+
 	// LegacyConfigFile is the old config file location (deprecated)
 	LegacyConfigFile = "config.yaml"
 	// DefaultServerPort is the default port for the web server
@@ -301,7 +329,8 @@ type WorktreeConfig struct {
 	BaseRef string `yaml:"base_ref,omitempty"`
 
 	// Path is the directory where worktrees are created.
-	// Default: ~/.beans/worktrees/<project-name>/
+	// Default: ~/.lif/worktrees/<project-name>/, or ~/.beans/worktrees/<project-name>/
+	// when that directory already exists.
 	// Supports ~ for home directory.
 	Path string `yaml:"path,omitempty"`
 
@@ -1655,20 +1684,29 @@ const DefaultWorktreeBaseRef = "main"
 
 // ResolveWorktreePath returns the absolute path to the directory where worktrees
 // should be created. If worktree.path is configured, it is used (with ~ expansion).
-// Otherwise, defaults to ~/.beans/worktrees/<projectName>/.
+// Otherwise the root is ~/.beans/worktrees/<projectName>/ when that directory
+// exists (a root made by the former tool), else ~/.lif/worktrees/<projectName>/.
+// When both exist the legacy root wins; there is no ambiguity error. legacy
+// reports that the legacy root was chosen; it is never true for worktree.path.
+// The resolver only resolves: it creates no directory.
 // projectName is used only when computing the default path.
-func (c *Config) ResolveWorktreePath(projectName string) (string, error) {
+func (c *Config) ResolveWorktreePath(projectName string) (path string, legacy bool, err error) {
 	if c.Worktree.Path != "" {
-		return expandHome(c.Worktree.Path)
+		path, err = expandHome(c.Worktree.Path)
+		return path, false, err
 	}
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return "", fmt.Errorf("resolve home directory: %w", err)
+		return "", false, fmt.Errorf("resolve home directory: %w", err)
 	}
 	if projectName == "" {
 		projectName = "default"
 	}
-	return filepath.Join(home, ".beans", "worktrees", projectName), nil
+	legacyRoot := filepath.Join(home, LegacyHomeDir, "worktrees", projectName)
+	if info, statErr := os.Stat(legacyRoot); statErr == nil && info.IsDir() {
+		return legacyRoot, true, nil
+	}
+	return filepath.Join(home, HomeDir, "worktrees", projectName), false, nil
 }
 
 // expandHome expands a leading ~ in a path to the user's home directory.

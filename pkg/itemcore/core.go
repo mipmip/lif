@@ -178,66 +178,68 @@ func (c *Core) Config() *config.Config {
 	return c.config
 }
 
-// HasOrphanBackup reports whether itemsRoot (a .beans directory path that may
-// not exist) has a sibling .beans.bak-* directory with content -- the signal
-// that a missing or empty live directory is not "no store here" but an
-// interrupted stageAndSwap, and that Core.Load (whose detectOrphanBackup
+// orphanBackups returns the paths of the non-empty crash-backup directories in
+// repo: every directory named .lif.bak-* or .beans.bak-*. The two prefixes are
+// treated alike; there is no ambiguity error between them. The error is the
+// failure to read repo.
+func orphanBackups(repo string) ([]string, error) {
+	entries, err := os.ReadDir(repo)
+	if err != nil {
+		return nil, err
+	}
+	var backups []string
+	for _, entry := range entries {
+		name := entry.Name()
+		if !entry.IsDir() || !(strings.HasPrefix(name, config.BackupDirPrefix) || strings.HasPrefix(name, config.LegacyBackupDirPrefix)) {
+			continue
+		}
+		backupPath := filepath.Join(repo, name)
+		// Check if backup has content
+		subentries, err := os.ReadDir(backupPath)
+		if err == nil && len(subentries) > 0 {
+			backups = append(backups, backupPath)
+		}
+	}
+	return backups, nil
+}
+
+// HasOrphanBackup reports whether itemsRoot (a store directory path that may
+// not exist) has a sibling .lif.bak-* or .beans.bak-* directory with content --
+// the signal that a missing or empty live directory is not "no store here" but
+// an interrupted stageAndSwap, and that Core.Load (whose detectOrphanBackup
 // below performs the actual repair) should be given the chance to run
 // instead of the caller failing outright. Read-only; does not repair.
 func HasOrphanBackup(itemsRoot string) bool {
-	repo := filepath.Dir(itemsRoot)
-	entries, err := os.ReadDir(repo)
-	if err != nil {
-		return false
-	}
-	for _, entry := range entries {
-		if !entry.IsDir() || !strings.HasPrefix(entry.Name(), ".beans.bak-") {
-			continue
-		}
-		subentries, err := os.ReadDir(filepath.Join(repo, entry.Name()))
-		if err == nil && len(subentries) > 0 {
-			return true
-		}
-	}
-	return false
+	backups, err := orphanBackups(filepath.Dir(itemsRoot))
+	return err == nil && len(backups) > 0
 }
 
-// detectOrphanBackup checks for .beans.bak-* orphans left by an interrupted stageAndSwap.
-// If the live .beans directory is missing or empty AND exactly one backup exists with content,
-// it automatically repairs by renaming the backup back to .beans.
-// If the .beans directory is missing/empty but multiple or zero backups exist, it logs a warning
-// with the exact path and manual recovery command and ensures .beans exists (empty).
+// detectOrphanBackup checks for .lif.bak-* and .beans.bak-* orphans left by an
+// interrupted stageAndSwap.
+// If the live store directory is missing or empty AND exactly one backup exists with content,
+// it automatically repairs by renaming the backup back to the store directory.
+// If the store directory is missing/empty but multiple or zero backups exist, it logs a warning
+// with the exact path and manual recovery command and ensures it exists (empty).
+// Backups of both prefixes count together: one of each is two backups.
 // Returns true if repair was performed, false otherwise.
 func (c *Core) detectOrphanBackup() bool {
 	repo := c.repoRoot()
 
-	// Check if .beans exists and has content
+	// Check if the store directory exists and has content
 	entries, err := os.ReadDir(c.root)
 	if err == nil && len(entries) > 0 {
-		// .beans exists and has content; no orphan
+		// store directory exists and has content; no orphan
 		return false
 	}
 
-	// .beans is missing or empty. Look for .beans.bak-* backups.
-	allEntries, err := os.ReadDir(repo)
+	// The store directory is missing or empty. Look for backups.
+	backups, err := orphanBackups(repo)
 	if err != nil {
 		return false // can't read repo dir, nothing to do
 	}
 
-	var backups []string
-	for _, entry := range allEntries {
-		if strings.HasPrefix(entry.Name(), ".beans.bak-") && entry.IsDir() {
-			backupPath := filepath.Join(repo, entry.Name())
-			// Check if backup has content
-			subentries, err := os.ReadDir(backupPath)
-			if err == nil && len(subentries) > 0 {
-				backups = append(backups, backupPath)
-			}
-		}
-	}
-
 	if len(backups) == 0 {
-		// No backups found: ensure .beans dir exists (even if empty)
+		// No backups found: ensure the store dir exists (even if empty)
 		if err := os.MkdirAll(c.root, 0755); err != nil {
 			c.logWarn("failed to create .beans directory: %v", err)
 		}
@@ -246,14 +248,14 @@ func (c *Core) detectOrphanBackup() bool {
 
 	if len(backups) == 1 {
 		// Exactly one backup exists: repair by renaming back
-		// First remove empty .beans if it exists
+		// First remove the empty store dir if it exists
 		if err := os.RemoveAll(c.root); err != nil && !os.IsNotExist(err) {
 			c.logWarn("failed to clear empty .beans directory before repair: %v", err)
 			// Continue anyway, os.Rename will fail with a clear message
 		}
 		if err := os.Rename(backups[0], c.root); err != nil {
 			c.logWarn("failed to repair .beans from backup %s: %v", backups[0], err)
-			// Ensure .beans exists even after failed repair
+			// Ensure the store dir exists even after failed repair
 			os.MkdirAll(c.root, 0755)
 			return false
 		}
@@ -267,7 +269,7 @@ func (c *Core) detectOrphanBackup() bool {
 		c.logWarn("  - %s", backup)
 		c.logWarn("    To recover: rm -rf %s && mv %s %s", c.root, backup, c.root)
 	}
-	// Ensure .beans exists (empty) so Load() can continue
+	// Ensure the store dir exists (empty) so Load() can continue
 	if err := os.MkdirAll(c.root, 0755); err != nil {
 		c.logWarn("failed to create .beans directory: %v", err)
 	}
@@ -288,7 +290,7 @@ func (c *Core) loadFromDisk() error {
 	// Migrate legacy directory names (worktrees/ → .worktrees/, conversations/ → .conversations/)
 	c.migrateLegacyDirs()
 
-	// Detect and repair .beans.bak-* orphans left by interrupted stageAndSwap
+	// Detect and repair .lif.bak-* / .beans.bak-* orphans left by interrupted stageAndSwap
 	_ = c.detectOrphanBackup() // best-effort; continue loading even if repair failed
 
 	// Clear existing items and dirty state
@@ -1513,7 +1515,8 @@ func (c *Core) ValidatePrefixConsistency() string {
 
 // writeGitignore creates or overwrites a .gitignore in the items directory
 // to exclude conversation logs from version control.
-// Note: worktrees are stored outside the repo (in ~/.beans/worktrees/<project>/).
+// Note: worktrees are stored outside the repo (in ~/.lif/worktrees/<project>/,
+// or ~/.beans/worktrees/<project>/ for a project that already has that root).
 func writeGitignore(itemsDir string) error {
 	content := "# Generated by beans init\n.conversations/\n"
 	return os.WriteFile(filepath.Join(itemsDir, ".gitignore"), []byte(content), 0644)

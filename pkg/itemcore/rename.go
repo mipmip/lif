@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/xRiErOS/lif/pkg/config"
 	"github.com/xRiErOS/lif/pkg/item"
 )
 
@@ -308,7 +309,7 @@ func (c *Core) checkNoActiveWorktrees() error {
 	if projectName == "" {
 		projectName = filepath.Base(c.config.ConfigDir())
 	}
-	wtPath, err := c.config.ResolveWorktreePath(projectName)
+	wtPath, _, err := c.config.ResolveWorktreePath(projectName)
 	if err != nil {
 		return nil // cannot resolve -> assume none
 	}
@@ -530,10 +531,10 @@ func copyTree(src, dst string, skip map[string]bool) error {
 // between the two renames. Production code always uses the real os.Rename.
 var swapRename = os.Rename
 
-// stageAndSwap builds a new .beans tree in a temp sibling dir (a full clone
-// of the current tree with removes/writes applied), then atomically swaps it
-// in for c.root. writes/removes keys are .beans-relative (matching
-// Item.Path, e.g. "x.md" or "epic/x.md"). Any error before the swap leaves
+// stageAndSwap builds a new store tree in a temp sibling dir (.lif-staging-*,
+// a full clone of the current tree with removes/writes applied), then
+// atomically swaps it in for c.root. writes/removes keys are store-relative
+// (matching Item.Path, e.g. "x.md" or "epic/x.md"). Any error before the swap leaves
 // the original .beans tree untouched and removes the staging dir.
 //
 // moves are directory renames applied inside the staging tree after the
@@ -546,7 +547,7 @@ func (c *Core) stageAndSwap(writes map[string][]byte, removes []string, moves ..
 	defer c.mu.Unlock()
 
 	repo := c.repoRoot()
-	staging, err := os.MkdirTemp(repo, ".beans-staging-*")
+	staging, err := os.MkdirTemp(repo, config.StagingDirPrefix+"*")
 	if err != nil {
 		return fmt.Errorf("creating staging dir: %w", err)
 	}
@@ -590,7 +591,7 @@ func (c *Core) stageAndSwap(writes map[string][]byte, removes []string, moves ..
 	}
 
 	// atomic swap
-	backup := filepath.Join(repo, fmt.Sprintf(".beans.bak-%d", time.Now().UnixNano()))
+	backup := filepath.Join(repo, fmt.Sprintf("%s%d", config.BackupDirPrefix, time.Now().UnixNano()))
 	if err := os.Rename(c.root, backup); err != nil {
 		return fmt.Errorf("backing up .beans: %w", err)
 	}

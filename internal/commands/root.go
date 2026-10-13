@@ -255,9 +255,9 @@ func resolveStorePath(flagPath string, c *config.Config) (string, storeResolutio
 	res.LegacyStoreDir = config.IsLegacyStoreDir(root)
 
 	if info, statErr := os.Stat(root); statErr != nil || !info.IsDir() {
-		// A missing/empty live directory next to a non-empty .beans.bak-*
+		// A missing/empty live directory next to a non-empty .lif.bak-* or .beans.bak-*
 		// sibling is not "no store here" -- it's an interrupted stageAndSwap
-		// (rename.go: the swap is two os.Rename calls with .beans absent in
+		// (rename.go: the swap is two os.Rename calls with the store dir absent in
 		// between). Core.Load's own detectOrphanBackup repairs or warns
 		// about exactly that case, but only gets the chance to run if this
 		// precheck doesn't fail first.
