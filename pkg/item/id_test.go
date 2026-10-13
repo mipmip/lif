@@ -97,6 +97,7 @@ func TestBuildFilename(t *testing.T) {
 	}{
 		{"with slug", "abc", "my-slug", "abc--my-slug.md"},
 		{"empty slug", "abc", "", "abc.md"},
+		{"prefixed id empty slug", "beans-z5r9", "", "beans-z5r9--.md"},
 		{"with prefix id", "beans-z5r9", "add-tests", "beans-z5r9--add-tests.md"},
 		{"long slug", "xyz", "this-is-a-longer-slug", "xyz--this-is-a-longer-slug.md"},
 	}
@@ -218,6 +219,11 @@ func TestParseFilenameAndBuildFilenameRoundtrip(t *testing.T) {
 		{"basic", "abc", "my-slug"},
 		{"with prefix", "beans-z5r9", "add-tests"},
 		{"no slug", "xyz", ""},
+		{"prefixed no slug", "beans-z5r9", ""},
+		{"empty prefix with slug", "z5r9", "add-tests"},
+		{"hyphenated prefix with slug", "SYNC-TASK-z5r9", "add-tests"},
+		{"hyphenated prefix no slug", "SYNC-TASK-z5r9", ""},
+		{"dotted id no slug", "a.b", ""},
 	}
 
 	for _, tt := range tests {

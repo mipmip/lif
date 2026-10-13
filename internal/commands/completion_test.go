@@ -30,6 +30,13 @@ import (
 var completionTestBinary string
 
 func TestMain(m *testing.M) {
+	// Helper subprocesses (re-exec of this test binary, e.g. check_test.go's
+	// BEANS_CHECK_HELPER) may end via os.Exit/SIGKILL and would leak the
+	// build dir; they never use the lif binary, so skip the build.
+	if os.Getenv("BEANS_CHECK_HELPER") == "1" {
+		os.Exit(m.Run())
+	}
+
 	binDir, err := os.MkdirTemp("", "beans-completion-bin")
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "beans-completion-bin mkdtemp:", err)
@@ -64,11 +71,8 @@ func TestMain(m *testing.M) {
 // package-global core setupCompletionTest swaps in) with a single item
 // named "<idPrefix>-only", so a completion test driven through a
 // subprocess can tell which store answered by grepping its stdout. The
-// explicit Slug forces BuildFilename's double-dash "id--slug.md" form;
-// without it, an ID containing a dash and no slug round-trips through
-// ParseFilename's single-dash legacy fallback and gets cut at the first
-// dash on reload -- a filename-format quirk unrelated to this bug that
-// would otherwise corrupt the fixture IDs this test greps for.
+// explicit Slug keeps the fixture filename in BuildFilename's "id--slug.md"
+// form.
 func writeFixtureStore(t *testing.T, itemsDir string, idPrefix string) {
 	t.Helper()
 	if err := os.MkdirAll(itemsDir, 0755); err != nil {

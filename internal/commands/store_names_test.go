@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"io"
 	"os"
 	"path/filepath"
@@ -12,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/spf13/cobra"
+	"github.com/xRiErOS/lif/internal/output"
 	"github.com/xRiErOS/lif/pkg/config"
 )
 
@@ -757,5 +759,31 @@ func TestNewWorktreeManager_UsesTheMainStoreDirName(t *testing.T) {
 				t.Errorf("StoreDir() = %q, want %q", got, name)
 			}
 		})
+	}
+}
+
+// A --json invocation without a store reports NO_LIF_DIR as the JSON error
+// object; without --json the plain text error stays.
+func TestMissingStoreJSONErrorCode(t *testing.T) {
+	dir := evalSymlinks(t, t.TempDir())
+
+	stdout, _, err := runInProject(t, dir, "list", "--json")
+	if err == nil {
+		t.Fatal("list --json without a store: want an error")
+	}
+	var resp struct {
+		Success bool   `json:"success"`
+		Code    string `json:"code"`
+	}
+	if jerr := json.Unmarshal([]byte(stdout), &resp); jerr != nil {
+		t.Fatalf("stdout is not JSON: %v\n%s", jerr, stdout)
+	}
+	if resp.Success || resp.Code != output.ErrNoLifDir {
+		t.Errorf("response = %+v, want success=false code=%s", resp, output.ErrNoLifDir)
+	}
+
+	stdout, _, err = runInProject(t, dir, "list")
+	if err == nil || !strings.Contains(err.Error(), "no .lif directory found") || stdout != "" {
+		t.Errorf("plain list: err = %v, stdout = %q, want plain error and no stdout", err, stdout)
 	}
 }

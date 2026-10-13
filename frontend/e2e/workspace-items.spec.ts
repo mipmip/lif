@@ -8,7 +8,11 @@ const GIT_ENV = {
   GIT_AUTHOR_NAME: 'test',
   GIT_AUTHOR_EMAIL: 'test@test',
   GIT_COMMITTER_NAME: 'test',
-  GIT_COMMITTER_EMAIL: 'test@test'
+  GIT_COMMITTER_EMAIL: 'test@test',
+  // A global core.hooksPath must not veto fixture commits.
+  GIT_CONFIG_COUNT: '1',
+  GIT_CONFIG_KEY_0: 'core.hooksPath',
+  GIT_CONFIG_VALUE_0: '/dev/null'
 };
 
 /**
