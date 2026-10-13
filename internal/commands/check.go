@@ -4,11 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/xRiErOS/lif/internal/gitutil"
 	"github.com/xRiErOS/lif/internal/ui"
+	"github.com/xRiErOS/lif/internal/worktree"
 	"github.com/xRiErOS/lif/pkg/config"
 	"github.com/xRiErOS/lif/pkg/item"
 	"github.com/xRiErOS/lif/pkg/itemcore"
@@ -43,6 +45,68 @@ type checkResult struct {
 	Fixed             int                       `json:"fixed,omitempty"`
 	PolicyWarnings    []string                  `json:"policy_warnings,omitempty"`
 	AttachmentOrphans []string                  `json:"attachment_orphans,omitempty"`
+	LegacyNames       []string                  `json:"legacy_names,omitempty"`
+}
+
+// legacyNameWarnings returns one warning per legacy store name in use, each
+// naming the legacy name, the new name and the step that ends it. It reads
+// the outcome of the name levels from res and never from the environment.
+func legacyNameWarnings(res storeResolution, c *config.Config, storeRoot string) []string {
+	var out []string
+	file := filepath.Base(c.ConfigFile())
+	if res.LegacyConfigFile {
+		out = append(out, fmt.Sprintf("config file %s is a legacy name: run `git mv %s %s` in %s",
+			file, config.LegacyConfigFileName, config.ConfigFileName, c.ConfigDir()))
+	}
+	if res.LegacySectionKey {
+		out = append(out, fmt.Sprintf("section key %s: in %s is a legacy name: rename the key to %s:",
+			config.LegacySectionKey, file, config.SectionKey))
+	}
+	if res.LegacyStoreDir {
+		move := fmt.Sprintf("run `git mv %s %s` in %s", config.LegacyDefaultStoreDir, config.DefaultStoreDir, filepath.Dir(storeRoot))
+		msg := fmt.Sprintf("store directory %s is a legacy name: %s", config.LegacyDefaultStoreDir, move)
+		switch res.StoreDirSource {
+		case storeSourceConfig:
+			msg += fmt.Sprintf(", then change path: %s to path: %s in %s",
+				c.Items.Path, filepath.Join(filepath.Dir(c.Items.Path), config.DefaultStoreDir), file)
+			if res.LegacyConfigFile {
+				msg += fmt.Sprintf(", and run `git mv %s %s`", config.LegacyConfigFileName, config.ConfigFileName)
+			}
+		case storeSourceFlag:
+			msg += fmt.Sprintf(", then pass the new directory to --%s", storePathFlag)
+		case storeSourceEnv:
+			msg += fmt.Sprintf(", then point %s at the new directory", config.StoreEnvVar)
+		}
+		out = append(out, msg)
+	}
+	if res.LegacyEnv {
+		out = append(out, fmt.Sprintf("environment variable %s is a legacy name: export %s instead",
+			config.LegacyStoreEnvVar, config.StoreEnvVar))
+	}
+	return out
+}
+
+// legacyWorktreeWarnings returns the warnings for the legacy worktree root and
+// for each worktree on a legacy branch of the repository at repoDir. It is
+// read-only. Outside a git repository the branch scan finds nothing.
+func legacyWorktreeWarnings(c *config.Config, repoDir string) []string {
+	var out []string
+	project := c.GetProjectName()
+	if project == "" && c.ConfigDir() != "" {
+		project = filepath.Base(c.ConfigDir())
+	}
+	if root, legacy, err := c.ResolveWorktreePath(project); err == nil && legacy {
+		out = append(out, fmt.Sprintf("worktree root %s is a legacy name: remove the remaining worktrees, then delete %s; new worktrees go to ~/%s/worktrees/%s",
+			root, root, config.HomeDir, filepath.Base(root)))
+	}
+	if wts, err := worktree.LegacyBranchWorktrees(repoDir); err == nil {
+		for _, wt := range wts {
+			id := strings.TrimPrefix(wt.Branch, config.LegacyWorktreeBranchPrefix)
+			out = append(out, fmt.Sprintf("worktree %s is on legacy branch %s: finish or remove it, or run `git branch -m %s %s%s`",
+				wt.Path, wt.Branch, wt.Branch, config.WorktreeBranchPrefix, id))
+		}
+	}
+	return out
 }
 
 // attachmentOrphanIssues reports one line per attachment directory whose
@@ -326,6 +390,19 @@ Note: Cycles cannot be auto-fixed and require manual intervention.`,
 			}
 		}
 
+		// === Legacy names ===
+		// Reported by check only (D06). They never count as issues: not in
+		// totalIssues, with or without --strict.
+		legacyNames := legacyNameWarnings(resolution, cfg, core.Root())
+		legacyNames = append(legacyNames, legacyWorktreeWarnings(cfg, cfg.ConfigDir())...)
+		if !checkJSON && len(legacyNames) > 0 {
+			fmt.Println()
+			fmt.Println(ui.Bold.Render("Legacy names"))
+			for _, w := range legacyNames {
+				fmt.Printf("  %s %s\n", ui.Warning.Render("!"), w)
+			}
+		}
+
 		// === Summary ===
 		totalIssues := len(configErrors) + linkResult.TotalIssues() + len(attachmentOrphans)
 		if checkStrict {
@@ -340,6 +417,7 @@ Note: Cycles cannot be auto-fixed and require manual intervention.`,
 				Fixed:             fixed,
 				PolicyWarnings:    policyWarnings,
 				AttachmentOrphans: attachmentOrphans,
+				LegacyNames:       legacyNames,
 			}
 			data, _ := json.MarshalIndent(result, "", "  ")
 			fmt.Println(string(data))

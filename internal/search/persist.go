@@ -12,7 +12,7 @@ import (
 // etagsFileName is the sidecar file, next to the Bleve index directory's own
 // files, that records the ETag this index last observed for each item ID.
 // It is the staleness signal Sync diffs against (AC-03): never mtime.
-const etagsFileName = "beans-etags.json"
+const etagsFileName = "lif-etags.json"
 
 // lockMode selects which of tryAcquireIndexLock (exclusive) or
 // tryAcquireSharedIndexLock (shared) open uses to acquire dir's on-disk

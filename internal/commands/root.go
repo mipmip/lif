@@ -3,6 +3,7 @@ package commands
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -90,8 +91,8 @@ a full view of your project.`,
 		},
 	}
 
-	rootCmd.PersistentFlags().StringVar(&storePath, storePathFlag, "", "Path to data directory (overrides config and BEANS_PATH env var)")
-	rootCmd.PersistentFlags().StringVar(&configPath, "config", "", "Path to config file (default: searches upward for .beans.yml)")
+	rootCmd.PersistentFlags().StringVar(&storePath, storePathFlag, "", "Path to data directory (overrides config and LIF_PATH env var; a legacy BEANS_PATH is read when LIF_PATH is unset)")
+	rootCmd.PersistentFlags().StringVar(&configPath, "config", "", "Path to config file (default: searches upward for .lif.yml; a legacy .beans.yml is read when no .lif.yml exists)")
 
 	return rootCmd
 }
@@ -267,7 +268,7 @@ func resolveStorePath(flagPath string, c *config.Config) (string, storeResolutio
 		if explicitOverride {
 			return "", storeResolution{}, fmt.Errorf("beans path does not exist or is not a directory: %s", root)
 		}
-		return "", storeResolution{}, fmt.Errorf("no .beans directory found at %s (run 'beans init' to create one)", root)
+		return "", storeResolution{}, fmt.Errorf("no %s directory found at %s (run 'beans init' to create one)", filepath.Base(root), root)
 	}
 
 	return root, res, nil
@@ -291,7 +292,7 @@ func resolveAnchoredPath(c *config.Config) (string, error) {
 		}
 		return c.ResolveItemsPathIn(mainRoot)
 	default:
-		return "", config.ValidateAnchor(c.Items.Anchor)
+		return "", config.ValidateAnchor(c.Items.Anchor, c.SectionKey())
 	}
 }
 

@@ -235,7 +235,7 @@ func renderRenamePlan(cmd *cobra.Command, plan *itemcore.RenamePlan, jsonOut boo
 		fmt.Fprintf(w, "  attachments: %s -> %s\n", m.OldPath, m.NewPath)
 	}
 	if plan.ConfigWrite {
-		fmt.Fprintf(w, "config: .beans.yml prefix -> %q\n", plan.NewPrefix)
+		fmt.Fprintf(w, "config: %s prefix -> %q\n", cfg.TargetFileName(cfg.ConfigDir()), plan.NewPrefix)
 	}
 	return nil
 }

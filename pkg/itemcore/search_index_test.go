@@ -443,7 +443,7 @@ func TestIndexDir_PruneOnOpen_RemovesOrphan(t *testing.T) {
 // as evidence of an orphan.
 func TestIndexDir_PruneOnOpen_IgnoresUnparseableMarker(t *testing.T) {
 	home := t.TempDir()
-	indexRoot := filepath.Join(home, ".beans", "index")
+	indexRoot := filepath.Join(home, ".lif", "index")
 	staleDir := filepath.Join(indexRoot, "not-a-real-hash")
 	if err := os.MkdirAll(staleDir, 0755); err != nil {
 		t.Fatalf("MkdirAll(staleDir) error = %v", err)
@@ -505,7 +505,7 @@ func TestIndexDir_PruneOnOpen_ContinuesPastRemoveFailure(t *testing.T) {
 	}
 
 	home := t.TempDir()
-	indexRoot := filepath.Join(home, ".beans", "index")
+	indexRoot := filepath.Join(home, ".lif", "index")
 	siblingA := filepath.Join(indexRoot, "sibling-a-undeletable")
 	siblingB := filepath.Join(indexRoot, "sibling-b-removable")
 

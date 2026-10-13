@@ -241,7 +241,7 @@ func (c *Core) detectOrphanBackup() bool {
 	if len(backups) == 0 {
 		// No backups found: ensure the store dir exists (even if empty)
 		if err := os.MkdirAll(c.root, 0755); err != nil {
-			c.logWarn("failed to create .beans directory: %v", err)
+			c.logWarn("failed to create %s directory: %v", filepath.Base(c.root), err)
 		}
 		return false
 	}
@@ -250,28 +250,28 @@ func (c *Core) detectOrphanBackup() bool {
 		// Exactly one backup exists: repair by renaming back
 		// First remove the empty store dir if it exists
 		if err := os.RemoveAll(c.root); err != nil && !os.IsNotExist(err) {
-			c.logWarn("failed to clear empty .beans directory before repair: %v", err)
+			c.logWarn("failed to clear empty %s directory before repair: %v", filepath.Base(c.root), err)
 			// Continue anyway, os.Rename will fail with a clear message
 		}
 		if err := os.Rename(backups[0], c.root); err != nil {
-			c.logWarn("failed to repair .beans from backup %s: %v", backups[0], err)
+			c.logWarn("failed to repair %s from backup %s: %v", filepath.Base(c.root), backups[0], err)
 			// Ensure the store dir exists even after failed repair
 			os.MkdirAll(c.root, 0755)
 			return false
 		}
-		c.logWarn("repaired .beans from backup %s (stageAndSwap crash detected and recovered)", backups[0])
+		c.logWarn("repaired %s from backup %s (stageAndSwap crash detected and recovered)", filepath.Base(c.root), backups[0])
 		return true
 	}
 
 	// Multiple backups exist: emit warning with each path and recovery command
-	c.logWarn("detected multiple .beans.bak-* backups (stageAndSwap may have crashed multiple times):")
+	c.logWarn("detected multiple backups of the %s directory (stageAndSwap may have crashed multiple times):", filepath.Base(c.root))
 	for _, backup := range backups {
 		c.logWarn("  - %s", backup)
 		c.logWarn("    To recover: rm -rf %s && mv %s %s", c.root, backup, c.root)
 	}
 	// Ensure the store dir exists (empty) so Load() can continue
 	if err := os.MkdirAll(c.root, 0755); err != nil {
-		c.logWarn("failed to create .beans directory: %v", err)
+		c.logWarn("failed to create %s directory: %v", filepath.Base(c.root), err)
 	}
 	return false
 }
@@ -1442,8 +1442,10 @@ func (c *Core) ValidatePrefixConsistency() string {
 	defer c.mu.RUnlock()
 
 	configPrefix := ""
+	configKey := config.SectionKey
 	if c.config != nil {
 		configPrefix = c.config.Items.Prefix
+		configKey = c.config.SectionKey()
 	}
 
 	// Extract, for each loaded, non-archived item, the prefix it should be
@@ -1496,7 +1498,7 @@ func (c *Core) ValidatePrefixConsistency() string {
 		for p := range prefixesSeen {
 			prefixes = append(prefixes, p)
 		}
-		return fmt.Sprintf("mixed-prefix state detected: beans have prefixes %v but config.beans.prefix is %q", prefixes, configPrefix)
+		return fmt.Sprintf("mixed-prefix state detected: beans have prefixes %v but config.%s.prefix is %q", prefixes, configKey, configPrefix)
 	}
 
 	// Check if the single prefix matches the config
@@ -1507,7 +1509,7 @@ func (c *Core) ValidatePrefixConsistency() string {
 	}
 
 	if actualPrefix != configPrefix {
-		return fmt.Sprintf("prefix mismatch: beans have prefix %q but config.beans.prefix is %q", actualPrefix, configPrefix)
+		return fmt.Sprintf("prefix mismatch: beans have prefix %q but config.%s.prefix is %q", actualPrefix, configKey, configPrefix)
 	}
 
 	return ""

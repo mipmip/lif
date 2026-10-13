@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+	"path/filepath"
 
 	"github.com/xRiErOS/lif/pkg/item"
 )
@@ -11,7 +12,7 @@ import (
 // Error codes for JSON responses
 const (
 	ErrNotFound      = "NOT_FOUND"
-	ErrNoBeansDir    = "NO_BEANS_DIR"
+	ErrNoLifDir      = "NO_LIF_DIR"
 	ErrInvalidStatus = "INVALID_STATUS"
 	ErrFileError     = "FILE_ERROR"
 	ErrValidation    = "VALIDATION_ERROR"
@@ -63,11 +64,12 @@ func SuccessMessage(message string) error {
 	})
 }
 
-// SuccessInit outputs a success response for init command.
+// SuccessInit outputs a success response for init command, naming the store
+// directory init initialized.
 func SuccessInit(path string) error {
 	return JSON(Response{
 		Success: true,
-		Message: "Initialized .beans directory",
+		Message: "Initialized " + filepath.Base(path) + " directory",
 		Path:    path,
 	})
 }

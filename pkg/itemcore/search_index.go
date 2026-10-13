@@ -7,6 +7,8 @@ import (
 	"hash/fnv"
 	"os"
 	"path/filepath"
+
+	"github.com/xRiErOS/lif/pkg/config"
 )
 
 // indexMarkerFileName is the sidecar file, next to a persisted index
@@ -45,11 +47,11 @@ func (c *Core) indexDir() (string, error) {
 	h := fnv.New64a()
 	h.Write([]byte(c.storeRootAbs()))
 	id := hex.EncodeToString(h.Sum(nil))
-	return filepath.Join(home, ".beans", "index", id), nil
+	return filepath.Join(home, config.HomeDir, "index", id), nil
 }
 
 // maintainIndexDir keeps the persisted index directory tree at
-// ~/.beans/index/ bounded (beans-dpnf): it records dir's owning store root
+// ~/.lif/index/ bounded (beans-dpnf): it records dir's owning store root
 // in a marker file, then prunes sibling directories whose marker points at
 // a store root that no longer exists. Both steps degrade to a logged
 // warning rather than fail the caller, matching the discipline
@@ -84,7 +86,7 @@ func writeIndexMarker(dir, root string) error {
 }
 
 // pruneOrphanIndexDirs removes sibling directories under indexRoot (the
-// ~/.beans/index/ parent of every per-store index directory) whose marker
+// ~/.lif/index/ parent of every per-store index directory) whose marker
 // records a store root path that no longer exists on disk. A sibling with
 // no marker, one that cannot be read, or one whose content is not an
 // absolute path is left in place (AC-04): absence of evidence -- including
