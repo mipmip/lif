@@ -515,7 +515,7 @@ func (c *Core) ValidateParent(b *item.Item, parentID string) error {
 
 	parent, err := c.Get(parentID)
 	if err != nil {
-		return fmt.Errorf("parent bean not found: %s", parentID)
+		return fmt.Errorf("parent item not found: %s", parentID)
 	}
 
 	if IsValidParentRank(c.config, b.Type, parent.Type) {
@@ -524,9 +524,9 @@ func (c *Core) ValidateParent(b *item.Item, parentID string) error {
 
 	validTypes := ValidParentTypes(c.config, b.Type)
 	if len(validTypes) == 0 {
-		return fmt.Errorf("%s beans cannot have a parent", b.Type)
+		return fmt.Errorf("%s items cannot have a parent", b.Type)
 	}
-	return fmt.Errorf("%s beans can only have %s as parent, not %s",
+	return fmt.Errorf("%s items can only have %s as parent, not %s",
 		b.Type, joinWithOr(validTypes), parent.Type)
 }
 

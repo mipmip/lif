@@ -85,7 +85,7 @@ func (c *Core) WatchWorktreeItems(worktreePath string) error {
 	// Start the watcher goroutine
 	go c.worktreeWatchLoop(wt, watcher)
 
-	c.logWarn("watching worktree beans: %s", itemsDir)
+	c.logWarn("watching worktree items: %s", itemsDir)
 	return nil
 }
 
@@ -126,7 +126,7 @@ func (c *Core) loadWorktreeItemsInitial(wt *worktreeWatcher) {
 
 		if c.searchIndex != nil {
 			if err := c.ensureWritableSearchIndexLocked(); err != nil {
-				c.logWarn("failed to upgrade search index for bean %s: %v", newItem.ID, err)
+				c.logWarn("failed to upgrade search index for item %s: %v", newItem.ID, err)
 			} else {
 				_ = c.searchIndex.IndexItem(newItem)
 			}
@@ -151,7 +151,7 @@ func (c *Core) UnwatchWorktreeItems(worktreePath string) {
 
 	if exists {
 		close(wt.done)
-		c.logWarn("stopped watching worktree beans: %s", wt.itemsDir)
+		c.logWarn("stopped watching worktree items: %s", wt.itemsDir)
 	}
 }
 
@@ -279,7 +279,7 @@ func (c *Core) handleWorktreeChanges(wt *worktreeWatcher, changes map[string]fsn
 
 				if c.searchIndex != nil {
 					if err := c.ensureWritableSearchIndexLocked(); err != nil {
-						c.logWarn("failed to upgrade search index for bean %s: %v", id, err)
+						c.logWarn("failed to upgrade search index for item %s: %v", id, err)
 					} else {
 						_ = c.searchIndex.IndexItem(mainItem)
 					}
@@ -298,7 +298,7 @@ func (c *Core) handleWorktreeChanges(wt *worktreeWatcher, changes map[string]fsn
 
 				if c.searchIndex != nil {
 					if err := c.ensureWritableSearchIndexLocked(); err != nil {
-						c.logWarn("failed to upgrade search index for bean %s: %v", id, err)
+						c.logWarn("failed to upgrade search index for item %s: %v", id, err)
 					} else {
 						_ = c.searchIndex.DeleteItem(id)
 					}
@@ -323,7 +323,7 @@ func (c *Core) handleWorktreeChanges(wt *worktreeWatcher, changes map[string]fsn
 
 		newItem, err := c.loadItemFrom(path, wt.itemsDir)
 		if err != nil {
-			c.logWarn("failed to load worktree bean from %s: %v", path, err)
+			c.logWarn("failed to load worktree item from %s: %v", path, err)
 			continue
 		}
 
@@ -341,7 +341,7 @@ func (c *Core) handleWorktreeChanges(wt *worktreeWatcher, changes map[string]fsn
 					delete(c.worktreeLinks, newItem.ID)
 					if c.searchIndex != nil {
 						if err := c.ensureWritableSearchIndexLocked(); err != nil {
-							c.logWarn("failed to upgrade search index for bean %s: %v", newItem.ID, err)
+							c.logWarn("failed to upgrade search index for item %s: %v", newItem.ID, err)
 						} else {
 							_ = c.searchIndex.IndexItem(mainItem)
 						}
@@ -366,9 +366,9 @@ func (c *Core) handleWorktreeChanges(wt *worktreeWatcher, changes map[string]fsn
 		// would otherwise hang forever on one.
 		if c.searchIndex != nil {
 			if err := c.ensureWritableSearchIndexLocked(); err != nil {
-				c.logWarn("failed to upgrade search index for bean %s: %v", newItem.ID, err)
+				c.logWarn("failed to upgrade search index for item %s: %v", newItem.ID, err)
 			} else if err := c.searchIndex.IndexItem(newItem); err != nil {
-				c.logWarn("failed to index worktree bean %s: %v", newItem.ID, err)
+				c.logWarn("failed to index worktree item %s: %v", newItem.ID, err)
 			}
 		}
 

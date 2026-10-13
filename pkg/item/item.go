@@ -257,7 +257,7 @@ func normalizeYAMLValue(v any) any {
 func Parse(r io.Reader) (*Item, error) {
 	data, err := io.ReadAll(r)
 	if err != nil {
-		return nil, fmt.Errorf("reading bean: %w", err)
+		return nil, fmt.Errorf("reading item: %w", err)
 	}
 
 	var fm frontMatter
