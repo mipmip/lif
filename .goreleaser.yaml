@@ -3,7 +3,7 @@
 
 version: 2
 
-project_name: beans
+project_name: lif
 
 before:
   hooks:
@@ -72,26 +72,26 @@ checksum:
   name_template: "checksums.txt"
 
 homebrew_casks:
-  - name: beans
+  - name: lif
     binaries:
-      - beans
-      - beans-serve
-      - beans-tui
+      - lif
+      - lif-serve
+      - lif-tui
     repository:
       owner: xRiErOS
-      name: homebrew-beans
+      name: homebrew-lif
       branch: main
       token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
-    homepage: "https://github.com/xRiErOS/beans"
-    description: "Agentic-first issue tracker (xRiErOS fork)"
+    homepage: "https://github.com/xRiErOS/lif"
+    description: "Agentic-first issue tracker"
     license: "Apache-2.0"
     hooks:
       post:
         install: |
           if OS.mac?
-            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/beans"]
-            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/beans-serve"]
-            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/beans-tui"]
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/lif"]
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/lif-serve"]
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/lif-tui"]
           end
 
 changelog:
@@ -122,7 +122,7 @@ changelog:
 release:
   github:
     owner: xRiErOS
-    name: beans
+    name: lif
   footer: >-
 
     ---
