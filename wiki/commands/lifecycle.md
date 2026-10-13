@@ -1,61 +1,61 @@
-# Bean Lifecycle
+# Item Lifecycle
 
-This page covers the commands that create beans and move them through their statuses: `create`, `start`, `complete`, `scrap`, `archive`, and `delete`. Read it alongside the destructive-versus-non-destructive distinction called out at the end, since `delete` is the only command here that removes data permanently.
+This page covers the commands that create items and move them through their statuses: `create`, `start`, `complete`, `scrap`, `archive`, and `delete`. Of these, `delete` is the only command that removes data permanently; `archive`, `complete` and `scrap` keep every item file.
 
-## `beans create` (aliases `c`, `new`)
+## `lif create` (aliases `c`, `new`)
 
-`beans create [title]` creates a new bean with a generated ID and an optional title. Flags: `-t`/`--type string` sets the bean type (`milestone`, `epic`, `feature`, `bug`, `task` in the default profile; the actual set depends on the project's configured type profile, see `../project-profiles.md`); `-s`/`--status string` sets the initial status (`in-progress`, `todo`, `draft`, `completed`, `scrapped`); `-p`/`--priority string` sets the priority (`critical`, `high`, `normal`, `low`, `deferred`); `-d`/`--body string` sets body content (`-` reads it from stdin), or `--body-file` reads it from a file; `--parent string` sets a parent bean ID; `--blocked-by`/`--blocking stringArray` record blocking relationships and can be repeated; `--tag stringArray` adds tags and can be repeated; `--order string` sets an explicit fractional-index order value; `--prefix string` overrides the configured ID prefix for this bean; `--set`/`--unset stringArray` add or remove extra front matter `key=value` pairs and can be repeated; `--json` returns the created bean as JSON.
+`lif create [title]` creates a new item with a generated ID and an optional title. Flags: `-t`/`--type string` sets the item type (`milestone`, `epic`, `feature`, `bug`, `task` in the default profile; the actual set depends on the project's configured type profile, see `../project-profiles.md`); `-s`/`--status string` sets the initial status (`in-progress`, `todo`, `draft`, `completed`, `scrapped`); `-p`/`--priority string` sets the priority (`critical`, `high`, `normal`, `low`, `deferred`); `-d`/`--body string` sets body content (`-` reads it from stdin), or `--body-file` reads it from a file; `--parent string` sets a parent item ID; `--blocked-by`/`--blocking stringArray` record blocking relationships and can be repeated; `--tag stringArray` adds tags and can be repeated; `--order string` sets an explicit fractional-index order value; `--prefix string` overrides the configured ID prefix for this item; `--set`/`--unset stringArray` add or remove extra front matter `key=value` pairs and can be repeated; `--json` returns the created item as JSON.
 
-A bean created without `-s` gets whatever status the project's profile defines as the default, which is not necessarily `todo` — check `beans list` after creating one if you expect it to show up under `beans next`.
-
-```
-beans --beans-path ./demo/.beans create "Fix login bug" -t bug -p high -s todo
-```
+An item created without `-s` gets the project's configured `lif.default_status`, which is `todo` unless the configuration changes it — check `lif list` after creating one if you expect it to show up under `lif next`.
 
 ```
-beans --beans-path ./demo/.beans create "Design auth flow" -t feature --parent beans-vvat --tag auth
+lif --lif-path ./demo/.lif create "Fix login bug" -t bug -p high -s todo
 ```
 
-## `beans start`
-
-`beans start <id> [id...]` marks one or more existing beans as in-progress. A single bean is displayed in full, the same as `beans show` would; several beans each get one confirmation line instead, since printing many full bodies on one screen helps nobody. Every ID in the call is resolved before the first bean is written, so an unknown ID leaves the whole batch untouched. Flags: `--json` returns the result as JSON.
-
 ```
-beans --beans-path ./demo/.beans start beans-vvat
+lif --lif-path ./demo/.lif create "Design auth flow" -t feature --parent lif-vvat --tag auth
 ```
 
-## `beans complete`
+## `lif start`
 
-`beans complete <id> [id...]` marks one or more existing beans as completed. `--summary`, `--commit`, and `--set` apply to every bean named in the call. Flags: `--summary string` appends an optional summary of changes to each bean's body; `--commit string` records a git ref (`HEAD`, a branch, a tag, or a SHA) in the configured commit field of each bean; `--set stringArray` sets an extra front matter `key=value` on every bean in the call and can be repeated; `--json` returns the result as JSON. Every ID is resolved and checked against the status policy before the first bean is written, so an unknown ID or a policy violation leaves the whole batch alone.
-
-```
-beans --beans-path ./demo/.beans complete beans-vvat --summary "Fixed login" --commit HEAD
-```
-
-## `beans scrap`
-
-`beans scrap <id> [id...]` marks one or more existing beans as scrapped instead of completed, for work that will not be finished. `--reason` applies to every bean named in the call and is required. Flags: `--reason string` records why the bean was scrapped (required); `--json` returns the result as JSON. Every ID is resolved before the first bean is written, so an unknown ID leaves the whole batch alone.
+`lif start <id> [id...]` marks one or more existing items as in-progress. A single item is displayed in full, the same as `lif show` would; several items each get one confirmation line instead, since printing many full bodies on one screen helps nobody. Every ID in the call is resolved before the first item is written, so an unknown ID leaves the whole batch untouched. Flags: `--json` returns the result as JSON.
 
 ```
-beans --beans-path ./demo/.beans scrap beans-gng9 --reason "Out of scope"
+lif --lif-path ./demo/.lif start lif-vvat
 ```
 
-## `beans archive`
+## `lif complete`
 
-`beans archive` moves every bean whose status is configured for archiving (`completed` and `scrapped` by default) into `.beans/archive/`. Archived beans keep their relationships intact and remain visible in `beans list` and other queries; the command relocates files to keep the active directory tidy without deleting project history. It takes no ID arguments and processes every qualifying bean. `--json` returns the result as JSON.
-
-```
-beans --beans-path ./demo/.beans archive
-```
-
-## `beans delete` (alias `rm`)
-
-`beans delete <id> [id...]` permanently removes one or more beans from the store, unlike `archive`, `complete`, and `scrap`, which all preserve the bean file. By default it asks for confirmation; if other beans reference the target(s) as a parent or via blocking, it also warns about those references and removes them after confirmation. Flags: `-f`/`--force` skips both the confirmation prompt and the reference warnings; `--json` outputs the result as JSON and implies `--force`, so a scripted `--json` call never blocks on a prompt.
-
-Because `--json` implies `--force`, a `beans delete --json <id>` call in a script will silently drop any references to that bean from other beans' front matter — confirm the ID is the one you mean before scripting this call.
+`lif complete <id> [id...]` marks one or more existing items as completed. `--summary`, `--commit`, and `--set` apply to every item named in the call. Flags: `--summary string` appends an optional summary of changes to each item's body; `--commit string` records a git ref (`HEAD`, a branch, a tag, or a SHA) in the configured commit field of each item; `--set stringArray` sets an extra front matter `key=value` on every item in the call and can be repeated; `--json` returns the result as JSON. Every ID is resolved and checked against the status policy before the first item is written, so an unknown ID or a policy violation leaves the whole batch alone.
 
 ```
-beans --beans-path ./demo/.beans delete beans-u76f --json
+lif --lif-path ./demo/.lif complete lif-vvat --summary "Fixed login" --commit HEAD
+```
+
+## `lif scrap`
+
+`lif scrap <id> [id...]` marks one or more existing items as scrapped instead of completed, for work that will not be finished. `--reason` applies to every item named in the call and is required. Flags: `--reason string` records why the item was scrapped (required); `--json` returns the result as JSON. Every ID is resolved before the first item is written, so an unknown ID leaves the whole batch alone.
+
+```
+lif --lif-path ./demo/.lif scrap lif-gng9 --reason "Out of scope"
+```
+
+## `lif archive`
+
+`lif archive` moves every item whose status is configured for archiving (`completed` and `scrapped` by default) into `.lif/archive/`. Archived items keep their relationships intact and remain visible in `lif list` and other queries; the command relocates files to keep the active directory tidy without deleting project history. It takes no ID arguments and processes every qualifying item. The reported count includes items that already sit under `archive/`, so running it twice reports the same number twice; when nothing qualifies at all it prints `No items with archive status to archive.` `--json` returns the result as JSON.
+
+```
+lif --lif-path ./demo/.lif archive
+```
+
+## `lif delete` (alias `rm`)
+
+`lif delete <id> [id...]` permanently removes one or more items from the store, unlike `archive`, `complete`, and `scrap`, which all preserve the item file. By default it asks for confirmation; if other items reference the target(s) as a parent or via blocking, it also warns about those references and removes them after confirmation. Flags: `-f`/`--force` skips both the confirmation prompt and the reference warnings; `--json` outputs the result as JSON and implies `--force`, so a scripted `--json` call never blocks on a prompt.
+
+Because `--json` implies `--force`, a `lif delete --json <id>` call in a script will silently drop any references to that item from other items' front matter — confirm the ID is the one you mean before scripting this call.
+
+```
+lif --lif-path ./demo/.lif delete lif-u76f --json
 ```
 
 ## Related documentation
