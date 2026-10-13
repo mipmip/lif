@@ -4,31 +4,31 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/xRiErOS/lif/pkg/bean"
+	"github.com/xRiErOS/lif/pkg/item"
 	"github.com/xRiErOS/lif/internal/ui"
 )
 
 // previewModel is a read-only detail preview for the two-column layout.
-// It has no focus, no interaction - just renders bean details.
+// It has no focus, no interaction - just renders item details.
 type previewModel struct {
-	bean   *bean.Bean
+	item   *item.Item
 	width  int
 	height int
 }
 
-func newPreviewModel(b *bean.Bean, width, height int) previewModel {
+func newPreviewModel(b *item.Item, width, height int) previewModel {
 	return previewModel{
-		bean:   b,
+		item:   b,
 		width:  width,
 		height: height,
 	}
 }
 
 func (m previewModel) View() string {
-	if m.bean == nil {
+	if m.item == nil {
 		return m.renderEmpty()
 	}
-	return m.renderBean()
+	return m.renderItem()
 }
 
 func (m previewModel) renderEmpty() string {
@@ -41,24 +41,24 @@ func (m previewModel) renderEmpty() string {
 	return style.Render("No bean selected")
 }
 
-func (m previewModel) renderBean() string {
+func (m previewModel) renderItem() string {
 	// Header: ID and Title
 	idStyle := lipgloss.NewStyle().Foreground(ui.ColorPrimary).Bold(true)
 	titleStyle := lipgloss.NewStyle().Bold(true)
 
-	header := idStyle.Render(m.bean.ID) + "\n" + titleStyle.Render(m.bean.Title)
+	header := idStyle.Render(m.item.ID) + "\n" + titleStyle.Render(m.item.Title)
 
 	// Metadata: Status, Type, Priority
 	metaStyle := lipgloss.NewStyle().Foreground(ui.ColorMuted)
-	meta := metaStyle.Render("Status: " + m.bean.Status + "  Type: " + m.bean.Type)
-	if m.bean.Priority != "" && m.bean.Priority != "normal" {
-		meta += metaStyle.Render("  Priority: " + m.bean.Priority)
+	meta := metaStyle.Render("Status: " + m.item.Status + "  Type: " + m.item.Type)
+	if m.item.Priority != "" && m.item.Priority != "normal" {
+		meta += metaStyle.Render("  Priority: " + m.item.Priority)
 	}
 
 	// Tags
 	var tagsLine string
-	if len(m.bean.Tags) > 0 {
-		tagsLine = ui.RenderTags(m.bean.Tags)
+	if len(m.item.Tags) > 0 {
+		tagsLine = ui.RenderTags(m.item.Tags)
 	}
 
 	// Body (truncated to fit)
@@ -111,19 +111,19 @@ func (m previewModel) renderBean() string {
 }
 
 func (m previewModel) renderBody() string {
-	if m.bean.Body == "" {
+	if m.item.Body == "" {
 		return lipgloss.NewStyle().Foreground(ui.ColorMuted).Render("No description")
 	}
 
 	// Render markdown (reuse existing glamour renderer from detail.go)
 	renderer := getGlamourRenderer()
 	if renderer == nil {
-		return m.bean.Body
+		return m.item.Body
 	}
 
-	rendered, err := renderer.Render(m.bean.Body)
+	rendered, err := renderer.Render(m.item.Body)
 	if err != nil {
-		return m.bean.Body
+		return m.item.Body
 	}
 
 	// Truncate to available height

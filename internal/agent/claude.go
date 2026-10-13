@@ -62,7 +62,7 @@ func (p *runningProcess) kill() {
 // using Claude Code's stream-json input format. When images are present,
 // the content field is sent as an array of content blocks (text + image)
 // matching the Anthropic API format.
-func (m *Manager) sendToProcess(proc *runningProcess, beanID, message string, images []ImageRef) error {
+func (m *Manager) sendToProcess(proc *runningProcess, itemID, message string, images []ImageRef) error {
 	var content interface{} = message
 
 	if len(images) > 0 && m.store != nil {
@@ -71,14 +71,14 @@ func (m *Manager) sendToProcess(proc *runningProcess, beanID, message string, im
 			blocks = append(blocks, map[string]string{"type": "text", "text": message})
 		}
 		for _, img := range images {
-			path, err := m.store.attachmentPath(beanID, img.ID)
+			path, err := m.store.attachmentPath(itemID, img.ID)
 			if err != nil {
-				log.Printf("[agent:%s] skip image %s: %v", beanID, img.ID, err)
+				log.Printf("[agent:%s] skip image %s: %v", itemID, img.ID, err)
 				continue
 			}
 			data, err := os.ReadFile(path)
 			if err != nil {
-				log.Printf("[agent:%s] skip image %s: %v", beanID, img.ID, err)
+				log.Printf("[agent:%s] skip image %s: %v", itemID, img.ID, err)
 				continue
 			}
 			blocks = append(blocks, map[string]interface{}{
@@ -111,7 +111,7 @@ func (m *Manager) sendToProcess(proc *runningProcess, beanID, message string, im
 
 // spawnAndRun spawns a claude CLI process and reads its output.
 // This runs in a goroutine — it blocks until the process exits.
-func (m *Manager) spawnAndRun(beanID string, session *Session) {
+func (m *Manager) spawnAndRun(itemID string, session *Session) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	args := buildClaudeArgs(session)
@@ -121,27 +121,27 @@ func (m *Manager) spawnAndRun(beanID string, session *Session) {
 
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
-		m.setError(beanID, fmt.Sprintf("stdin pipe: %v", err))
+		m.setError(itemID, fmt.Sprintf("stdin pipe: %v", err))
 		cancel()
 		return
 	}
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		m.setError(beanID, fmt.Sprintf("stdout pipe: %v", err))
+		m.setError(itemID, fmt.Sprintf("stdout pipe: %v", err))
 		cancel()
 		return
 	}
 
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
-		m.setError(beanID, fmt.Sprintf("stderr pipe: %v", err))
+		m.setError(itemID, fmt.Sprintf("stderr pipe: %v", err))
 		cancel()
 		return
 	}
 
 	if err := cmd.Start(); err != nil {
-		m.setError(beanID, fmt.Sprintf("start claude: %v", err))
+		m.setError(itemID, fmt.Sprintf("start claude: %v", err))
 		cancel()
 		return
 	}
@@ -149,7 +149,7 @@ func (m *Manager) spawnAndRun(beanID string, session *Session) {
 	proc := &runningProcess{cmd: cmd, stdin: stdin, cancel: cancel, done: make(chan struct{})}
 
 	m.mu.Lock()
-	m.processes[beanID] = proc
+	m.processes[itemID] = proc
 	m.mu.Unlock()
 
 	// Drain stderr silently — Claude Code writes verbose progress info here
@@ -161,28 +161,28 @@ func (m *Manager) spawnAndRun(beanID string, session *Session) {
 		}
 	}()
 
-	log.Printf("[agent:%s] spawned claude process (pid=%d, dir=%s)", beanID, cmd.Process.Pid, session.WorkDir)
+	log.Printf("[agent:%s] spawned claude process (pid=%d, dir=%s)", itemID, cmd.Process.Pid, session.WorkDir)
 
-	// Send the initial user message, prepending bean context on first spawn
+	// Send the initial user message, prepending item context on first spawn
 	// and any file attachment context from @-mentions
 	lastMsg := session.Messages[len(session.Messages)-1]
 	initialMsg := lastMsg.ContextPrefix + lastMsg.Content
 	if session.SessionID == "" && m.contextProvider != nil {
-		if ctx := m.contextProvider(beanID); ctx != "" {
+		if ctx := m.contextProvider(itemID); ctx != "" {
 			initialMsg = ctx + "\n\n---\n\n" + initialMsg
 		}
 	}
-	if err := m.sendToProcess(proc, beanID, initialMsg, lastMsg.Images); err != nil {
-		m.setError(beanID, fmt.Sprintf("send initial message: %v", err))
+	if err := m.sendToProcess(proc, itemID, initialMsg, lastMsg.Images); err != nil {
+		m.setError(itemID, fmt.Sprintf("send initial message: %v", err))
 		proc.kill()
 		return
 	}
 
 	// Read stdout line by line
-	m.readOutput(beanID, stdout, session.WorkDir, proc)
+	m.readOutput(itemID, stdout, session.WorkDir, proc)
 
 	// Process exited — clean up.
-	// Only modify state if this proc is still the current one for this beanID.
+	// Only modify state if this proc is still the current one for this itemID.
 	// A new process may have already been spawned (e.g. after handleBlockingTool
 	// signaled us and the user sent a new message), so we must not clobber it.
 	_ = cmd.Wait()
@@ -190,9 +190,9 @@ func (m *Manager) spawnAndRun(beanID string, session *Session) {
 
 	m.mu.Lock()
 	shouldNotify := false
-	if m.processes[beanID] == proc {
-		delete(m.processes, beanID)
-		if s, ok := m.sessions[beanID]; ok && s.Status == StatusRunning {
+	if m.processes[itemID] == proc {
+		delete(m.processes, itemID)
+		if s, ok := m.sessions[itemID]; ok && s.Status == StatusRunning {
 			s.Status = StatusIdle
 			shouldNotify = true
 		}
@@ -200,13 +200,13 @@ func (m *Manager) spawnAndRun(beanID string, session *Session) {
 	m.mu.Unlock()
 
 	if shouldNotify {
-		m.notify(beanID)
+		m.notify(itemID)
 	}
 }
 
 // readOutput reads Claude Code's stream-json output line by line,
 // updates the session state, and notifies subscribers.
-func (m *Manager) readOutput(beanID string, stdout io.Reader, workDir string, proc *runningProcess) {
+func (m *Manager) readOutput(itemID string, stdout io.Reader, workDir string, proc *runningProcess) {
 	scanner := bufio.NewScanner(stdout)
 	// Increase buffer for long lines (1MB)
 	scanner.Buffer(make([]byte, 0, 1024*1024), 1024*1024)
@@ -250,11 +250,11 @@ func (m *Manager) readOutput(beanID string, stdout io.Reader, workDir string, pr
 				diff := computeUnifiedDiff(writeOldContent, newContent, label)
 				if diff != "" {
 					m.mu.Lock()
-					if s, ok := m.sessions[beanID]; ok && toolMsgIdx >= 0 && toolMsgIdx < len(s.Messages) {
+					if s, ok := m.sessions[itemID]; ok && toolMsgIdx >= 0 && toolMsgIdx < len(s.Messages) {
 						s.Messages[toolMsgIdx].Diff = diff
 					}
 					m.mu.Unlock()
-					m.notify(beanID)
+					m.notify(itemID)
 				}
 			}
 		}
@@ -266,15 +266,15 @@ func (m *Manager) readOutput(beanID string, stdout io.Reader, workDir string, pr
 			return
 		}
 		m.mu.RLock()
-		s, ok := m.sessions[beanID]
+		s, ok := m.sessions[itemID]
 		var msg Message
 		if ok && toolMsgIdx >= 0 && toolMsgIdx < len(s.Messages) {
 			msg = s.Messages[toolMsgIdx]
 		}
 		m.mu.RUnlock()
 		if msg.Role == RoleTool {
-			if err := m.store.appendMessage(beanID, msg); err != nil {
-				log.Printf("[agent:%s] failed to persist tool message: %v", beanID, err)
+			if err := m.store.appendMessage(itemID, msg); err != nil {
+				log.Printf("[agent:%s] failed to persist tool message: %v", itemID, err)
 			}
 		}
 	}
@@ -290,15 +290,15 @@ func (m *Manager) readOutput(beanID string, stdout io.Reader, workDir string, pr
 			return
 		}
 		m.mu.Lock()
-		if m.processes[beanID] != proc {
+		if m.processes[itemID] != proc {
 			m.mu.Unlock()
 			return
 		}
-		s, ok := m.sessions[beanID]
+		s, ok := m.sessions[itemID]
 		if ok && s.Status == StatusIdle {
 			s.Status = StatusRunning
 			m.mu.Unlock()
-			m.notify(beanID)
+			m.notify(itemID)
 			return
 		}
 		m.mu.Unlock()
@@ -318,7 +318,7 @@ func (m *Manager) readOutput(beanID string, stdout io.Reader, workDir string, pr
 			if json.Unmarshal(line, &peek) == nil && peek.Type != "" {
 				eventType = peek.Type
 			}
-			log.Printf("[agent:%s] unhandled event type: %s", beanID, eventType)
+			log.Printf("[agent:%s] unhandled event type: %s", itemID, eventType)
 		}
 
 		// Finalize deferred AskUserQuestion blocking when tool input is complete.
@@ -328,7 +328,7 @@ func (m *Manager) readOutput(beanID string, stdout io.Reader, workDir string, pr
 			if questions := parseAskUserInput(toolInputBuf.String()); questions != nil {
 				interaction.Questions = questions
 			}
-			m.handleBlockingTool(beanID, interaction)
+			m.handleBlockingTool(itemID, interaction)
 			deferredAskUser = false
 			blocked = true
 		}
@@ -344,7 +344,7 @@ func (m *Manager) readOutput(beanID string, stdout io.Reader, workDir string, pr
 			// to avoid replacing streamed content with the same text (visual flash).
 			if ev.Text != "" {
 				m.mu.Lock()
-				if s, ok := m.sessions[beanID]; ok {
+				if s, ok := m.sessions[itemID]; ok {
 					idx := s.streamingIdx
 					hasStreamedContent := idx >= 0 && idx < len(s.Messages) &&
 						s.Messages[idx].Role == RoleAssistant && s.Messages[idx].Content != ""
@@ -353,7 +353,7 @@ func (m *Manager) readOutput(beanID string, stdout io.Reader, workDir string, pr
 						s.Messages = append(s.Messages, Message{Role: RoleAssistant, Content: ev.Text})
 						s.streamingIdx = len(s.Messages) - 1
 						m.mu.Unlock()
-						m.notify(beanID)
+						m.notify(itemID)
 					} else {
 						m.mu.Unlock()
 					}
@@ -363,7 +363,7 @@ func (m *Manager) readOutput(beanID string, stdout io.Reader, workDir string, pr
 			}
 			if ev.SessionID != "" {
 				m.mu.Lock()
-				if s, ok := m.sessions[beanID]; ok {
+				if s, ok := m.sessions[itemID]; ok {
 					s.SessionID = ev.SessionID
 				}
 				m.mu.Unlock()
@@ -376,7 +376,7 @@ func (m *Manager) readOutput(beanID string, stdout io.Reader, workDir string, pr
 			// Check session state to avoid re-intercepting mode switches
 			// that already took effect (e.g. after --resume).
 			m.mu.RLock()
-			sess := m.sessions[beanID]
+			sess := m.sessions[itemID]
 			m.mu.RUnlock()
 			if interaction := blockingInteraction(ev.ToolName, sess); interaction != nil {
 				if interaction.Type == InteractionAskUser {
@@ -385,9 +385,9 @@ func (m *Manager) readOutput(beanID string, stdout io.Reader, workDir string, pr
 					deferredAskUser = true
 				} else if interaction.Type == InteractionEnterPlan {
 					// Auto-approve entering plan mode — no user prompt needed.
-					m.autoApproveModeSwitch(beanID, interaction)
+					m.autoApproveModeSwitch(itemID, interaction)
 				} else {
-					m.handleBlockingTool(beanID, interaction)
+					m.handleBlockingTool(itemID, interaction)
 					blocked = true
 				}
 			}
@@ -405,21 +405,21 @@ func (m *Manager) readOutput(beanID string, stdout io.Reader, workDir string, pr
 			toolInputBuf.Reset()
 			toolName = ev.ToolName
 			m.mu.Lock()
-			if s, ok := m.sessions[beanID]; ok {
+			if s, ok := m.sessions[itemID]; ok {
 				// Persist the pre-tool assistant message before resetting
 				idx := s.streamingIdx
 				if m.store != nil && idx >= 0 && idx < len(s.Messages) && s.Messages[idx].Role == RoleAssistant && s.Messages[idx].Content != "" {
 					msg := s.Messages[idx]
 					m.mu.Unlock()
-					if err := m.store.appendMessage(beanID, msg); err != nil {
-						log.Printf("[agent:%s] failed to persist pre-tool assistant message: %v", beanID, err)
+					if err := m.store.appendMessage(itemID, msg); err != nil {
+						log.Printf("[agent:%s] failed to persist pre-tool assistant message: %v", itemID, err)
 					}
 					m.mu.Lock()
 					// Re-check session still exists after re-acquiring lock
-					s = m.sessions[beanID]
+					s = m.sessions[itemID]
 					if s == nil {
 						m.mu.Unlock()
-						m.notify(beanID)
+						m.notify(itemID)
 						continue
 					}
 				}
@@ -434,7 +434,7 @@ func (m *Manager) readOutput(beanID string, stdout io.Reader, workDir string, pr
 				pendingToolPersist = true
 			}
 			m.mu.Unlock()
-			m.notify(beanID)
+			m.notify(itemID)
 
 		case eventToolInputDelta:
 			// Accumulate tool input JSON and try to extract a summary
@@ -444,7 +444,7 @@ func (m *Manager) readOutput(beanID string, stdout io.Reader, workDir string, pr
 				summary := extractToolSummary(toolInputBuf.String(), workDir)
 				if summary != "" {
 					m.mu.Lock()
-					if s, ok := m.sessions[beanID]; ok && toolMsgIdx < len(s.Messages) {
+					if s, ok := m.sessions[itemID]; ok && toolMsgIdx < len(s.Messages) {
 						s.Messages[toolMsgIdx].Content = toolName + ": " + summary
 						// Update structured tool invocation input.
 						// For file-based tools, store the raw (untruncated) file_path
@@ -458,7 +458,7 @@ func (m *Manager) readOutput(beanID string, stdout io.Reader, workDir string, pr
 						}
 					}
 					m.mu.Unlock()
-					m.notify(beanID)
+					m.notify(itemID)
 				}
 
 				// Capture old file content for Write tool diffs.
@@ -485,7 +485,7 @@ func (m *Manager) readOutput(beanID string, stdout io.Reader, workDir string, pr
 			// New text content block starting — insert paragraph break if
 			// the current message already has content (e.g. after tool use).
 			m.mu.Lock()
-			if s, ok := m.sessions[beanID]; ok {
+			if s, ok := m.sessions[itemID]; ok {
 				idx := s.streamingIdx
 				if idx >= 0 && idx < len(s.Messages) &&
 					s.Messages[idx].Role == RoleAssistant && s.Messages[idx].Content != "" {
@@ -494,8 +494,8 @@ func (m *Manager) readOutput(beanID string, stdout io.Reader, workDir string, pr
 			}
 			m.mu.Unlock()
 			if ev.Text != "" {
-				m.appendAssistantText(beanID, ev.Text)
-				m.notify(beanID)
+				m.appendAssistantText(itemID, ev.Text)
+				m.notify(itemID)
 			}
 
 		case eventTextDelta:
@@ -504,8 +504,8 @@ func (m *Manager) readOutput(beanID string, stdout io.Reader, workDir string, pr
 			ensureRunning()
 
 			// Streaming text delta (with --include-partial-messages)
-			m.appendAssistantText(beanID, ev.Text)
-			m.notify(beanID)
+			m.appendAssistantText(itemID, ev.Text)
+			m.notify(itemID)
 
 		case eventResult:
 			// Flush any pending tool message before result
@@ -513,28 +513,28 @@ func (m *Manager) readOutput(beanID string, stdout io.Reader, workDir string, pr
 
 			if ev.SessionID != "" {
 				m.mu.Lock()
-				if s, ok := m.sessions[beanID]; ok {
+				if s, ok := m.sessions[itemID]; ok {
 					s.SessionID = ev.SessionID
 				}
 				m.mu.Unlock()
 
 				// Persist session ID for --resume
 				if m.store != nil {
-					if err := m.store.saveSessionID(beanID, ev.SessionID); err != nil {
-						log.Printf("[agent:%s] failed to persist session ID: %v", beanID, err)
+					if err := m.store.saveSessionID(itemID, ev.SessionID); err != nil {
+						log.Printf("[agent:%s] failed to persist session ID: %v", itemID, err)
 					}
 				}
 			}
 
 			// Persist the completed assistant message and reset streaming target
 			m.mu.Lock()
-			if s, ok := m.sessions[beanID]; ok {
+			if s, ok := m.sessions[itemID]; ok {
 				idx := s.streamingIdx
 				if m.store != nil && idx >= 0 && idx < len(s.Messages) && s.Messages[idx].Role == RoleAssistant {
 					msg := s.Messages[idx]
 					m.mu.Unlock()
-					if err := m.store.appendMessage(beanID, msg); err != nil {
-						log.Printf("[agent:%s] failed to persist assistant message: %v", beanID, err)
+					if err := m.store.appendMessage(itemID, msg); err != nil {
+						log.Printf("[agent:%s] failed to persist assistant message: %v", itemID, err)
 					}
 					m.mu.Lock()
 				}
@@ -543,46 +543,46 @@ func (m *Manager) readOutput(beanID string, stdout io.Reader, workDir string, pr
 				// Only modify session status if this is still the current process.
 				// A dying process (e.g. after autoApproveModeSwitch) must not
 				// reset status to Idle when a new process is already Running.
-				if m.processes[beanID] == proc {
+				if m.processes[itemID] == proc {
 					s.Status = StatusIdle
 					s.SystemStatus = ""
 					s.SubagentActivities = nil
 				}
 			}
 			m.mu.Unlock()
-			m.notify(beanID)
+			m.notify(itemID)
 
 			// Fire turn complete callback (e.g. to update workspace activity timestamp)
 			if m.onTurnComplete != nil {
-				go m.onTurnComplete(beanID)
+				go m.onTurnComplete(itemID)
 			}
 
 			// Generate quick reply suggestions asynchronously
-			go m.generateQuickReplies(beanID)
+			go m.generateQuickReplies(itemID)
 
 			// After compact, prune orphaned image attachments
-			if m.wasLastUserMessage(beanID, "/compact") {
-				m.pruneOrphanedAttachments(beanID)
+			if m.wasLastUserMessage(itemID, "/compact") {
+				m.pruneOrphanedAttachments(itemID)
 			}
 
 		case eventError:
 			flushToolMsg()
-			m.setError(beanID, ev.Error)
+			m.setError(itemID, ev.Error)
 
 		case eventSystemStatus:
 			m.mu.Lock()
-			if s, ok := m.sessions[beanID]; ok {
+			if s, ok := m.sessions[itemID]; ok {
 				s.SystemStatus = ev.Text
 			}
 			m.mu.Unlock()
-			m.notify(beanID)
+			m.notify(itemID)
 
 		case eventTaskProgress:
 			ensureRunning()
 
 			// Subagent progress update — upsert by task_id.
 			m.mu.Lock()
-			if s, ok := m.sessions[beanID]; ok {
+			if s, ok := m.sessions[itemID]; ok {
 				// Find existing activity by task_id, or create new one
 				var activity *SubagentActivity
 				for _, a := range s.SubagentActivities {
@@ -606,7 +606,7 @@ func (m *Manager) readOutput(beanID string, stdout io.Reader, workDir string, pr
 				}
 			}
 			m.mu.Unlock()
-			m.notify(beanID)
+			m.notify(itemID)
 
 		}
 	}
@@ -617,7 +617,7 @@ func (m *Manager) readOutput(beanID string, stdout io.Reader, workDir string, pr
 		if questions := parseAskUserInput(toolInputBuf.String()); questions != nil {
 			interaction.Questions = questions
 		}
-		m.handleBlockingTool(beanID, interaction)
+		m.handleBlockingTool(itemID, interaction)
 	}
 
 	// Flush any remaining pending tool message at end of stream
@@ -640,16 +640,16 @@ func (m *Manager) readOutput(beanID string, stdout io.Reader, workDir string, pr
 		// write share one lock — see setErrorIfCurrent — because between a
 		// released read lock and setError's write lock the successor can be
 		// installed and the failure would land on it after all.
-		m.setErrorIfCurrent(beanID, proc, fmt.Sprintf("agent output stream failed: %v", err))
+		m.setErrorIfCurrent(itemID, proc, fmt.Sprintf("agent output stream failed: %v", err))
 	}
 }
 
 // wasLastUserMessage checks if the most recent user message in the session
 // matches the given content (trimmed). Used to detect /compact for pruning.
-func (m *Manager) wasLastUserMessage(beanID, content string) bool {
+func (m *Manager) wasLastUserMessage(itemID, content string) bool {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	s, ok := m.sessions[beanID]
+	s, ok := m.sessions[itemID]
 	if !ok {
 		return false
 	}
@@ -664,10 +664,10 @@ func (m *Manager) wasLastUserMessage(beanID, content string) bool {
 // appendAssistantText appends text to the current streaming assistant message.
 // Uses streamingIdx to ensure deltas from an ongoing turn always go to the
 // correct message, even if user messages are interleaved mid-turn.
-func (m *Manager) appendAssistantText(beanID, text string) {
+func (m *Manager) appendAssistantText(itemID, text string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	s, ok := m.sessions[beanID]
+	s, ok := m.sessions[itemID]
 	if !ok {
 		return
 	}
@@ -684,29 +684,29 @@ func (m *Manager) appendAssistantText(beanID, text string) {
 }
 
 // setError sets the session to error state and notifies subscribers.
-func (m *Manager) setError(beanID, errMsg string) {
+func (m *Manager) setError(itemID, errMsg string) {
 	m.mu.Lock()
-	if s, ok := m.sessions[beanID]; ok {
+	if s, ok := m.sessions[itemID]; ok {
 		s.Status = StatusError
 		s.Error = errMsg
 	}
 	m.mu.Unlock()
-	m.notify(beanID)
+	m.notify(itemID)
 }
 
 // setErrorIfCurrent sets the session to error state, but only while proc is
-// still the process registered for the bean. Check and write happen under a
+// still the process registered for the item. Check and write happen under a
 // single write lock, the way spawnAndRun's own ownership check does: a
 // check-then-act guard that releases the lock in between leaves a window in
 // which StopSession can drop the process and a new SendMessage can install a
 // healthy successor, so the dead stream's error would flip the successor to
 // ERROR. Subscribers are notified outside the lock, and only if anything was
 // actually written. Format errMsg at the call site, never inside the lock.
-func (m *Manager) setErrorIfCurrent(beanID string, proc *runningProcess, errMsg string) {
+func (m *Manager) setErrorIfCurrent(itemID string, proc *runningProcess, errMsg string) {
 	m.mu.Lock()
 	wrote := false
-	if m.processes[beanID] == proc {
-		if s, ok := m.sessions[beanID]; ok {
+	if m.processes[itemID] == proc {
+		if s, ok := m.sessions[itemID]; ok {
 			s.Status = StatusError
 			s.Error = errMsg
 			wrote = true
@@ -715,7 +715,7 @@ func (m *Manager) setErrorIfCurrent(beanID string, proc *runningProcess, errMsg 
 	m.mu.Unlock()
 
 	if wrote {
-		m.notify(beanID)
+		m.notify(itemID)
 	}
 }
 
@@ -747,9 +747,9 @@ func blockingInteraction(toolName string, session *Session) *PendingInteraction 
 // handleBlockingTool processes a blocking tool call by setting the pending
 // interaction, killing the process, and notifying subscribers. The session ID
 // is preserved so the conversation can be resumed with --resume.
-func (m *Manager) handleBlockingTool(beanID string, interaction *PendingInteraction) {
+func (m *Manager) handleBlockingTool(itemID string, interaction *PendingInteraction) {
 	m.mu.Lock()
-	s, ok := m.sessions[beanID]
+	s, ok := m.sessions[itemID]
 	if !ok {
 		m.mu.Unlock()
 		return
@@ -781,9 +781,9 @@ func (m *Manager) handleBlockingTool(beanID string, interaction *PendingInteract
 	// or rejects the interaction. This prevents the UI from showing the wrong
 	// mode while the user is still reviewing.
 
-	proc, hasProc := m.processes[beanID]
+	proc, hasProc := m.processes[itemID]
 	if hasProc {
-		delete(m.processes, beanID)
+		delete(m.processes, itemID)
 	}
 	m.mu.Unlock()
 
@@ -793,16 +793,16 @@ func (m *Manager) handleBlockingTool(beanID string, interaction *PendingInteract
 		proc.signal()
 	}
 
-	m.notify(beanID)
+	m.notify(itemID)
 }
 
 // autoApproveModeSwitch handles EnterPlanMode/ExitPlanMode by toggling the mode,
 // killing the current process, and immediately respawning with --resume.
 // No pending interaction is set and no message is added to the conversation —
 // the mode switch is transparent to the user.
-func (m *Manager) autoApproveModeSwitch(beanID string, interaction *PendingInteraction) {
+func (m *Manager) autoApproveModeSwitch(itemID string, interaction *PendingInteraction) {
 	m.mu.Lock()
-	s, ok := m.sessions[beanID]
+	s, ok := m.sessions[itemID]
 	if !ok {
 		m.mu.Unlock()
 		return
@@ -820,9 +820,9 @@ func (m *Manager) autoApproveModeSwitch(beanID string, interaction *PendingInter
 	s.PendingInteraction = nil
 	s.Status = StatusRunning
 
-	proc, hasProc := m.processes[beanID]
+	proc, hasProc := m.processes[itemID]
 	if hasProc {
-		delete(m.processes, beanID)
+		delete(m.processes, itemID)
 	}
 	m.mu.Unlock()
 
@@ -830,11 +830,11 @@ func (m *Manager) autoApproveModeSwitch(beanID string, interaction *PendingInter
 		proc.signal()
 	}
 
-	m.notify(beanID)
+	m.notify(itemID)
 
 	// Respawn with the new mode via --resume. Runs in a goroutine because
 	// we're inside readOutput (same goroutine as spawnAndRun).
-	go m.spawnAndRun(beanID, s)
+	go m.spawnAndRun(itemID, s)
 }
 
 // findPlanFilePath scans tool invocations for a Write to ~/.claude/plans/*.md

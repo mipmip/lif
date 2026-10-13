@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/xRiErOS/lif/pkg/beancore"
 	"github.com/xRiErOS/lif/pkg/config"
+	"github.com/xRiErOS/lif/pkg/itemcore"
 )
 
 // The store path is resolved in exactly one place (resolveBeansPath). Scripts
@@ -14,7 +14,7 @@ import (
 // command prints the bare path and nothing else.
 func TestPathCmdPrintsResolvedStore(t *testing.T) {
 	dir := t.TempDir()
-	core = beancore.New(dir, config.Default())
+	core = itemcore.New(dir, config.Default())
 
 	var out bytes.Buffer
 	pathCmd.SetOut(&out)
@@ -29,7 +29,7 @@ func TestPathCmdPrintsResolvedStore(t *testing.T) {
 	}
 }
 
-// Scripts call `beans path`, so the command has to be wired into the CLI, not
+// Scripts call `lif path`, so the command has to be wired into the CLI, not
 // merely defined.
 func TestPathCmdIsRegistered(t *testing.T) {
 	// The command objects and their flag variables are package-level

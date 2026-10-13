@@ -10,25 +10,25 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/xRiErOS/lif/pkg/bean"
+	"github.com/xRiErOS/lif/pkg/item"
 	"gopkg.in/yaml.v3"
 )
 
 const (
 	// ConfigFileName is the name of the config file at project root
 	ConfigFileName = ".beans.yml"
-	// DefaultBeansPath is the default directory for storing beans
+	// DefaultBeansPath is the default directory for storing items
 	DefaultBeansPath = ".beans"
 	// LegacyConfigFile is the old config file location (deprecated)
 	LegacyConfigFile = "config.yaml"
 	// DefaultServerPort is the default port for the web server
 	DefaultServerPort = 8080
-	// AnchorRepoRoot anchors the beans directory at the main worktree's root
+	// AnchorRepoRoot anchors the items directory at the main worktree's root
 	// instead of at the config file's directory. Secondary worktrees then share
 	// the main workdir's store rather than each carrying their own.
 	AnchorRepoRoot = "repo-root"
 	// DefaultCommitField is the front matter key used to record a commit SHA
-	// when beans.commit_field is not configured.
+	// when items.commit_field is not configured.
 	DefaultCommitField = "commit"
 	// LeafRank is the rank of a type that carries no children. A type without
 	// an explicit rank lands here, which keeps the old behaviour where an
@@ -91,7 +91,7 @@ type StatusConfig struct {
 	Description string `yaml:"description,omitempty"`
 }
 
-// TypeConfig defines a single bean type with its display color.
+// TypeConfig defines a single item type with its display color.
 type TypeConfig struct {
 	Name  string `yaml:"name"`
 	Color string `yaml:"color"`
@@ -103,8 +103,8 @@ type TypeConfig struct {
 	// what carries the hierarchy where hue alone cannot: Catppuccin tones are
 	// uniformly pastel, so a container would otherwise lose against a leaf.
 	Emphasis bool `yaml:"emphasis,omitempty"`
-	// Roadmap decides whether this type gets its own section in `beans roadmap`
-	// and an entry in `beans milestones`. Nil means visible; only an explicit
+	// Roadmap decides whether this type gets its own section in `lif roadmap`
+	// and an entry in `lif milestones`. Nil means visible; only an explicit
 	// roadmap: false hides the type. On a container rank (1-3) this also
 	// hides its whole subtree; on the leaf rank it is inert, since a leaf is
 	// never itself a container to hide beneath.
@@ -183,8 +183,8 @@ type TypeOverride struct {
 	Rank        *int   `yaml:"rank,omitempty"`
 	Description string `yaml:"description,omitempty"`
 	Emphasis    *bool  `yaml:"emphasis,omitempty"`
-	// Roadmap decides whether this type gets its own section in `beans roadmap`
-	// and an entry in `beans milestones`. Nil means visible; only an explicit
+	// Roadmap decides whether this type gets its own section in `lif roadmap`
+	// and an entry in `lif milestones`. Nil means visible; only an explicit
 	// roadmap: false hides the type. On a container rank (1-3) this also
 	// hides its whole subtree; on the leaf rank it is inert, since a leaf is
 	// never itself a container to hide beneath.
@@ -326,7 +326,7 @@ type AgentConfig struct {
 // ProjectConfig defines project-level settings.
 type ProjectConfig struct {
 	// Name is the human-readable project name, displayed in the UI.
-	// Default: derived from directory name during `beans init`.
+	// Default: derived from directory name during `lif init`.
 	Name string `yaml:"name,omitempty"`
 }
 
@@ -352,10 +352,10 @@ type DisplayConfig struct {
 	MaxWidth int `yaml:"max_width,omitempty"`
 }
 
-// Config holds the beans configuration.
+// Config holds the items configuration.
 type Config struct {
 	Project  ProjectConfig  `yaml:"project,omitempty"`
-	Beans    BeansConfig    `yaml:"beans"`
+	Items    ItemsConfig    `yaml:"beans"`
 	Worktree WorktreeConfig `yaml:"worktree,omitempty"`
 	Agent    AgentConfig    `yaml:"agent,omitempty"`
 	Server   ServerConfig   `yaml:"server,omitempty"`
@@ -370,7 +370,7 @@ type Config struct {
 
 	// TypesExclusive switches the merge in TypeList() off: when true, Types is
 	// the complete type table on its own, not an override list layered onto
-	// DefaultTypes. beans init --profile sets this so a profile gives a
+	// DefaultTypes. lif init --profile sets this so a profile gives a
 	// project exactly its own types; a hand-written config that never sets it
 	// keeps the existing entry-by-entry override behaviour unchanged.
 	TypesExclusive bool `yaml:"types_exclusive,omitempty"`
@@ -386,9 +386,9 @@ type Config struct {
 	configFile string `yaml:"-"`
 }
 
-// BeansConfig defines settings for bean creation.
-type BeansConfig struct {
-	// Path is the path to the beans directory (relative to config file location)
+// ItemsConfig defines settings for item creation.
+type ItemsConfig struct {
+	// Path is the path to the items directory (relative to config file location)
 	Path string `yaml:"path,omitempty"`
 	// Anchor decides what Path is relative to. Empty (the default) keeps the
 	// config file's own directory, so a secondary worktree gets its own store.
@@ -401,7 +401,7 @@ type BeansConfig struct {
 	DefaultType    string `yaml:"default_type,omitempty"`
 	RequireIfMatch bool   `yaml:"require_if_match,omitempty"`
 	// RequireFieldsOn maps a target status to front matter keys that must carry
-	// a non-empty value whenever a bean is written into that status.
+	// a non-empty value whenever an item is written into that status.
 	RequireFieldsOn map[string][]string `yaml:"require_fields_on,omitempty"`
 	// CommitField names the extra front matter key that holds a git commit SHA.
 	// Only this key is git-verified when written or checked.
@@ -411,7 +411,7 @@ type BeansConfig struct {
 // Default returns a Config with default values.
 func Default() *Config {
 	return &Config{
-		Beans: BeansConfig{
+		Items: ItemsConfig{
 			Path:          DefaultBeansPath,
 			Prefix:        "",
 			IDLength:      4,
@@ -435,7 +435,7 @@ func Default() *Config {
 // DefaultWithPrefix returns a Config with the given prefix.
 func DefaultWithPrefix(prefix string) *Config {
 	cfg := Default()
-	cfg.Beans.Prefix = prefix
+	cfg.Items.Prefix = prefix
 	return cfg
 }
 
@@ -504,17 +504,17 @@ func Load(configPath string) (*Config, error) {
 	cfg.configFile = configPath
 
 	// Apply defaults for missing values
-	if cfg.Beans.Path == "" {
-		cfg.Beans.Path = DefaultBeansPath
+	if cfg.Items.Path == "" {
+		cfg.Items.Path = DefaultBeansPath
 	}
-	if cfg.Beans.IDLength == 0 {
-		cfg.Beans.IDLength = 4
+	if cfg.Items.IDLength == 0 {
+		cfg.Items.IDLength = 4
 	}
-	if cfg.Beans.DefaultStatus == "" {
-		cfg.Beans.DefaultStatus = "todo"
+	if cfg.Items.DefaultStatus == "" {
+		cfg.Items.DefaultStatus = "todo"
 	}
-	if cfg.Beans.DefaultType == "" {
-		// "task" is the canonical fallback: Default() (used by `beans init`
+	if cfg.Items.DefaultType == "" {
+		// "task" is the canonical fallback: Default() (used by `lif init`
 		// and whenever no config file exists) hardcodes it, and it is the
 		// leaf/most common type for day-to-day work. Prefer it here too, so
 		// a config that merely omits default_type behaves identically
@@ -530,10 +530,10 @@ func Load(configPath string) (*Config, error) {
 		// nothing to derive one from.
 		types := cfg.TypeList()
 		if len(types) > 0 {
-			cfg.Beans.DefaultType = types[0].Name
+			cfg.Items.DefaultType = types[0].Name
 			for _, t := range types {
 				if t.Name == "task" {
-					cfg.Beans.DefaultType = "task"
+					cfg.Items.DefaultType = "task"
 					break
 				}
 			}
@@ -542,7 +542,7 @@ func Load(configPath string) (*Config, error) {
 
 	// A misspelt anchor must not degrade into the default: that would silently
 	// resolve a different store than the file asks for.
-	if err := ValidateAnchor(cfg.Beans.Anchor); err != nil {
+	if err := ValidateAnchor(cfg.Items.Anchor); err != nil {
 		return nil, fmt.Errorf("%s: %w", configPath, err)
 	}
 
@@ -553,7 +553,7 @@ func Load(configPath string) (*Config, error) {
 	return &cfg, nil
 }
 
-// ValidateAnchor rejects any beans.anchor value the resolver cannot honour.
+// ValidateAnchor rejects any items.anchor value the resolver cannot honour.
 func ValidateAnchor(anchor string) error {
 	switch anchor {
 	case "", AnchorRepoRoot:
@@ -563,18 +563,18 @@ func ValidateAnchor(anchor string) error {
 	}
 }
 
-// validateRequireFieldsOn rejects a beans.require_fields_on configuration that
-// names an unknown status, an empty field name, or a field beans already
+// validateRequireFieldsOn rejects an items.require_fields_on configuration that
+// names an unknown status, an empty field name, or a field items already
 // manages as a schema field. Misconfiguration must not silently degrade into
 // no policy at all.
 func (c *Config) validateRequireFieldsOn() error {
-	statuses := make([]string, 0, len(c.Beans.RequireFieldsOn))
-	for status := range c.Beans.RequireFieldsOn {
+	statuses := make([]string, 0, len(c.Items.RequireFieldsOn))
+	for status := range c.Items.RequireFieldsOn {
 		statuses = append(statuses, status)
 	}
 	sort.Strings(statuses)
 	for _, status := range statuses {
-		fields := c.Beans.RequireFieldsOn[status]
+		fields := c.Items.RequireFieldsOn[status]
 		if !c.IsValidStatus(status) {
 			return fmt.Errorf("unknown status %q in beans.require_fields_on (valid: %s)", status, strings.Join(c.StatusNames(), ", "))
 		}
@@ -582,7 +582,7 @@ func (c *Config) validateRequireFieldsOn() error {
 			if strings.TrimSpace(field) == "" {
 				return fmt.Errorf("beans.require_fields_on[%q] contains an empty field name", status)
 			}
-			if _, known := bean.ReservedKeyFlag(field); known {
+			if _, known := item.ReservedKeyFlag(field); known {
 				return fmt.Errorf("beans.require_fields_on[%q] names reserved front matter field %q (managed by beans, not an extra key)", status, field)
 			}
 		}
@@ -614,17 +614,17 @@ func LoadFromDirectoryWithin(startDir, rootDir string) (*Config, error) {
 	return Load(configPath)
 }
 
-// ResolveBeansPath returns the absolute path to the beans directory.
-func (c *Config) ResolveBeansPath() string {
-	if filepath.IsAbs(c.Beans.Path) {
-		return c.Beans.Path
+// ResolveItemsPath returns the absolute path to the items directory.
+func (c *Config) ResolveItemsPath() string {
+	if filepath.IsAbs(c.Items.Path) {
+		return c.Items.Path
 	}
 	if c.configDir == "" {
 		// Fallback: use current directory
 		cwd, _ := os.Getwd()
-		return filepath.Join(cwd, c.Beans.Path)
+		return filepath.Join(cwd, c.Items.Path)
 	}
-	return filepath.Join(c.configDir, c.Beans.Path)
+	return filepath.Join(c.configDir, c.Items.Path)
 }
 
 // ConfigDir returns the directory containing the config file.
@@ -731,48 +731,48 @@ func (c *Config) toYAMLNode() *yaml.Node {
 		projectMapping.Content = append(projectMapping.Content, key, strNode(c.Project.Name))
 	}
 
-	// Build the beans mapping
-	beansMapping := &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
+	// Build the items mapping
+	itemsMapping := &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
 
-	if c.Beans.Path != "" {
+	if c.Items.Path != "" {
 		key := strNode("path")
 		key.HeadComment = "Directory where bean files are stored"
-		beansMapping.Content = append(beansMapping.Content, key, strNode(c.Beans.Path))
+		itemsMapping.Content = append(itemsMapping.Content, key, strNode(c.Items.Path))
 	}
 
-	if c.Beans.Anchor != "" {
+	if c.Items.Anchor != "" {
 		key := strNode("anchor")
 		key.HeadComment = "What `path` is relative to: \"repo-root\" makes every worktree share the main workdir's store"
-		beansMapping.Content = append(beansMapping.Content, key, strNode(c.Beans.Anchor))
+		itemsMapping.Content = append(itemsMapping.Content, key, strNode(c.Items.Anchor))
 	}
 
 	prefixKey := strNode("prefix")
 	prefixKey.HeadComment = "Prefix for bean IDs (e.g., \"myproject-abc1\")"
-	beansMapping.Content = append(beansMapping.Content, prefixKey, strNode(c.Beans.Prefix))
+	itemsMapping.Content = append(itemsMapping.Content, prefixKey, strNode(c.Items.Prefix))
 
 	idLenKey := strNode("id_length")
 	idLenKey.HeadComment = "Length of the random ID suffix"
-	beansMapping.Content = append(beansMapping.Content, idLenKey, intNode(c.Beans.IDLength))
+	itemsMapping.Content = append(itemsMapping.Content, idLenKey, intNode(c.Items.IDLength))
 
-	if c.Beans.DefaultStatus != "" {
+	if c.Items.DefaultStatus != "" {
 		key := strNode("default_status")
 		key.HeadComment = "Default status for new beans"
-		beansMapping.Content = append(beansMapping.Content, key, strNode(c.Beans.DefaultStatus))
+		itemsMapping.Content = append(itemsMapping.Content, key, strNode(c.Items.DefaultStatus))
 	}
 
-	if c.Beans.DefaultType != "" {
+	if c.Items.DefaultType != "" {
 		key := strNode("default_type")
 		key.HeadComment = "Default type for new beans"
-		beansMapping.Content = append(beansMapping.Content, key, strNode(c.Beans.DefaultType))
+		itemsMapping.Content = append(itemsMapping.Content, key, strNode(c.Items.DefaultType))
 	}
 
-	if c.Beans.RequireIfMatch {
+	if c.Items.RequireIfMatch {
 		key := strNode("require_if_match")
 		key.HeadComment = "Require ETag for updates (optimistic concurrency)"
-		beansMapping.Content = append(beansMapping.Content, key, scalar("true", "!!bool"))
+		itemsMapping.Content = append(itemsMapping.Content, key, scalar("true", "!!bool"))
 	}
 
-	if len(c.Beans.RequireFieldsOn) > 0 {
+	if len(c.Items.RequireFieldsOn) > 0 {
 		key := strNode("require_fields_on")
 		key.HeadComment = "Front matter keys that must be set when a bean enters a status"
 		mapping := &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
@@ -781,13 +781,13 @@ func (c *Config) toYAMLNode() *yaml.Node {
 		// name RequireFieldsOn carries that StatusList() doesn't (e.g. a
 		// config built directly rather than through Load, which is the only
 		// place that validates every key names a known status).
-		statuses := make([]string, 0, len(c.Beans.RequireFieldsOn))
-		for s := range c.Beans.RequireFieldsOn {
+		statuses := make([]string, 0, len(c.Items.RequireFieldsOn))
+		for s := range c.Items.RequireFieldsOn {
 			statuses = append(statuses, s)
 		}
 		sort.Strings(statuses)
 		for _, s := range statuses {
-			fields := c.Beans.RequireFieldsOn[s]
+			fields := c.Items.RequireFieldsOn[s]
 			if len(fields) == 0 {
 				continue
 			}
@@ -797,13 +797,13 @@ func (c *Config) toYAMLNode() *yaml.Node {
 			}
 			mapping.Content = append(mapping.Content, strNode(s), seq)
 		}
-		beansMapping.Content = append(beansMapping.Content, key, mapping)
+		itemsMapping.Content = append(itemsMapping.Content, key, mapping)
 	}
 
-	if c.Beans.CommitField != "" {
+	if c.Items.CommitField != "" {
 		key := strNode("commit_field")
 		key.HeadComment = "Extra front matter key holding the git commit SHA (default: commit)"
-		beansMapping.Content = append(beansMapping.Content, key, strNode(c.Beans.CommitField))
+		itemsMapping.Content = append(itemsMapping.Content, key, strNode(c.Items.CommitField))
 	}
 
 	// Build the worktree mapping
@@ -871,7 +871,7 @@ func (c *Config) toYAMLNode() *yaml.Node {
 	}
 
 	// Build the display mapping. Like Statuses/Types/Priorities, this must be
-	// round-tripped: Save() is called by `beans rename` on an already-loaded
+	// round-tripped: Save() is called by `lif rename` on an already-loaded
 	// Config, and before this a configured theme/max_width was silently
 	// dropped on the next write.
 	displayMapping := &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
@@ -888,7 +888,7 @@ func (c *Config) toYAMLNode() *yaml.Node {
 
 	// Build the statuses/types/priorities override sequences. These round-trip
 	// exactly what was configured (not the merged result) so that Save() -
-	// called by `beans rename`, for instance - never silently drops a user's
+	// called by `lif rename`, for instance - never silently drops a user's
 	// overrides from the file.
 	statusesSeq := &yaml.Node{Kind: yaml.SequenceNode, Tag: "!!seq"}
 	for _, s := range c.Statuses {
@@ -954,7 +954,7 @@ func (c *Config) toYAMLNode() *yaml.Node {
 		topMapping.Content = append(topMapping.Content, strNode("project"), projectMapping)
 	}
 
-	topMapping.Content = append(topMapping.Content, strNode("beans"), beansMapping)
+	topMapping.Content = append(topMapping.Content, strNode("beans"), itemsMapping)
 
 	if len(worktreeMapping.Content) > 0 {
 		topMapping.Content = append(topMapping.Content, strNode("worktree"), worktreeMapping)
@@ -1018,21 +1018,21 @@ func (c *Config) IsValidStatus(status string) bool {
 	return false
 }
 
-// RequiredFieldsFor returns the front matter keys that must be set when a bean
+// RequiredFieldsFor returns the front matter keys that must be set when an item
 // enters status. Returns nil when no policy applies.
 func (c *Config) RequiredFieldsFor(status string) []string {
 	if c == nil {
 		return nil
 	}
-	return c.Beans.RequireFieldsOn[status]
+	return c.Items.RequireFieldsOn[status]
 }
 
 // GetCommitField returns the configured commit field name, or DefaultCommitField.
 func (c *Config) GetCommitField() string {
-	if c == nil || c.Beans.CommitField == "" {
+	if c == nil || c.Items.CommitField == "" {
 		return DefaultCommitField
 	}
-	return c.Beans.CommitField
+	return c.Items.CommitField
 }
 
 // mergeDefaults merges a config's override entries into a copy of a
@@ -1123,20 +1123,20 @@ func (c *Config) GetStatus(name string) *StatusConfig {
 	return nil
 }
 
-// GetDefaultStatus returns the default status name for new beans.
+// GetDefaultStatus returns the default status name for new items.
 func (c *Config) GetDefaultStatus() string {
-	if c == nil || c.Beans.DefaultStatus == "" {
+	if c == nil || c.Items.DefaultStatus == "" {
 		return "todo"
 	}
-	return c.Beans.DefaultStatus
+	return c.Items.DefaultStatus
 }
 
-// GetDefaultType returns the default type name for new beans.
+// GetDefaultType returns the default type name for new items.
 func (c *Config) GetDefaultType() string {
 	if c == nil {
 		return ""
 	}
-	return c.Beans.DefaultType
+	return c.Items.DefaultType
 }
 
 // IsArchiveStatus returns true if the given status is marked for archiving.
@@ -1313,17 +1313,17 @@ func (c *Config) TypeList() []TypeConfig {
 	)
 }
 
-// BeanColors holds resolved color information for rendering a bean
-type BeanColors struct {
+// ItemColors holds resolved color information for rendering an item
+type ItemColors struct {
 	StatusColor   string
 	TypeColor     string
 	PriorityColor string
 	IsArchive     bool
 }
 
-// GetBeanColors returns the resolved colors for a bean based on its status, type, and priority.
-func (c *Config) GetBeanColors(status, typeName, priority string) BeanColors {
-	colors := BeanColors{
+// GetItemColors returns the resolved colors for an item based on its status, type, and priority.
+func (c *Config) GetItemColors(status, typeName, priority string) ItemColors {
+	colors := ItemColors{
 		StatusColor:   "gray",
 		TypeColor:     "",
 		PriorityColor: "",

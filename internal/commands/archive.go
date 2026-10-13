@@ -3,7 +3,7 @@ package commands
 import (
 	"fmt"
 
-	"github.com/xRiErOS/lif/pkg/bean"
+	"github.com/xRiErOS/lif/pkg/item"
 	"github.com/xRiErOS/lif/internal/output"
 	"github.com/spf13/cobra"
 )
@@ -20,19 +20,19 @@ The archive keeps the main .beans directory tidy while preserving project histor
 
 Relationships (parent, blocking) are preserved in archived beans.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		allBeans := core.All()
+		allItems := core.All()
 
-		// Find beans with any archive status
-		var archiveBeans []*bean.Bean
+		// Find items with any archive status
+		var archiveItems []*item.Item
 		archiveSet := make(map[string]bool)
-		for _, b := range allBeans {
+		for _, b := range allItems {
 			if cfg.IsArchiveStatus(b.Status) {
-				archiveBeans = append(archiveBeans, b)
+				archiveItems = append(archiveItems, b)
 				archiveSet[b.ID] = true
 			}
 		}
 
-		if len(archiveBeans) == 0 {
+		if len(archiveItems) == 0 {
 			if archiveJSON {
 				return output.SuccessMessage("No beans to archive")
 			}
@@ -40,12 +40,12 @@ Relationships (parent, blocking) are preserved in archived beans.`,
 			return nil
 		}
 
-		// Sort beans for consistent display
-		bean.SortByStatusPriorityAndType(archiveBeans, cfg.StatusNames(), cfg.PriorityNames(), cfg.TypeNames())
+		// Sort items for consistent display
+		item.SortByStatusPriorityAndType(archiveItems, cfg.StatusNames(), cfg.PriorityNames(), cfg.TypeNames())
 
-		// Archive all beans with archive status
+		// Archive all items with archive status
 		var archived []string
-		for _, b := range archiveBeans {
+		for _, b := range archiveItems {
 			if err := core.Archive(b.ID); err != nil {
 				if archiveJSON {
 					return output.Error(output.ErrFileError, fmt.Sprintf("failed to archive bean %s: %s", b.ID, err.Error()))

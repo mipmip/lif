@@ -11,56 +11,56 @@ import (
 	"github.com/xRiErOS/lif/pkg/config"
 )
 
-func TestResolveBeansPath(t *testing.T) {
-	// Create a valid beans directory for tests that need one
+func TestResolveItemsPath(t *testing.T) {
+	// Create a valid items directory for tests that need one
 	tmpDir := t.TempDir()
-	validBeansDir := filepath.Join(tmpDir, ".beans")
-	if err := os.MkdirAll(validBeansDir, 0755); err != nil {
+	validItemsDir := filepath.Join(tmpDir, ".beans")
+	if err := os.MkdirAll(validItemsDir, 0755); err != nil {
 		t.Fatalf("failed to create test .beans dir: %v", err)
 	}
 
-	altBeansDir := filepath.Join(tmpDir, "alt-beans")
-	if err := os.MkdirAll(altBeansDir, 0755); err != nil {
+	altItemsDir := filepath.Join(tmpDir, "alt-beans")
+	if err := os.MkdirAll(altItemsDir, 0755); err != nil {
 		t.Fatalf("failed to create alt beans dir: %v", err)
 	}
 
-	// Config that points to the valid beans dir
+	// Config that points to the valid items dir
 	cfg := config.Default()
 	cfg.SetConfigDir(tmpDir)
 
 	t.Run("flag takes highest precedence", func(t *testing.T) {
-		t.Setenv("BEANS_PATH", altBeansDir)
+		t.Setenv("BEANS_PATH", altItemsDir)
 
-		got, err := resolveBeansPath(validBeansDir, cfg)
+		got, err := resolveBeansPath(validItemsDir, cfg)
 		if err != nil {
 			t.Fatalf("resolveBeansPath() error = %v", err)
 		}
-		if got != validBeansDir {
-			t.Errorf("expected flag path %q, got %q", validBeansDir, got)
+		if got != validItemsDir {
+			t.Errorf("expected flag path %q, got %q", validItemsDir, got)
 		}
 	})
 
 	t.Run("flag overrides env var", func(t *testing.T) {
 		t.Setenv("BEANS_PATH", "/nonexistent/should/not/be/used")
 
-		got, err := resolveBeansPath(validBeansDir, cfg)
+		got, err := resolveBeansPath(validItemsDir, cfg)
 		if err != nil {
 			t.Fatalf("resolveBeansPath() error = %v", err)
 		}
-		if got != validBeansDir {
-			t.Errorf("expected flag path %q, got %q", validBeansDir, got)
+		if got != validItemsDir {
+			t.Errorf("expected flag path %q, got %q", validItemsDir, got)
 		}
 	})
 
 	t.Run("env var used when flag is empty", func(t *testing.T) {
-		t.Setenv("BEANS_PATH", altBeansDir)
+		t.Setenv("BEANS_PATH", altItemsDir)
 
 		got, err := resolveBeansPath("", cfg)
 		if err != nil {
 			t.Fatalf("resolveBeansPath() error = %v", err)
 		}
-		if got != altBeansDir {
-			t.Errorf("expected env var path %q, got %q", altBeansDir, got)
+		if got != altItemsDir {
+			t.Errorf("expected env var path %q, got %q", altItemsDir, got)
 		}
 	})
 
@@ -71,7 +71,7 @@ func TestResolveBeansPath(t *testing.T) {
 		if err != nil {
 			t.Fatalf("resolveBeansPath() error = %v", err)
 		}
-		expected := cfg.ResolveBeansPath()
+		expected := cfg.ResolveItemsPath()
 		if got != expected {
 			t.Errorf("expected config path %q, got %q", expected, got)
 		}
@@ -138,7 +138,7 @@ func TestResolveBeansPath(t *testing.T) {
 	// detectOrphanBackup unreachable from the actual CLI entry point.
 	t.Run("missing dir with a recoverable backup sibling is not an error", func(t *testing.T) {
 		repoDir := t.TempDir()
-		liveBeans := filepath.Join(repoDir, ".beans")
+		liveItems := filepath.Join(repoDir, ".beans")
 		backup := filepath.Join(repoDir, ".beans.bak-123")
 		if err := os.MkdirAll(backup, 0755); err != nil {
 			t.Fatalf("failed to create backup dir: %v", err)
@@ -147,12 +147,12 @@ func TestResolveBeansPath(t *testing.T) {
 			t.Fatalf("failed to seed backup content: %v", err)
 		}
 
-		got, err := resolveBeansPath(liveBeans, cfg)
+		got, err := resolveBeansPath(liveItems, cfg)
 		if err != nil {
 			t.Fatalf("resolveBeansPath() error = %v, want nil (a recoverable backup should defer to Core.Load, not fail here)", err)
 		}
-		if got != liveBeans {
-			t.Errorf("resolveBeansPath() = %q, want %q", got, liveBeans)
+		if got != liveItems {
+			t.Errorf("resolveBeansPath() = %q, want %q", got, liveItems)
 		}
 	})
 }
@@ -204,17 +204,17 @@ func initWorktreePair(t *testing.T) (mainRoot, worktreeRoot string) {
 	return evalSymlinks(t, dir), evalSymlinks(t, wt)
 }
 
-// TestResolveBeansPathAnchor covers the repo-root anchor: the store follows the
+// TestResolveItemsPathAnchor covers the repo-root anchor: the store follows the
 // repository the config belongs to, not the working tree the caller happens to
 // stand in. This is the capability that BEANS_PATH used to stand in for.
-func TestResolveBeansPathAnchor(t *testing.T) {
+func TestResolveItemsPathAnchor(t *testing.T) {
 	mainRoot, worktreeRoot := initWorktreePair(t)
 
 	t.Run("repo-root anchor resolves to the main worktree store", func(t *testing.T) {
 		t.Setenv("BEANS_PATH", "")
 
 		cfg := config.Default()
-		cfg.Beans.Anchor = config.AnchorRepoRoot
+		cfg.Items.Anchor = config.AnchorRepoRoot
 		cfg.SetConfigDir(worktreeRoot)
 
 		got, err := resolveBeansPath("", cfg)
@@ -247,7 +247,7 @@ func TestResolveBeansPathAnchor(t *testing.T) {
 		t.Setenv("BEANS_PATH", "")
 
 		cfg := config.Default()
-		cfg.Beans.Anchor = config.AnchorRepoRoot
+		cfg.Items.Anchor = config.AnchorRepoRoot
 		cfg.SetConfigDir(mainRoot)
 
 		got, err := resolveBeansPath("", cfg)
@@ -269,7 +269,7 @@ func TestResolveBeansPathAnchor(t *testing.T) {
 		}
 
 		cfg := config.Default()
-		cfg.Beans.Anchor = config.AnchorRepoRoot
+		cfg.Items.Anchor = config.AnchorRepoRoot
 		cfg.SetConfigDir(plain)
 
 		got, err := resolveBeansPath("", cfg)
@@ -286,7 +286,7 @@ func TestResolveBeansPathAnchor(t *testing.T) {
 		t.Setenv("BEANS_PATH", filepath.Join(worktreeRoot, ".beans"))
 
 		cfg := config.Default()
-		cfg.Beans.Anchor = config.AnchorRepoRoot
+		cfg.Items.Anchor = config.AnchorRepoRoot
 		cfg.SetConfigDir(worktreeRoot)
 
 		got, err := resolveBeansPath("", cfg)
@@ -324,7 +324,7 @@ func TestResolveBeansPathAnchor(t *testing.T) {
 		t.Setenv("BEANS_PATH", "")
 
 		cfg := config.Default()
-		cfg.Beans.Anchor = "repo-rooot"
+		cfg.Items.Anchor = "repo-rooot"
 		cfg.SetConfigDir(worktreeRoot)
 
 		_, err := resolveBeansPath("", cfg)
@@ -341,16 +341,16 @@ func TestResolveBeansPathAnchor(t *testing.T) {
 // declaration of where its store lives. An inherited BEANS_PATH -- direnv
 // exports it in most of this fleet's workspaces -- must not redirect calls
 // made inside such a repository to a foreign store.
-func TestResolveBeansPathConfigFileOutranksEnv(t *testing.T) {
+func TestResolveItemsPathConfigFileOutranksEnv(t *testing.T) {
 	foreignRoot := t.TempDir()
-	foreignBeans := filepath.Join(foreignRoot, ".beans")
-	if err := os.MkdirAll(foreignBeans, 0755); err != nil {
+	foreignItems := filepath.Join(foreignRoot, ".beans")
+	if err := os.MkdirAll(foreignItems, 0755); err != nil {
 		t.Fatalf("failed to create foreign store: %v", err)
 	}
 
 	localRoot := t.TempDir()
-	localBeans := filepath.Join(localRoot, ".beans")
-	if err := os.MkdirAll(localBeans, 0755); err != nil {
+	localItems := filepath.Join(localRoot, ".beans")
+	if err := os.MkdirAll(localItems, 0755); err != nil {
 		t.Fatalf("failed to create local store: %v", err)
 	}
 	configFile := filepath.Join(localRoot, config.ConfigFileName)
@@ -359,7 +359,7 @@ func TestResolveBeansPathConfigFileOutranksEnv(t *testing.T) {
 	}
 
 	t.Run("config file found upward outranks env var", func(t *testing.T) {
-		t.Setenv("BEANS_PATH", foreignBeans)
+		t.Setenv("BEANS_PATH", foreignItems)
 
 		c, err := config.LoadFromDirectory(localRoot)
 		if err != nil {
@@ -370,13 +370,13 @@ func TestResolveBeansPathConfigFileOutranksEnv(t *testing.T) {
 		if err != nil {
 			t.Fatalf("resolveBeansPath() error = %v", err)
 		}
-		if got != localBeans {
-			t.Errorf("expected local store %q, got %q", localBeans, got)
+		if got != localItems {
+			t.Errorf("expected local store %q, got %q", localItems, got)
 		}
 	})
 
 	t.Run("explicit --config outranks env var", func(t *testing.T) {
-		t.Setenv("BEANS_PATH", foreignBeans)
+		t.Setenv("BEANS_PATH", foreignItems)
 
 		c, err := config.Load(configFile)
 		if err != nil {
@@ -387,32 +387,32 @@ func TestResolveBeansPathConfigFileOutranksEnv(t *testing.T) {
 		if err != nil {
 			t.Fatalf("resolveBeansPath() error = %v", err)
 		}
-		if got != localBeans {
-			t.Errorf("expected local store %q, got %q", localBeans, got)
+		if got != localItems {
+			t.Errorf("expected local store %q, got %q", localItems, got)
 		}
 	})
 
 	t.Run("flag still outranks the config file", func(t *testing.T) {
-		t.Setenv("BEANS_PATH", foreignBeans)
+		t.Setenv("BEANS_PATH", foreignItems)
 
 		c, err := config.LoadFromDirectory(localRoot)
 		if err != nil {
 			t.Fatalf("LoadFromDirectory() error = %v", err)
 		}
 
-		got, err := resolveBeansPath(foreignBeans, c)
+		got, err := resolveBeansPath(foreignItems, c)
 		if err != nil {
 			t.Fatalf("resolveBeansPath() error = %v", err)
 		}
-		if got != foreignBeans {
-			t.Errorf("expected flag path %q, got %q", foreignBeans, got)
+		if got != foreignItems {
+			t.Errorf("expected flag path %q, got %q", foreignItems, got)
 		}
 	})
 
 	// Without a config file there is nothing repo-local to honour, so the
 	// env var remains the next-best answer.
 	t.Run("env var still wins when no config file exists", func(t *testing.T) {
-		t.Setenv("BEANS_PATH", foreignBeans)
+		t.Setenv("BEANS_PATH", foreignItems)
 
 		bare := t.TempDir()
 		if err := os.MkdirAll(filepath.Join(bare, ".beans"), 0755); err != nil {
@@ -428,15 +428,15 @@ func TestResolveBeansPathConfigFileOutranksEnv(t *testing.T) {
 		if err != nil {
 			t.Fatalf("resolveBeansPath() error = %v", err)
 		}
-		if got != foreignBeans {
-			t.Errorf("expected env var store %q, got %q", foreignBeans, got)
+		if got != foreignItems {
+			t.Errorf("expected env var store %q, got %q", foreignItems, got)
 		}
 	})
 
 	// A config file that points at a store which is not there must say so
 	// instead of silently falling back to the inherited env var.
 	t.Run("config file pointing at a missing store errors, no env fallback", func(t *testing.T) {
-		t.Setenv("BEANS_PATH", foreignBeans)
+		t.Setenv("BEANS_PATH", foreignItems)
 
 		emptyRoot := t.TempDir()
 		if err := os.WriteFile(filepath.Join(emptyRoot, config.ConfigFileName), []byte("beans:\n  path: .beans\n"), 0644); err != nil {
@@ -467,12 +467,12 @@ func TestResolveBeansPathConfigFileOutranksEnv(t *testing.T) {
 func TestConfiguredThemeReachesTheRenderer(t *testing.T) {
 	t.Cleanup(func() { ui.SetTheme("mocha") })
 
-	oldCfg, oldCore, oldConfigPath, oldBeansPath := cfg, core, configPath, beansPath
-	t.Cleanup(func() { cfg, core, configPath, beansPath = oldCfg, oldCore, oldConfigPath, oldBeansPath })
+	oldCfg, oldCore, oldConfigPath, oldItemsPath := cfg, core, configPath, beansPath
+	t.Cleanup(func() { cfg, core, configPath, beansPath = oldCfg, oldCore, oldConfigPath, oldItemsPath })
 
 	dir := t.TempDir()
-	beansDir := filepath.Join(dir, ".beans")
-	if err := os.MkdirAll(beansDir, 0755); err != nil {
+	itemsDir := filepath.Join(dir, ".beans")
+	if err := os.MkdirAll(itemsDir, 0755); err != nil {
 		t.Fatalf("creating test .beans dir: %v", err)
 	}
 	path := filepath.Join(dir, ".beans.yml")
@@ -481,7 +481,7 @@ func TestConfiguredThemeReachesTheRenderer(t *testing.T) {
 		t.Fatalf("writing config: %v", err)
 	}
 
-	// NewRootCmd's flag registration (StringVar) resets configPath/beansPath
+	// NewRootCmd's flag registration (StringVar) resets configPath/itemsPath
 	// to their flag defaults as a side effect, so they must be set after
 	// building the command, not before.
 	root := NewRootCmd()

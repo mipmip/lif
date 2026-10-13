@@ -5,7 +5,7 @@ import (
 	"errors"
 	"os"
 
-	"github.com/xRiErOS/lif/pkg/bean"
+	"github.com/xRiErOS/lif/pkg/item"
 )
 
 // Error codes for JSON responses
@@ -22,8 +22,8 @@ const (
 // Response is the standard JSON response envelope.
 type Response struct {
 	Success  bool         `json:"success"`
-	Bean     *bean.Bean   `json:"bean,omitempty"`
-	Beans    []*bean.Bean `json:"beans,omitempty"`
+	Item     *item.Item   `json:"bean,omitempty"`
+	Items    []*item.Item `json:"beans,omitempty"`
 	Count    int          `json:"count,omitempty"`
 	Message  string       `json:"message,omitempty"`
 	Warnings []string     `json:"warnings,omitempty"`
@@ -39,20 +39,20 @@ func JSON(resp Response) error {
 	return enc.Encode(resp)
 }
 
-// SuccessSingle outputs a single bean directly (no wrapper).
-// This allows intuitive jq usage: beans show --json <id> | jq '.title'
-func SuccessSingle(b *bean.Bean) error {
+// SuccessSingle outputs a single item directly (no wrapper).
+// This allows intuitive jq usage: lif show --json <id> | jq '.title'
+func SuccessSingle(b *item.Item) error {
 	enc := json.NewEncoder(os.Stdout)
 	enc.SetIndent("", "  ")
 	return enc.Encode(b)
 }
 
-// SuccessMultiple outputs a bean array directly (no wrapper).
-// This allows intuitive jq usage: beans list --json | jq '.[]'
-func SuccessMultiple(beans []*bean.Bean) error {
+// SuccessMultiple outputs an item array directly (no wrapper).
+// This allows intuitive jq usage: lif list --json | jq '.[]'
+func SuccessMultiple(items []*item.Item) error {
 	enc := json.NewEncoder(os.Stdout)
 	enc.SetIndent("", "  ")
-	return enc.Encode(beans)
+	return enc.Encode(items)
 }
 
 // SuccessMessage outputs a success response with just a message.
@@ -72,7 +72,7 @@ func SuccessInit(path string) error {
 	})
 }
 
-// PartialFailure outputs a failed multi-bean response naming the beans that
+// PartialFailure outputs a failed multi-item response naming the items that
 // were already written before the failure struck. It is the one Response
 // literal still built with the envelope: a bare array cannot carry the
 // failure, so batch verbs keep this document for the case where a write
@@ -82,12 +82,12 @@ func SuccessInit(path string) error {
 // result: JSON only fails if os.Stdout itself breaks, and surfacing that nil
 // in the common case would leave reportExecutionError free to print a
 // second, human-readable copy of the failure this function just wrote.
-func PartialFailure(beans []*bean.Bean, code string, err error) error {
+func PartialFailure(items []*item.Item, code string, err error) error {
 	message := err.Error()
 	_ = JSON(Response{
 		Success: false,
-		Beans:   beans,
-		Count:   len(beans),
+		Items:   items,
+		Count:   len(items),
 		Error:   message,
 		Code:    code,
 	})

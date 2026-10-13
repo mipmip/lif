@@ -65,7 +65,7 @@ func TestHexOfUnknownToneIsEmpty(t *testing.T) {
 // to SetTheme's deliberate tolerance. SetTheme keeps the current palette on
 // an unknown name on purpose -- a typo in .beans.yml should degrade to the
 // default rather than strip all colour from the CLI. The cost of that
-// choice is that the typo is otherwise invisible, so `beans check` reports
+// choice is that the typo is otherwise invisible, so `lif check` reports
 // it instead, and this is the predicate it uses.
 func TestIsValidThemeNamesEveryBundledFlavour(t *testing.T) {
 	for _, name := range []string{"latte", "frappe", "macchiato", "mocha"} {

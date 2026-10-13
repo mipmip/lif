@@ -6,7 +6,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/xRiErOS/lif/pkg/bean"
+	"github.com/xRiErOS/lif/pkg/item"
 )
 
 // captureStdout redirects os.Stdout for the duration of fn and returns
@@ -36,13 +36,13 @@ func captureStdout(t *testing.T, fn func()) []byte {
 func TestSuccessSingleAndMultipleAgreeOnExtraField(t *testing.T) {
 	// list --json uses SuccessMultiple, show --json uses SuccessSingle.
 	// Both must expose extra front matter keys under the same field name.
-	withExtra := &bean.Bean{
+	withExtra := &item.Item{
 		ID:     "test-1",
 		Title:  "With Extra",
 		Status: "todo",
 		Extra:  map[string]any{"release": "0-4-1"},
 	}
-	withoutExtra := &bean.Bean{
+	withoutExtra := &item.Item{
 		ID:     "test-2",
 		Title:  "Without Extra",
 		Status: "todo",
@@ -54,7 +54,7 @@ func TestSuccessSingleAndMultipleAgreeOnExtraField(t *testing.T) {
 		}
 	})
 	multipleOut := captureStdout(t, func() {
-		if err := SuccessMultiple([]*bean.Bean{withExtra, withoutExtra}); err != nil {
+		if err := SuccessMultiple([]*item.Item{withExtra, withoutExtra}); err != nil {
 			t.Fatalf("SuccessMultiple: %v", err)
 		}
 	})

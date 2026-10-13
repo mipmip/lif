@@ -16,8 +16,8 @@ func validateRoadmapDepth(depth int, changed bool) error {
 // pruneRoadmapDepth truncates data in place to maxDepth levels, following
 // `tree -L n` semantics: the root never counts. Without a scope ID the root
 // is the roadmap as a whole, so milestones -- and the unscheduled branch's
-// top-level entries, since "Unscheduled" is a heading and not a bean -- are
-// level 1. With a scope ID the root is the scoped bean itself, so its direct
+// top-level entries, since "Unscheduled" is a heading and not an item -- are
+// level 1. With a scope ID the root is the scoped item itself, so its direct
 // children are level 1.
 //
 // This runs on the finished roadmapData rather than inside buildRoadmap on

@@ -12,25 +12,25 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/xRiErOS/lif/pkg/bean"
-	"github.com/xRiErOS/lif/pkg/beancore"
-	"github.com/xRiErOS/lif/pkg/config"
 	"github.com/spf13/cobra"
+	"github.com/xRiErOS/lif/pkg/config"
+	"github.com/xRiErOS/lif/pkg/item"
+	"github.com/xRiErOS/lif/pkg/itemcore"
 )
 
 // setupUpdateTest installs a throwaway core and default config into the
-// package globals updateCmd.RunE reads, and returns a bean already persisted
+// package globals updateCmd.RunE reads, and returns an item already persisted
 // in that core.
-func setupUpdateTest(t *testing.T) *bean.Bean {
+func setupUpdateTest(t *testing.T) *item.Item {
 	t.Helper()
 	tmpDir := t.TempDir()
-	beansDir := filepath.Join(tmpDir, ".beans")
-	if err := os.MkdirAll(beansDir, 0755); err != nil {
+	itemsDir := filepath.Join(tmpDir, ".beans")
+	if err := os.MkdirAll(itemsDir, 0755); err != nil {
 		t.Fatalf("failed to create test .beans dir: %v", err)
 	}
 
 	testCfg := config.Default()
-	testCore := beancore.New(beansDir, testCfg)
+	testCore := itemcore.New(itemsDir, testCfg)
 	if err := testCore.Load(); err != nil {
 		t.Fatalf("failed to load core: %v", err)
 	}
@@ -39,9 +39,9 @@ func setupUpdateTest(t *testing.T) *bean.Bean {
 	core, cfg = testCore, testCfg
 	t.Cleanup(func() { core, cfg = oldCore, oldCfg })
 
-	b := &bean.Bean{
+	b := &item.Item{
 		ID:     "beans-test1",
-		Slug:   bean.Slugify("A test bean"),
+		Slug:   item.Slugify("A test bean"),
 		Title:  "A test bean",
 		Status: "todo",
 		Type:   "task",
@@ -113,7 +113,7 @@ func TestUpdateCmdUnsetRemovesExtraKey(t *testing.T) {
 	}
 }
 
-// AC5: --unset of a key the bean does not carry leaves the bean unchanged
+// AC5: --unset of a key the item does not carry leaves the item unchanged
 // and exits zero.
 func TestUpdateCmdUnsetAbsentKeyIsNoop(t *testing.T) {
 	b := setupUpdateTest(t)
@@ -134,7 +134,7 @@ func TestUpdateCmdUnsetAbsentKeyIsNoop(t *testing.T) {
 	}
 }
 
-// AC4: --set on a reserved key fails naming the native flag, and the bean is
+// AC4: --set on a reserved key fails naming the native flag, and the item is
 // left unchanged.
 func TestUpdateCmdSetReservedKeyFails(t *testing.T) {
 	b := setupUpdateTest(t)
@@ -214,10 +214,10 @@ func TestUpdateCmdSetAloneCountsAsChange(t *testing.T) {
 //
 // Asserts against the file on disk, not core.Get(): Core.Update takes b by
 // pointer and applyExtraOps mutates that same pointer before the etag check
-// runs, so c.beans[id] (and therefore core.Get) reflects the attempted
+// runs, so c.items[id] (and therefore core.Get) reflects the attempted
 // mutation regardless of whether the write to disk was accepted -- this is
 // documented in Core.Update's own comment and is exactly why it validates
-// ifMatch against the on-disk content instead of the in-memory bean. The
+// ifMatch against the on-disk content instead of the in-memory item. The
 // property this test protects is "the file was not overwritten," which only
 // a fresh read off disk can show.
 func TestUpdateCmdSetAloneRejectsStaleIfMatch(t *testing.T) {
@@ -235,7 +235,7 @@ func TestUpdateCmdSetAloneRejectsStaleIfMatch(t *testing.T) {
 		t.Fatal("expected an etag-mismatch error for a stale --if-match, got nil")
 	}
 
-	onDisk, readErr := readBeanFromDisk(t, b)
+	onDisk, readErr := readItemFromDisk(t, b)
 	if readErr != nil {
 		t.Fatalf("reading bean from disk: %v", readErr)
 	}
@@ -244,16 +244,16 @@ func TestUpdateCmdSetAloneRejectsStaleIfMatch(t *testing.T) {
 	}
 }
 
-// readBeanFromDisk re-parses b's file directly off disk, bypassing Core's
+// readItemFromDisk re-parses b's file directly off disk, bypassing Core's
 // in-memory cache entirely -- see TestUpdateCmdSetAloneRejectsStaleIfMatch
 // for why that distinction matters.
-func readBeanFromDisk(t *testing.T, b *bean.Bean) (*bean.Bean, error) {
+func readItemFromDisk(t *testing.T, b *item.Item) (*item.Item, error) {
 	t.Helper()
 	data, err := os.ReadFile(core.FullPath(b))
 	if err != nil {
 		return nil, err
 	}
-	return bean.Parse(bytes.NewReader(data))
+	return item.Parse(bytes.NewReader(data))
 }
 
 // Sanity counterpart to the regression above: the correct current --if-match
@@ -286,13 +286,13 @@ func TestUpdateCmdSetAloneAcceptsCorrectIfMatch(t *testing.T) {
 // though the caller never asked for optimistic locking to be skipped.
 func TestUpdateCmdSetSucceedsUnderRequireIfMatch(t *testing.T) {
 	tmpDir := t.TempDir()
-	beansDir := tmpDir + "/.beans"
-	if err := os.MkdirAll(beansDir, 0755); err != nil {
+	itemsDir := tmpDir + "/.beans"
+	if err := os.MkdirAll(itemsDir, 0755); err != nil {
 		t.Fatalf("failed to create test .beans dir: %v", err)
 	}
 	testCfg := config.Default()
-	testCfg.Beans.RequireIfMatch = true
-	testCore := beancore.New(beansDir, testCfg)
+	testCfg.Items.RequireIfMatch = true
+	testCore := itemcore.New(itemsDir, testCfg)
 	if err := testCore.Load(); err != nil {
 		t.Fatalf("failed to load core: %v", err)
 	}
@@ -300,7 +300,7 @@ func TestUpdateCmdSetSucceedsUnderRequireIfMatch(t *testing.T) {
 	core, cfg = testCore, testCfg
 	t.Cleanup(func() { core, cfg = oldCore, oldCfg })
 
-	b := &bean.Bean{ID: "beans-test1", Slug: bean.Slugify("A test bean"), Title: "A test bean", Status: "todo", Type: "task"}
+	b := &item.Item{ID: "beans-test1", Slug: item.Slugify("A test bean"), Title: "A test bean", Status: "todo", Type: "task"}
 	if err := core.Create(b); err != nil {
 		t.Fatalf("core.Create() error = %v", err)
 	}
@@ -326,13 +326,13 @@ func TestUpdateCmdSetSucceedsUnderRequireIfMatch(t *testing.T) {
 }
 
 // beans-13ae AC1/AC3/SC-01/SC-03: `update --json` returns the resulting
-// bean, read back after the write and shaped exactly like `show --json` --
-// not a {success,bean,message} envelope -- so a caller applying several
+// item, read back after the write and shaped exactly like `show --json` --
+// not a {success,item,message} envelope -- so a caller applying several
 // changes in one call (parent plus an extra key here) can verify all of
 // them from one process launch, without a second `show` call.
-func TestUpdateCmdJSONReturnsResultingBean(t *testing.T) {
+func TestUpdateCmdJSONReturnsResultingItem(t *testing.T) {
 	b := setupUpdateTest(t)
-	other := &bean.Bean{ID: "beans-parent1", Slug: bean.Slugify("Parent"), Title: "Parent", Status: "todo", Type: "epic"}
+	other := &item.Item{ID: "beans-parent1", Slug: item.Slugify("Parent"), Title: "Parent", Status: "todo", Type: "epic"}
 	if err := core.Create(other); err != nil {
 		t.Fatalf("core.Create(other) error = %v", err)
 	}
@@ -369,7 +369,7 @@ func TestUpdateCmdJSONReturnsResultingBean(t *testing.T) {
 		t.Fatalf("updateCmd.RunE() error = %v", runErr)
 	}
 
-	// SC-01/SC-03: the payload IS the bean, at the top level -- no ".bean"
+	// SC-01/SC-03: the payload IS the item, at the top level -- no ".item"
 	// wrapper, no ".success"/".message" envelope keys.
 	var got map[string]any
 	if err := json.Unmarshal(captured, &got); err != nil {
@@ -394,13 +394,13 @@ func TestUpdateCmdJSONReturnsResultingBean(t *testing.T) {
 	}
 
 	// Cross-check against `show --json`'s own schema: unmarshal into the
-	// same bean.Bean struct show uses and confirm nothing was lost.
-	var asBean bean.Bean
-	if err := json.Unmarshal(captured, &asBean); err != nil {
-		t.Fatalf("unmarshaling captured stdout into bean.Bean: %v", err)
+	// same item.Item struct show uses and confirm nothing was lost.
+	var asItem item.Item
+	if err := json.Unmarshal(captured, &asItem); err != nil {
+		t.Fatalf("unmarshaling captured stdout into item.Item: %v", err)
 	}
-	if asBean.ID != b.ID || asBean.Parent != other.ID {
-		t.Errorf("decoded bean = %+v, want ID=%q Parent=%q", asBean, b.ID, other.ID)
+	if asItem.ID != b.ID || asItem.Parent != other.ID {
+		t.Errorf("decoded bean = %+v, want ID=%q Parent=%q", asItem, b.ID, other.ID)
 	}
 }
 
@@ -452,12 +452,12 @@ func TestUpdateCmdNonJSONOutputUnchanged(t *testing.T) {
 // setupUpdateTest's beans-test1.
 func batchUpdateFixtures(t *testing.T) {
 	t.Helper()
-	for _, b := range []*bean.Bean{
+	for _, b := range []*item.Item{
 		{ID: "beans-upe01", Type: "epic", Title: "Epic"},
 		{ID: "beans-upt02", Type: "task", Title: "Task two"},
 		{ID: "beans-upm01", Type: "milestone", Title: "Milestone"},
 	} {
-		b.Slug, b.Status = bean.Slugify(b.Title), "todo"
+		b.Slug, b.Status = item.Slugify(b.Title), "todo"
 		if err := core.Create(b); err != nil {
 			t.Fatalf("core.Create(%s) error = %v", b.ID, err)
 		}
@@ -465,20 +465,20 @@ func batchUpdateFixtures(t *testing.T) {
 	t.Cleanup(func() { resetFlags(sharedTestRoot(t)) })
 }
 
-func diskBean(t *testing.T, id string) *bean.Bean {
+func diskItem(t *testing.T, id string) *item.Item {
 	t.Helper()
 	cached, err := core.Get(id)
 	if err != nil {
 		t.Fatalf("core.Get(%s) error = %v", id, err)
 	}
-	got, err := readBeanFromDisk(t, cached)
+	got, err := readItemFromDisk(t, cached)
 	if err != nil {
 		t.Fatalf("readBeanFromDisk(%s) error = %v", id, err)
 	}
 	return got
 }
 
-func TestUpdateCmdReparentsSeveralBeans(t *testing.T) {
+func TestUpdateCmdReparentsSeveralItems(t *testing.T) {
 	setupUpdateTest(t)
 	batchUpdateFixtures(t)
 
@@ -490,7 +490,7 @@ func TestUpdateCmdReparentsSeveralBeans(t *testing.T) {
 		if !strings.Contains(stdout, "Updated "+id) {
 			t.Errorf("stdout = %q, want it to contain %q", stdout, "Updated "+id)
 		}
-		if got := diskBean(t, id).Parent; got != "beans-upe01" {
+		if got := diskItem(t, id).Parent; got != "beans-upe01" {
 			t.Errorf("%s parent = %q, want beans-upe01", id, got)
 		}
 	}
@@ -504,7 +504,7 @@ func TestUpdateCmdBatchWritesNothingOnUnknownID(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "bean not found: beans-nope9") {
 		t.Fatalf("err = %v, want bean not found: beans-nope9", err)
 	}
-	if got := diskBean(t, "beans-test1").Parent; got != "" {
+	if got := diskItem(t, "beans-test1").Parent; got != "" {
 		t.Errorf("beans-test1 parent = %q, want empty", got)
 	}
 }
@@ -517,7 +517,7 @@ func TestUpdateCmdBatchPreflightsParent(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "beans-upm01") || !strings.Contains(err.Error(), "cannot have a parent") {
 		t.Fatalf("err = %v, want beans-upm01 ... cannot have a parent", err)
 	}
-	if got := diskBean(t, "beans-test1").Parent; got != "" {
+	if got := diskItem(t, "beans-test1").Parent; got != "" {
 		t.Errorf("beans-test1 parent = %q, want empty", got)
 	}
 }
@@ -530,7 +530,7 @@ func TestUpdateCmdIfMatchTakesOneID(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "--if-match") {
 		t.Fatalf("err = %v, want it to mention --if-match", err)
 	}
-	if got := diskBean(t, "beans-test1").Status; got != "todo" {
+	if got := diskItem(t, "beans-test1").Status; got != "todo" {
 		t.Errorf("beans-test1 status = %q, want todo", got)
 	}
 }

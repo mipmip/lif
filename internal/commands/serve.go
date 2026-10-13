@@ -27,9 +27,9 @@ import (
 	"github.com/xRiErOS/lif/internal/terminal"
 	"github.com/xRiErOS/lif/internal/web"
 	"github.com/xRiErOS/lif/internal/worktree"
-	"github.com/xRiErOS/lif/pkg/beangraph"
 	"github.com/xRiErOS/lif/pkg/config"
 	"github.com/xRiErOS/lif/pkg/forge"
+	"github.com/xRiErOS/lif/pkg/itemgraph"
 )
 
 var (
@@ -160,10 +160,10 @@ func runServer(port int, origins []string) error {
 		worktree.WithFetchTimeout(cfg.GetWorktreeFetchTimeout()),
 	)
 
-	// Watch existing worktrees for bean changes
+	// Watch existing worktrees for item changes
 	if existingWTs, err := wtManager.List(); err == nil {
 		for _, wt := range existingWTs {
-			if err := core.WatchWorktreeBeans(wt.Path); err != nil {
+			if err := core.WatchWorktreeItems(wt.Path); err != nil {
 				fmt.Printf("[beans] warning: failed to watch worktree %s: %v\n", wt.ID, err)
 			}
 		}
@@ -204,14 +204,14 @@ func runServer(port int, origins []string) error {
 	defer termMgr.Shutdown()
 
 	// Create agent session manager (with conversation persistence)
-	agentMgr := agent.NewManager(core.Root(), func(beanID string) string {
+	agentMgr := agent.NewManager(core.Root(), func(itemID string) string {
 		// Central/planning agent gets a planning-focused prompt
-		if beanID == graph.CentralSessionID {
+		if itemID == graph.CentralSessionID {
 			return centralAgentPrompt
 		}
 
-		// Bean-specific agents get context about the bean they're working on
-		b, err := core.Get(beanID)
+		// Item-specific agents get context about the item they're working on
+		b, err := core.Get(itemID)
 		if err != nil {
 			return ""
 		}
@@ -239,15 +239,15 @@ func runServer(port int, origins []string) error {
 	// This is separate from context (which goes in the first user message) because
 	// the system prompt persists across --resume, ensuring the agent always knows
 	// its workspace identity.
-	agentMgr.SetSystemPromptProvider(func(beanID string) string {
-		if beanID == graph.CentralSessionID {
+	agentMgr.SetSystemPromptProvider(func(itemID string) string {
+		if itemID == graph.CentralSessionID {
 			return fmt.Sprintf("You are the central planning agent for the beans project. Your working directory is the main repository at: %s\nNEVER merge pull requests. After creating a PR, stop and report the URL. Do not run `gh pr merge` or any equivalent.\nNEVER assume CI checks are absent. Checks take time to register after a push. If `gh pr checks` returns empty, it means checks haven't started yet, not that none are configured.", filepath.Dir(core.Root()))
 		}
-		wtPath := wtManager.WorktreePath(beanID)
+		wtPath := wtManager.WorktreePath(itemID)
 		if wtPath == "" {
 			return ""
 		}
-		return fmt.Sprintf("You are a workspace agent working in a git worktree. Your worktree ID is %q and your working directory is: %s\nAll file modifications MUST be within this directory. NEVER modify files in the main repository or other worktrees.\nNEVER force-push to main. NEVER push to origin/main. The Integrate action is local-only.\nNEVER merge pull requests. After creating a PR, stop and report the URL. Do not run `gh pr merge` or any equivalent.\nNEVER assume CI checks are absent. Checks take time to register after a push. If `gh pr checks` returns empty, it means checks haven't started yet, not that none are configured.", beanID, wtPath)
+		return fmt.Sprintf("You are a workspace agent working in a git worktree. Your worktree ID is %q and your working directory is: %s\nAll file modifications MUST be within this directory. NEVER modify files in the main repository or other worktrees.\nNEVER force-push to main. NEVER push to origin/main. The Integrate action is local-only.\nNEVER merge pull requests. After creating a PR, stop and report the URL. Do not run `gh pr merge` or any equivalent.\nNEVER assume CI checks are absent. Checks take time to register after a push. If `gh pr checks` returns empty, it means checks haven't started yet, not that none are configured.", itemID, wtPath)
 	})
 
 	// Post an info message to the workspace's agent chat when setup finishes.
@@ -262,21 +262,21 @@ func runServer(port int, origins []string) error {
 	// Auto-generate workspace descriptions when the first user message is sent.
 	// Runs a cheap Claude call (Haiku) in the background to summarize what
 	// the workspace is doing, then stores it as worktree metadata.
-	agentMgr.SetOnFirstUserMessage(func(beanID string, message string) {
+	agentMgr.SetOnFirstUserMessage(func(itemID string, message string) {
 		// Only generate for worktree agents, not central
-		if beanID == graph.CentralSessionID {
+		if itemID == graph.CentralSessionID {
 			return
 		}
 		// Only if this worktree exists and doesn't already have a description
 		if wts, err := wtManager.List(); err == nil {
 			for _, wt := range wts {
-				if wt.ID == beanID && wt.Description == "" {
+				if wt.ID == itemID && wt.Description == "" {
 					desc := agent.GenerateDescription(message)
 					if desc != "" {
-						if err := wtManager.UpdateDescription(beanID, desc); err != nil {
-							log.Printf("[beans] failed to save workspace description for %s: %v", beanID, err)
+						if err := wtManager.UpdateDescription(itemID, desc); err != nil {
+							log.Printf("[beans] failed to save workspace description for %s: %v", itemID, err)
 						} else {
-							log.Printf("[beans] generated workspace description for %s: %q", beanID, desc)
+							log.Printf("[beans] generated workspace description for %s: %q", itemID, desc)
 						}
 					}
 					break
@@ -287,19 +287,19 @@ func runServer(port int, origins []string) error {
 
 	// Update workspace activity timestamp when an agent completes a turn,
 	// so the sidebar sorts workspaces by most recently active.
-	agentMgr.SetOnTurnComplete(func(beanID string) {
-		if beanID == graph.CentralSessionID || wtManager == nil {
+	agentMgr.SetOnTurnComplete(func(itemID string) {
+		if itemID == graph.CentralSessionID || wtManager == nil {
 			return
 		}
-		if err := wtManager.TouchLastActive(beanID); err != nil {
-			log.Printf("[beans] failed to update last_active_at for %s: %v", beanID, err)
+		if err := wtManager.TouchLastActive(itemID); err != nil {
+			log.Printf("[beans] failed to update last_active_at for %s: %v", itemID, err)
 		}
 	})
 
-	// When bean files change in a worktree, also notify the worktree manager
-	// so the worktree subscription re-emits with updated detected bean IDs.
+	// When item files change in a worktree, also notify the worktree manager
+	// so the worktree subscription re-emits with updated detected item IDs.
 	if wtManager != nil {
-		core.SetOnWorktreeBeansChanged(wtManager.Notify)
+		core.SetOnWorktreeItemsChanged(wtManager.Notify)
 	}
 
 	// Detect git forge (GitHub, GitLab, etc.) for PR integration
@@ -310,14 +310,14 @@ func runServer(port int, origins []string) error {
 	}
 
 	// Provide workspace context (PR status, git state) for quick reply generation.
-	agentMgr.SetQuickReplyContext(func(beanID string) string {
-		if beanID == graph.CentralSessionID || wtManager == nil {
+	agentMgr.SetQuickReplyContext(func(itemID string) string {
+		if itemID == graph.CentralSessionID || wtManager == nil {
 			return ""
 		}
 		var branch, wtPath string
 		if wts, err := wtManager.List(); err == nil {
 			for _, wt := range wts {
-				if wt.ID == beanID {
+				if wt.ID == itemID {
 					branch = wt.Branch
 					wtPath = wt.Path
 					break
@@ -367,7 +367,7 @@ func runServer(port int, origins []string) error {
 	// Create GraphQL server with explicit transports
 	es := graph.NewExecutableSchema(graph.Config{
 		Resolvers: &graph.Resolver{
-			CoreResolver: &beangraph.CoreResolver{Core: core},
+			CoreResolver: &itemgraph.CoreResolver{Core: core},
 			WorktreeMgr:  wtManager,
 			AgentMgr:     agentMgr,
 			TerminalMgr:  termMgr,
@@ -395,9 +395,9 @@ func runServer(port int, origins []string) error {
 
 	// Serve agent chat image attachments
 	router.GET("/api/attachments/:beanId/:filename", func(c *gin.Context) {
-		beanID := c.Param("beanId")
+		itemID := c.Param("beanId")
 		filename := c.Param("filename")
-		path, err := agentMgr.AttachmentPath(beanID, filename)
+		path, err := agentMgr.AttachmentPath(itemID, filename)
 		if err != nil {
 			c.Status(http.StatusBadRequest)
 			return

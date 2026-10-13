@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/xRiErOS/lif/pkg/bean"
-	"github.com/xRiErOS/lif/pkg/beancore"
 	"github.com/xRiErOS/lif/pkg/config"
+	"github.com/xRiErOS/lif/pkg/item"
+	"github.com/xRiErOS/lif/pkg/itemcore"
 )
 
 // setupDeleteTest installs a throwaway core and default config into the
@@ -18,13 +18,13 @@ import (
 // all before the batch verbs were unified on one JSON shape.
 func setupDeleteTest(t *testing.T) {
 	t.Helper()
-	beansDir := filepath.Join(t.TempDir(), ".beans")
-	if err := os.MkdirAll(beansDir, 0755); err != nil {
+	itemsDir := filepath.Join(t.TempDir(), ".beans")
+	if err := os.MkdirAll(itemsDir, 0755); err != nil {
 		t.Fatalf("failed to create test .beans dir: %v", err)
 	}
 
 	testCfg := config.Default()
-	testCore := beancore.New(beansDir, testCfg)
+	testCore := itemcore.New(itemsDir, testCfg)
 	if err := testCore.Load(); err != nil {
 		t.Fatalf("failed to load core: %v", err)
 	}
@@ -41,11 +41,11 @@ func resetDeleteFlags(t *testing.T) {
 	t.Cleanup(func() { forceDelete, deleteJSON = oldForce, oldJSON })
 }
 
-func mkDeleteBean(t *testing.T, id, title string) *bean.Bean {
+func mkDeleteItem(t *testing.T, id, title string) *item.Item {
 	t.Helper()
-	b := &bean.Bean{
+	b := &item.Item{
 		ID:     id,
-		Slug:   bean.Slugify(title),
+		Slug:   item.Slugify(title),
 		Title:  title,
 		Status: "todo",
 		Type:   "task",
@@ -77,13 +77,13 @@ func captureDeleteStdout(t *testing.T, fn func()) []byte {
 }
 
 // TestDeleteJSONShape pins delete to the same D05 contract as the other
-// batch verbs: one ID gives a bare bean document, several IDs give a bare
+// batch verbs: one ID gives a bare item document, several IDs give a bare
 // array instead of the hand-built response delete used to construct.
 func TestDeleteJSONShape(t *testing.T) {
 	t.Run("single gives a bare bean", func(t *testing.T) {
 		setupDeleteTest(t)
 		resetDeleteFlags(t)
-		b := mkDeleteBean(t, "beans-del1", "First bean")
+		b := mkDeleteItem(t, "beans-del1", "First bean")
 		deleteJSON = true
 
 		out := captureDeleteStdout(t, func() {
@@ -106,8 +106,8 @@ func TestDeleteJSONShape(t *testing.T) {
 	t.Run("multiple gives a bare array", func(t *testing.T) {
 		setupDeleteTest(t)
 		resetDeleteFlags(t)
-		first := mkDeleteBean(t, "beans-del2", "First bean")
-		second := mkDeleteBean(t, "beans-del3", "Second bean")
+		first := mkDeleteItem(t, "beans-del2", "First bean")
+		second := mkDeleteItem(t, "beans-del3", "Second bean")
 		deleteJSON = true
 
 		out := captureDeleteStdout(t, func() {
@@ -128,13 +128,13 @@ func TestDeleteJSONShape(t *testing.T) {
 	})
 }
 
-// TestDeleteRemovesEveryNamedBean guards the behaviour the shape change sits
+// TestDeleteRemovesEveryNamedItem guards the behaviour the shape change sits
 // on top of.
-func TestDeleteRemovesEveryNamedBean(t *testing.T) {
+func TestDeleteRemovesEveryNamedItem(t *testing.T) {
 	setupDeleteTest(t)
 	resetDeleteFlags(t)
-	first := mkDeleteBean(t, "beans-del4", "First bean")
-	second := mkDeleteBean(t, "beans-del5", "Second bean")
+	first := mkDeleteItem(t, "beans-del4", "First bean")
+	second := mkDeleteItem(t, "beans-del5", "Second bean")
 	forceDelete = true
 
 	captureDeleteStdout(t, func() {
@@ -170,16 +170,16 @@ func answerDeletePrompt(t *testing.T, answer string, fn func()) string {
 	return string(captureDeleteStdout(t, fn))
 }
 
-// Delete takes the attachment directory with the bean, so the prompt has to
+// Delete takes the attachment directory with the item, so the prompt has to
 // say which files that is before the operator consents. Under the current
 // sink those are the container's design documents, and a confirmation that
-// names only the bean understates what it destroys -- the same reason
+// names only the item understates what it destroys -- the same reason
 // rename's --dry-run names the attachment move.
 func TestDeletePromptNamesAttachments(t *testing.T) {
 	setupDeleteTest(t)
 	resetDeleteFlags(t)
-	b := mkDeleteBean(t, "beans-del6", "Host bean")
-	dir := filepath.Join(core.Root(), beancore.AttachmentsDir, b.ID)
+	b := mkDeleteItem(t, "beans-del6", "Host bean")
+	dir := filepath.Join(core.Root(), itemcore.AttachmentsDir, b.ID)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		t.Fatal(err)
 	}
@@ -188,7 +188,7 @@ func TestDeletePromptNamesAttachments(t *testing.T) {
 	}
 
 	out := answerDeletePrompt(t, "n\n", func() {
-		if confirmDeleteMultiple([]beanWithLinks{{bean: b, attachments: []string{"DESIGN.md"}}}) {
+		if confirmDeleteMultiple([]itemWithLinks{{item: b, attachments: []string{"DESIGN.md"}}}) {
 			t.Fatal("prompt accepted a declined deletion")
 		}
 	})
@@ -203,8 +203,8 @@ func TestDeletePromptNamesAttachments(t *testing.T) {
 func TestDeleteRunNamesAttachments(t *testing.T) {
 	setupDeleteTest(t)
 	resetDeleteFlags(t)
-	b := mkDeleteBean(t, "beans-del7", "Host bean")
-	dir := filepath.Join(core.Root(), beancore.AttachmentsDir, b.ID)
+	b := mkDeleteItem(t, "beans-del7", "Host bean")
+	dir := filepath.Join(core.Root(), itemcore.AttachmentsDir, b.ID)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		t.Fatal(err)
 	}

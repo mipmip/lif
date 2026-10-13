@@ -10,7 +10,7 @@ import (
 )
 
 // etagsFileName is the sidecar file, next to the Bleve index directory's own
-// files, that records the ETag this index last observed for each bean ID.
+// files, that records the ETag this index last observed for each item ID.
 // It is the staleness signal Sync diffs against (AC-03): never mtime.
 const etagsFileName = "beans-etags.json"
 
@@ -49,11 +49,11 @@ var tryAcquireSharedIndexLock = tryAcquireIndexLock
 //
 // Use OpenRead for a read caller (search/list queries): it acquires the
 // lock in shared mode instead, so concurrent readers -- including two
-// long-lived processes such as beans serve and beans-tui -- can each get
+// long-lived processes such as lif serve and lif-tui -- can each get
 // the warm, persisted index instead of forcing every reader but the first
 // into the cold in-memory rebuild (AC-03). OpenRead's persisted index, when
 // obtained, is backed by Bleve's read-only mode (see openOrCreatePersistent):
-// writing to it -- IndexBean, DeleteBean, or Sync -- blocks forever rather
+// writing to it -- IndexItem, DeleteItem, or Sync -- blocks forever rather
 // than erroring, because Bleve's background persister never starts for a
 // read-only-opened index (Index.ReadOnly reports exactly this). A caller
 // MUST NOT write to the *Index OpenRead returns while still holding it.
@@ -131,7 +131,7 @@ func open(dir string, mode lockMode) (*Index, error) {
 // not just until a timeout). Bolt's read_only mode requests a *shared*
 // flock instead, so concurrent readers no longer block each other or
 // degrade to in-memory (AC-03). The cost: a Bleve index opened this way
-// rejects further writes by hanging on the first IndexBean/DeleteBean/Sync
+// rejects further writes by hanging on the first IndexItem/DeleteItem/Sync
 // call rather than erroring (also measured directly), because its
 // background persister/merger goroutines never start in read-only mode.
 // openOrCreatePersistent therefore never creates or repairs the index in
@@ -161,7 +161,7 @@ func openOrCreatePersistent(dir string, mode lockMode) (bleve.Index, map[string]
 		etags, loadErr := loadETags(dir)
 		if loadErr != nil {
 			// Sidecar missing or unreadable but the Bleve index itself
-			// opened fine: treat every bean as unseen rather than fail --
+			// opened fine: treat every item as unseen rather than fail --
 			// Sync will simply reindex everything once, same cost as a
 			// fresh build (AC-05).
 			etags = map[string]string{}

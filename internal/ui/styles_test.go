@@ -5,8 +5,8 @@ import (
 	"testing"
 )
 
-func TestRenderBeanRow_NarrowWidth(t *testing.T) {
-	// Test that RenderBeanRow doesn't panic with very small MaxTitleWidth values
+func TestRenderItemRow_NarrowWidth(t *testing.T) {
+	// Test that RenderItemRow doesn't panic with very small MaxTitleWidth values
 	// This was a bug where MaxTitleWidth < 4 caused a slice bounds panic
 
 	tests := []struct {
@@ -34,13 +34,13 @@ func TestRenderBeanRow_NarrowWidth(t *testing.T) {
 				}
 			}()
 
-			cfg := BeanRowConfig{
+			cfg := ItemRowConfig{
 				MaxTitleWidth: tt.maxTitleWidth,
 				StatusColor:   "green",
 				TypeColor:     "blue",
 			}
 
-			result := RenderBeanRow("abc123", "todo", "task", tt.title, cfg)
+			result := RenderItemRow("abc123", "todo", "task", tt.title, cfg)
 			if result == "" {
 				t.Error("expected non-empty result")
 			}
@@ -48,7 +48,7 @@ func TestRenderBeanRow_NarrowWidth(t *testing.T) {
 	}
 }
 
-func TestRenderBeanRow_NarrowWidthWithPriority(t *testing.T) {
+func TestRenderItemRow_NarrowWidthWithPriority(t *testing.T) {
 	// Priority symbol takes 2 extra chars, which reduces available title width
 	// This tests that the adjustment doesn't cause negative slice bounds
 
@@ -73,7 +73,7 @@ func TestRenderBeanRow_NarrowWidthWithPriority(t *testing.T) {
 				}
 			}()
 
-			cfg := BeanRowConfig{
+			cfg := ItemRowConfig{
 				MaxTitleWidth: tt.maxTitleWidth,
 				Priority:      tt.priority,
 				PriorityColor: "red",
@@ -81,7 +81,7 @@ func TestRenderBeanRow_NarrowWidthWithPriority(t *testing.T) {
 				TypeColor:     "blue",
 			}
 
-			result := RenderBeanRow("abc123", "todo", "task", "Long title that needs truncation", cfg)
+			result := RenderItemRow("abc123", "todo", "task", "Long title that needs truncation", cfg)
 			if result == "" {
 				t.Error("expected non-empty result")
 			}
@@ -325,10 +325,10 @@ func TestGetPrioritySymbolFallsBackToEmpty(t *testing.T) {
 	}
 }
 
-func TestRenderBeanRowSurvivesForTheTUI(t *testing.T) {
+func TestRenderItemRowSurvivesForTheTUI(t *testing.T) {
 	// The TUI renders through this. It must keep working, and it must follow
 	// the theme without being rewritten.
-	row := RenderBeanRow("beans-abcd", "todo", "task", "A title", BeanRowConfig{
+	row := RenderItemRow("beans-abcd", "todo", "task", "A title", ItemRowConfig{
 		StatusColor: "green", TypeColor: "blue", MaxTitleWidth: 40,
 	})
 	if row == "" {
@@ -336,7 +336,7 @@ func TestRenderBeanRowSurvivesForTheTUI(t *testing.T) {
 	}
 }
 
-func TestRenderBeanRowFollowsTheTheme(t *testing.T) {
+func TestRenderItemRowFollowsTheTheme(t *testing.T) {
 	// Force a real colour profile: under `go test` there is no tty, so
 	// lipgloss strips all colour and mocha/latte would render identically
 	// regardless of whether the code follows the theme at all (see
@@ -346,12 +346,12 @@ func TestRenderBeanRowFollowsTheTheme(t *testing.T) {
 	t.Cleanup(func() { SetTheme(prev) })
 
 	SetTheme("mocha")
-	mocha := RenderBeanRow("beans-abcd", "todo", "task", "A title", BeanRowConfig{
+	mocha := RenderItemRow("beans-abcd", "todo", "task", "A title", ItemRowConfig{
 		StatusColor: "green", TypeColor: "blue", MaxTitleWidth: 40,
 	})
 
 	SetTheme("latte")
-	latte := RenderBeanRow("beans-abcd", "todo", "task", "A title", BeanRowConfig{
+	latte := RenderItemRow("beans-abcd", "todo", "task", "A title", ItemRowConfig{
 		StatusColor: "green", TypeColor: "blue", MaxTitleWidth: 40,
 	})
 
@@ -386,7 +386,7 @@ func TestCalculateResponsiveColumnsIgnoresTheme(t *testing.T) {
 // TestIsValidColorRejectsNonHexDigits pins a gap the final review's check
 // finding exposed: the hex branch only measured LENGTH, so "#zzz" and
 // "#gggggg" were accepted as valid colours. They reach lipgloss as a colour
-// it cannot parse, and `beans check` -- whose whole job is to catch a broken
+// it cannot parse, and `lif check` -- whose whole job is to catch a broken
 // .beans.yml before it confuses someone -- reported them as fine.
 //
 // Mutation: restore `return len(color) == 4 || len(color) == 7` and the

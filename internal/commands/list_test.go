@@ -11,15 +11,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/xRiErOS/lif/internal/ui"
-	"github.com/xRiErOS/lif/pkg/bean"
-	"github.com/xRiErOS/lif/pkg/beancore"
-	"github.com/xRiErOS/lif/pkg/beangraph/model"
-	"github.com/xRiErOS/lif/pkg/config"
 	"github.com/spf13/cobra"
+	"github.com/xRiErOS/lif/internal/ui"
+	"github.com/xRiErOS/lif/pkg/config"
+	"github.com/xRiErOS/lif/pkg/item"
+	"github.com/xRiErOS/lif/pkg/itemcore"
+	"github.com/xRiErOS/lif/pkg/itemgraph/model"
 )
 
-func TestSortBeans(t *testing.T) {
+func TestSortItems(t *testing.T) {
 	now := time.Now()
 	earlier := now.Add(-1 * time.Hour)
 	evenEarlier := now.Add(-2 * time.Hour)
@@ -28,83 +28,83 @@ func TestSortBeans(t *testing.T) {
 	testCfg := config.Default()
 
 	t.Run("sort by id", func(t *testing.T) {
-		beans := []*bean.Bean{
+		items := []*item.Item{
 			{ID: "c3"},
 			{ID: "a1"},
 			{ID: "b2"},
 		}
-		sortBeans(beans, "id", false, testCfg)
+		sortItems(items, "id", false, testCfg)
 
-		if beans[0].ID != "a1" || beans[1].ID != "b2" || beans[2].ID != "c3" {
+		if items[0].ID != "a1" || items[1].ID != "b2" || items[2].ID != "c3" {
 			t.Errorf("sort by id: got [%s, %s, %s], want [a1, b2, c3]",
-				beans[0].ID, beans[1].ID, beans[2].ID)
+				items[0].ID, items[1].ID, items[2].ID)
 		}
 	})
 
 	t.Run("sort by created", func(t *testing.T) {
-		beans := []*bean.Bean{
+		items := []*item.Item{
 			{ID: "old", CreatedAt: &evenEarlier},
 			{ID: "new", CreatedAt: &now},
 			{ID: "mid", CreatedAt: &earlier},
 		}
-		sortBeans(beans, "created", false, testCfg)
+		sortItems(items, "created", false, testCfg)
 
 		// Should be newest first
-		if beans[0].ID != "new" || beans[1].ID != "mid" || beans[2].ID != "old" {
+		if items[0].ID != "new" || items[1].ID != "mid" || items[2].ID != "old" {
 			t.Errorf("sort by created: got [%s, %s, %s], want [new, mid, old]",
-				beans[0].ID, beans[1].ID, beans[2].ID)
+				items[0].ID, items[1].ID, items[2].ID)
 		}
 	})
 
 	t.Run("sort by created with nil", func(t *testing.T) {
-		beans := []*bean.Bean{
+		items := []*item.Item{
 			{ID: "nil1", CreatedAt: nil},
 			{ID: "has", CreatedAt: &now},
 			{ID: "nil2", CreatedAt: nil},
 		}
-		sortBeans(beans, "created", false, testCfg)
+		sortItems(items, "created", false, testCfg)
 
 		// Non-nil should come first, then nil sorted by ID
-		if beans[0].ID != "has" {
-			t.Errorf("sort by created with nil: first should be \"has\", got %q", beans[0].ID)
+		if items[0].ID != "has" {
+			t.Errorf("sort by created with nil: first should be \"has\", got %q", items[0].ID)
 		}
 	})
 
 	t.Run("sort by updated", func(t *testing.T) {
-		beans := []*bean.Bean{
+		items := []*item.Item{
 			{ID: "old", UpdatedAt: &evenEarlier},
 			{ID: "new", UpdatedAt: &now},
 			{ID: "mid", UpdatedAt: &earlier},
 		}
-		sortBeans(beans, "updated", false, testCfg)
+		sortItems(items, "updated", false, testCfg)
 
 		// Should be newest first
-		if beans[0].ID != "new" || beans[1].ID != "mid" || beans[2].ID != "old" {
+		if items[0].ID != "new" || items[1].ID != "mid" || items[2].ID != "old" {
 			t.Errorf("sort by updated: got [%s, %s, %s], want [new, mid, old]",
-				beans[0].ID, beans[1].ID, beans[2].ID)
+				items[0].ID, items[1].ID, items[2].ID)
 		}
 	})
 
 	t.Run("sort by status", func(t *testing.T) {
-		beans := []*bean.Bean{
+		items := []*item.Item{
 			{ID: "c1", Status: "completed"},
 			{ID: "t1", Status: "todo"},
 			{ID: "i1", Status: "in-progress"},
 			{ID: "t2", Status: "todo"},
 		}
-		sortBeans(beans, "status", false, testCfg)
+		sortItems(items, "status", false, testCfg)
 
 		// Should be ordered by status config order (in-progress, todo, draft, completed, scrapped), then by ID within same status
 		expected := []string{"i1", "t1", "t2", "c1"}
 		for i, want := range expected {
-			if beans[i].ID != want {
-				t.Errorf("sort by status[%d]: got %q, want %q", i, beans[i].ID, want)
+			if items[i].ID != want {
+				t.Errorf("sort by status[%d]: got %q, want %q", i, items[i].ID, want)
 			}
 		}
 	})
 
 	t.Run("sort by order, scoped per parent", func(t *testing.T) {
-		beans := []*bean.Bean{
+		items := []*item.Item{
 			// Four siblings under "p1" whose order values were assigned out
 			// of creation sequence, plus a fifth sibling without an order
 			// value that must come last (SC-01).
@@ -114,15 +114,15 @@ func TestSortBeans(t *testing.T) {
 			{ID: "p1-d", Title: "d", Parent: "p1", Order: "t"},
 			{ID: "p1-b", Title: "b", Parent: "p1", Order: "g"},
 			// A sibling under a different parent shares an Order value with
-			// one of p1's beans, which must not interleave the groups —
+			// one of p1's items, which must not interleave the groups —
 			// Order is a fractional index scoped per parent (R-12).
 			{ID: "p2-x", Title: "x", Parent: "p2", Order: "a"},
 		}
-		sortBeans(beans, "order", false, testCfg)
+		sortItems(items, "order", false, testCfg)
 
 		expected := []string{"p1-a", "p1-b", "p1-c", "p1-d", "p1-e", "p2-x"}
-		got := make([]string, len(beans))
-		for i, b := range beans {
+		got := make([]string, len(items))
+		for i, b := range items {
 			got[i] = b.ID
 		}
 		for i, want := range expected {
@@ -134,22 +134,22 @@ func TestSortBeans(t *testing.T) {
 	})
 
 	t.Run("default sort (archive status then type)", func(t *testing.T) {
-		beans := []*bean.Bean{
+		items := []*item.Item{
 			{ID: "completed-bug", Status: "completed", Type: "bug"},
 			{ID: "todo-feature", Status: "todo", Type: "feature"},
 			{ID: "todo-task", Status: "todo", Type: "task"},
 			{ID: "completed-task", Status: "completed", Type: "task"},
 			{ID: "todo-bug", Status: "todo", Type: "bug"},
 		}
-		sortBeans(beans, "", false, testCfg)
+		sortItems(items, "", false, testCfg)
 
 		// Should be: non-archive first (sorted by type order from DefaultTypes: milestone, epic, feature, bug, task),
 		// then archive (sorted by type)
 		// DefaultTypes order: milestone, epic, feature, bug, task
 		expected := []string{"todo-feature", "todo-bug", "todo-task", "completed-bug", "completed-task"}
 		for i, want := range expected {
-			if beans[i].ID != want {
-				t.Errorf("default sort[%d]: got %q, want %q", i, beans[i].ID, want)
+			if items[i].ID != want {
+				t.Errorf("default sort[%d]: got %q, want %q", i, items[i].ID, want)
 			}
 		}
 	})
@@ -207,15 +207,15 @@ func TestValidateWhereKeysAcceptsExtraKey(t *testing.T) {
 	}
 }
 
-// AC1/SC-01: a single --where key=value returns only matching beans.
+// AC1/SC-01: a single --where key=value returns only matching items.
 func TestFilterByWhereSingleMatch(t *testing.T) {
-	beans := []*bean.Bean{
+	items := []*item.Item{
 		{ID: "a", Extra: map[string]any{"release": "0-4-1"}},
 		{ID: "b", Extra: map[string]any{"release": "0-4-2"}},
 		{ID: "c", Extra: map[string]any{"release": "0-4-1"}},
 	}
 
-	got := filterByWhere(beans, []string{"release=0-4-1"})
+	got := filterByWhere(items, []string{"release=0-4-1"})
 
 	if len(got) != 2 {
 		t.Fatalf("expected 2 beans, got %d", len(got))
@@ -227,12 +227,12 @@ func TestFilterByWhereSingleMatch(t *testing.T) {
 
 // AC2: multiple --where pairs combine with AND semantics.
 func TestFilterByWhereMultiplePairsAreANDed(t *testing.T) {
-	beans := []*bean.Bean{
+	items := []*item.Item{
 		{ID: "a", Extra: map[string]any{"release": "0-4-1", "klasse": "bugfix"}},
 		{ID: "b", Extra: map[string]any{"release": "0-4-1", "klasse": "feature"}},
 	}
 
-	got := filterByWhere(beans, []string{"release=0-4-1", "klasse=bugfix"})
+	got := filterByWhere(items, []string{"release=0-4-1", "klasse=bugfix"})
 
 	if len(got) != 1 {
 		t.Fatalf("expected 1 bean, got %d", len(got))
@@ -242,26 +242,26 @@ func TestFilterByWhereMultiplePairsAreANDed(t *testing.T) {
 	}
 }
 
-// AC4: a key carried by no bean returns an empty result, not an error.
+// AC4: a key carried by no item returns an empty result, not an error.
 func TestFilterByWhereNoMatchIsEmpty(t *testing.T) {
-	beans := []*bean.Bean{
+	items := []*item.Item{
 		{ID: "a", Extra: map[string]any{"release": "0-4-1"}},
 	}
 
-	got := filterByWhere(beans, []string{"release=9-9-9"})
+	got := filterByWhere(items, []string{"release=9-9-9"})
 
 	if len(got) != 0 {
 		t.Errorf("expected 0 beans, got %d", len(got))
 	}
 }
 
-func TestFilterByWhereEmptyWheresReturnsAllBeans(t *testing.T) {
-	beans := []*bean.Bean{
+func TestFilterByWhereEmptyWheresReturnsAllItems(t *testing.T) {
+	items := []*item.Item{
 		{ID: "a"},
 		{ID: "b"},
 	}
 
-	got := filterByWhere(beans, nil)
+	got := filterByWhere(items, nil)
 
 	if len(got) != 2 {
 		t.Errorf("expected 2 beans, got %d", len(got))
@@ -297,13 +297,13 @@ func captureListStdout(t *testing.T, fn func()) []byte {
 func setupListTest(t *testing.T) {
 	t.Helper()
 	tmpDir := t.TempDir()
-	beansDir := filepath.Join(tmpDir, ".beans")
-	if err := os.MkdirAll(beansDir, 0755); err != nil {
+	itemsDir := filepath.Join(tmpDir, ".beans")
+	if err := os.MkdirAll(itemsDir, 0755); err != nil {
 		t.Fatalf("failed to create test .beans dir: %v", err)
 	}
 
 	testCfg := config.Default()
-	testCore := beancore.New(beansDir, testCfg)
+	testCore := itemcore.New(itemsDir, testCfg)
 	if err := testCore.Load(); err != nil {
 		t.Fatalf("failed to load core: %v", err)
 	}
@@ -321,8 +321,8 @@ func resetListWhereFlag(t *testing.T) {
 	t.Cleanup(func() { listWhere = old })
 }
 
-// SC-01: in a store of five beans of which two carry release: 0-4-1,
-// `beans list --where release=0-4-1 --json` returns exactly those two.
+// SC-01: in a store of five items of which two carry release: 0-4-1,
+// `lif list --where release=0-4-1 --json` returns exactly those two.
 func TestListCmdWhereEndToEnd(t *testing.T) {
 	setupListTest(t)
 	resetListWhereFlag(t)
@@ -333,9 +333,9 @@ func TestListCmdWhereEndToEnd(t *testing.T) {
 
 	releases := []string{"0-4-1", "0-4-1", "0-4-0", "0-4-0", "0-4-0"}
 	for i, release := range releases {
-		b := &bean.Bean{
+		b := &item.Item{
 			ID:     "beans-sc" + string(rune('1'+i)),
-			Slug:   bean.Slugify("bean"),
+			Slug:   item.Slugify("bean"),
 			Title:  "bean",
 			Status: "todo",
 			Type:   "task",
@@ -355,7 +355,7 @@ func TestListCmdWhereEndToEnd(t *testing.T) {
 	})
 
 	dec := json.NewDecoder(bytes.NewReader(out))
-	var got []*bean.Bean
+	var got []*item.Item
 	if err := dec.Decode(&got); err != nil {
 		t.Fatalf("decoding JSON output: %v; output = %s", err, out)
 	}
@@ -371,7 +371,7 @@ func TestListCmdWhereEndToEnd(t *testing.T) {
 
 // TestListCmdReadyEndToEnd is a regression test for the applyReadyFilter
 // extraction (Task 4): `list --ready` must still exclude blocked/terminal
-// beans AND continue to combine with other flags already applied to the
+// items AND continue to combine with other flags already applied to the
 // same filter object (here --type), since applyReadyFilter mutates the
 // filter list.go already built rather than constructing a separate one.
 func TestListCmdReadyEndToEnd(t *testing.T) {
@@ -381,36 +381,36 @@ func TestListCmdReadyEndToEnd(t *testing.T) {
 	listJSON, listFull, listReady = true, false, true
 	t.Cleanup(func() { listJSON, listFull, listReady, listType = oldJSON, oldFull, oldReady, oldType })
 
-	readyTask := &bean.Bean{
+	readyTask := &item.Item{
 		ID:     "beans-rdy1",
-		Slug:   bean.Slugify("ready task"),
+		Slug:   item.Slugify("ready task"),
 		Title:  "ready task",
 		Status: "todo",
 		Type:   "task",
 	}
-	readyEpic := &bean.Bean{
+	readyEpic := &item.Item{
 		ID:     "beans-rdy2",
-		Slug:   bean.Slugify("ready epic"),
+		Slug:   item.Slugify("ready epic"),
 		Title:  "ready epic",
 		Status: "todo",
 		Type:   "epic",
 	}
-	blockedTask := &bean.Bean{
+	blockedTask := &item.Item{
 		ID:        "beans-rdy3",
-		Slug:      bean.Slugify("blocked task"),
+		Slug:      item.Slugify("blocked task"),
 		Title:     "blocked task",
 		Status:    "todo",
 		Type:      "task",
 		BlockedBy: []string{readyTask.ID},
 	}
-	completedTask := &bean.Bean{
+	completedTask := &item.Item{
 		ID:     "beans-rdy4",
-		Slug:   bean.Slugify("completed task"),
+		Slug:   item.Slugify("completed task"),
 		Title:  "completed task",
 		Status: "completed",
 		Type:   "task",
 	}
-	for _, b := range []*bean.Bean{readyTask, readyEpic, blockedTask, completedTask} {
+	for _, b := range []*item.Item{readyTask, readyEpic, blockedTask, completedTask} {
 		if err := core.Create(b); err != nil {
 			t.Fatalf("core.Create(%s) error = %v", b.ID, err)
 		}
@@ -422,7 +422,7 @@ func TestListCmdReadyEndToEnd(t *testing.T) {
 			t.Fatalf("listCmd.RunE() error = %v", err)
 		}
 	})
-	var got []*bean.Bean
+	var got []*item.Item
 	if err := json.Unmarshal(out, &got); err != nil {
 		t.Fatalf("decoding JSON output: %v; output = %s", err, out)
 	}
@@ -504,16 +504,16 @@ func TestTruncate(t *testing.T) {
 	}
 }
 
-// TestSortBeansDescReversesEveryField verifies that --desc is a property of
-// sortBeans itself and therefore holds for every sort field, rather than
+// TestSortItemsDescReversesEveryField verifies that --desc is a property of
+// sortItems itself and therefore holds for every sort field, rather than
 // being wired into one branch.
-func TestSortBeansDescReversesEveryField(t *testing.T) {
+func TestSortItemsDescReversesEveryField(t *testing.T) {
 	testCfg := config.Default()
 
 	for _, sortBy := range []string{"", "id", "created", "updated", "status", "priority", "order"} {
 		t.Run("sort="+sortBy, func(t *testing.T) {
-			mk := func() []*bean.Bean {
-				return []*bean.Bean{
+			mk := func() []*item.Item {
+				return []*item.Item{
 					{ID: "beans-d001", Title: "First", Status: "todo", Type: "task", Priority: "high", Order: "a"},
 					{ID: "beans-d002", Title: "Second", Status: "in-progress", Type: "bug", Priority: "low", Order: "b"},
 					{ID: "beans-d003", Title: "Third", Status: "done", Type: "epic", Priority: "normal", Order: "c"},
@@ -521,9 +521,9 @@ func TestSortBeansDescReversesEveryField(t *testing.T) {
 			}
 
 			asc := mk()
-			sortBeans(asc, sortBy, false, testCfg)
+			sortItems(asc, sortBy, false, testCfg)
 			desc := mk()
-			sortBeans(desc, sortBy, true, testCfg)
+			sortItems(desc, sortBy, true, testCfg)
 
 			if len(asc) != len(desc) {
 				t.Fatalf("length changed: asc=%d desc=%d", len(asc), len(desc))
@@ -538,18 +538,18 @@ func TestSortBeansDescReversesEveryField(t *testing.T) {
 	}
 }
 
-func idsOf(beans []*bean.Bean) []string {
-	ids := make([]string, len(beans))
-	for i, b := range beans {
+func idsOf(items []*item.Item) []string {
+	ids := make([]string, len(items))
+	for i, b := range items {
 		ids[i] = b.ID
 	}
 	return ids
 }
 
-// TestListCmdUnblockedEndToEnd covers `beans list --unblocked` (beans-8olg):
-// beans with an active blocker drop out, beans whose only blocker is
+// TestListCmdUnblockedEndToEnd covers `lif list --unblocked` (beans-8olg):
+// items with an active blocker drop out, items whose only blocker is
 // resolved stay in, and — unlike --ready — no status is excluded, so
-// draft/in-progress/completed beans survive the filter. The last block
+// draft/in-progress/completed items survive the filter. The last block
 // pins the combination with another flag, since --unblocked mutates the
 // same filter object list.go already built from --status et al.
 func TestListCmdUnblockedEndToEnd(t *testing.T) {
@@ -561,44 +561,44 @@ func TestListCmdUnblockedEndToEnd(t *testing.T) {
 		listJSON, listFull, listUnblocked, listStatus = oldJSON, oldFull, oldUnblocked, oldStatus
 	})
 
-	openBlocker := &bean.Bean{
+	openBlocker := &item.Item{
 		ID:     "beans-unb1",
-		Slug:   bean.Slugify("open blocker"),
+		Slug:   item.Slugify("open blocker"),
 		Title:  "open blocker",
 		Status: "todo",
 		Type:   "task",
 	}
-	doneBlocker := &bean.Bean{
+	doneBlocker := &item.Item{
 		ID:     "beans-unb2",
-		Slug:   bean.Slugify("done blocker"),
+		Slug:   item.Slugify("done blocker"),
 		Title:  "done blocker",
 		Status: "completed",
 		Type:   "task",
 	}
-	blocked := &bean.Bean{
+	blocked := &item.Item{
 		ID:        "beans-unb3",
-		Slug:      bean.Slugify("blocked by open"),
+		Slug:      item.Slugify("blocked by open"),
 		Title:     "blocked by open",
 		Status:    "todo",
 		Type:      "task",
 		BlockedBy: []string{openBlocker.ID},
 	}
-	unblocked := &bean.Bean{
+	unblocked := &item.Item{
 		ID:        "beans-unb4",
-		Slug:      bean.Slugify("blocker is done"),
+		Slug:      item.Slugify("blocker is done"),
 		Title:     "blocker is done",
 		Status:    "todo",
 		Type:      "task",
 		BlockedBy: []string{doneBlocker.ID},
 	}
-	draft := &bean.Bean{
+	draft := &item.Item{
 		ID:     "beans-unb5",
-		Slug:   bean.Slugify("draft task"),
+		Slug:   item.Slugify("draft task"),
 		Title:  "draft task",
 		Status: "draft",
 		Type:   "task",
 	}
-	for _, b := range []*bean.Bean{openBlocker, doneBlocker, blocked, unblocked, draft} {
+	for _, b := range []*item.Item{openBlocker, doneBlocker, blocked, unblocked, draft} {
 		if err := core.Create(b); err != nil {
 			t.Fatalf("core.Create(%s) error = %v", b.ID, err)
 		}
@@ -611,7 +611,7 @@ func TestListCmdUnblockedEndToEnd(t *testing.T) {
 				t.Fatalf("listCmd.RunE() error = %v", err)
 			}
 		})
-		var got []*bean.Bean
+		var got []*item.Item
 		if err := json.Unmarshal(out, &got); err != nil {
 			t.Fatalf("decoding JSON output: %v; output = %s", err, out)
 		}
@@ -668,9 +668,9 @@ func TestListCmdUnblockedRejectsIsBlocked(t *testing.T) {
 // this task must not have.
 func seedListTree(t *testing.T) {
 	t.Helper()
-	parent := &bean.Bean{
+	parent := &item.Item{
 		ID:     "beans-par1",
-		Slug:   bean.Slugify("Parent über"),
+		Slug:   item.Slugify("Parent über"),
 		Title:  "Parent über",
 		Status: "todo",
 		Type:   "epic",
@@ -680,9 +680,9 @@ func seedListTree(t *testing.T) {
 		t.Fatalf("core.Create(parent) error = %v", err)
 	}
 	for _, suffix := range []string{"a", "b"} {
-		c := &bean.Bean{
+		c := &item.Item{
 			ID:     "beans-chd" + suffix,
-			Slug:   bean.Slugify("Child " + suffix),
+			Slug:   item.Slugify("Child " + suffix),
 			Title:  "Child " + suffix,
 			Status: "todo",
 			Type:   "task",
@@ -853,16 +853,16 @@ func TestListMaxWidthCapsRenderedWidth(t *testing.T) {
 
 // TestListTableOmitsUnmatchedAncestors is a regression test for a real
 // correctness bug found while proving this task's mutation coverage:
-// BuildTree deliberately widens the tree beyond the filtered `beans` slice
+// BuildTree deliberately widens the tree beyond the filtered `lif` slice
 // with unmatched ancestors kept for context (ui.TreeNode.Matched), which is
 // right for --view tree but was leaking into --view table too, because the
 // old code built table rows from the same tree via
 // ui.RowsFromFlatItems(ui.FlattenTree(tree)) regardless of form. Verified
 // against a real store (SPF_sproutling, `list --status completed --view
-// table` vs `--json`), extracting bean IDs from both outputs with the same
-// regex so the two counts are actually comparable: 496 filter-matched beans
+// table` vs `--json`), extracting item IDs from both outputs with the same
+// regex so the two counts are actually comparable: 496 filter-matched items
 // against 514 unique IDs in the old table output, an 18-ID leak of unmatched
-// ancestors. list.go now builds table rows from ui.FlatRows(beans) — the
+// ancestors. list.go now builds table rows from ui.FlatRows(items) — the
 // already-filtered slice — instead.
 func TestListTableOmitsUnmatchedAncestors(t *testing.T) {
 	setupListTest(t)
@@ -871,15 +871,15 @@ func TestListTableOmitsUnmatchedAncestors(t *testing.T) {
 	listStatus, listView, listMaxWidth = []string{"todo"}, "table", 0
 	t.Cleanup(func() { listStatus, listView, listMaxWidth = oldStatus, oldView, oldWidth })
 
-	parent := &bean.Bean{
-		ID: "beans-anc1", Slug: bean.Slugify("Ancestor"), Title: "Ancestor",
+	parent := &item.Item{
+		ID: "beans-anc1", Slug: item.Slugify("Ancestor"), Title: "Ancestor",
 		Status: "draft", Type: "epic",
 	}
-	child := &bean.Bean{
-		ID: "beans-anc2", Slug: bean.Slugify("Matching child"), Title: "Matching child",
+	child := &item.Item{
+		ID: "beans-anc2", Slug: item.Slugify("Matching child"), Title: "Matching child",
 		Status: "todo", Type: "task", Parent: parent.ID,
 	}
-	for _, b := range []*bean.Bean{parent, child} {
+	for _, b := range []*item.Item{parent, child} {
 		if err := core.Create(b); err != nil {
 			t.Fatalf("core.Create(%s) error = %v", b.ID, err)
 		}
@@ -922,7 +922,7 @@ func TestListDefaultMaxWidthFallsBackToConfig(t *testing.T) {
 
 // TestListShowsTagsOnlyWithTheFlag pins list to the same contract as
 // milestones and roadmap: the tag column is the caller's choice. It used to
-// appear automatically whenever any listed bean happened to carry a tag,
+// appear automatically whenever any listed item happened to carry a tag,
 // which made the same query render two different layouts depending on the
 // data -- the kind of quiet disagreement between commands this whole branch
 // exists to remove (PO decision, beans-jbgs).
@@ -943,15 +943,15 @@ func TestListShowsTagsOnlyWithTheFlag(t *testing.T) {
 // The three view-aware commands validated --view at the point where they
 // were about to render, which is AFTER their empty-result return and, for
 // milestones, after the --json return as well. A typo therefore vanished
-// silently: `beans milestones --json --view bogus` printed [] and exited 0,
-// and `beans list --view bogus` against an empty store printed the
-// no-beans hint. An agent reading prime as authoritative would get the
+// silently: `lif milestones --json --view bogus` printed [] and exited 0,
+// and `lif list --view bogus` against an empty store printed the
+// no-items hint. An agent reading prime as authoritative would get the
 // default arrangement and no indication it had asked for something else.
 //
 // Mutation: move any of the three ParseForm checks back below its command's
 // empty-result return and the matching case goes red.
 func TestViewFlagIsValidatedBeforeAnyEarlyReturn(t *testing.T) {
-	setupListTest(t) // empty store: no beans, no milestones
+	setupListTest(t) // empty store: no items, no milestones
 
 	root := &cobra.Command{Use: "beans"}
 	RegisterListCmd(root)
@@ -993,7 +993,7 @@ func TestViewFlagIsValidatedBeforeAnyEarlyReturn(t *testing.T) {
 func seedStatusMix(t *testing.T) {
 	t.Helper()
 	mk := func(id, typ, status, parent string) {
-		b := &bean.Bean{ID: id, Slug: bean.Slugify(id), Title: id, Type: typ, Status: status, Parent: parent}
+		b := &item.Item{ID: id, Slug: item.Slugify(id), Title: id, Type: typ, Status: status, Parent: parent}
 		if err := core.Create(b); err != nil {
 			t.Fatalf("core.Create(%s) error = %v", id, err)
 		}

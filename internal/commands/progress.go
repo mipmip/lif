@@ -9,12 +9,12 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 
+	"github.com/spf13/cobra"
 	"github.com/xRiErOS/lif/internal/output"
 	"github.com/xRiErOS/lif/internal/ui"
-	"github.com/xRiErOS/lif/pkg/bean"
-	"github.com/xRiErOS/lif/pkg/beangraph"
 	"github.com/xRiErOS/lif/pkg/config"
-	"github.com/spf13/cobra"
+	"github.com/xRiErOS/lif/pkg/item"
+	"github.com/xRiErOS/lif/pkg/itemgraph"
 )
 
 var progressJSON bool
@@ -23,7 +23,7 @@ var progressJSON bool
 // progress bar rendered below the per-status counts.
 const progressBarWidth = 20
 
-// progressResult is the --json shape for `beans progress`: per-status
+// progressResult is the --json shape for `lif progress`: per-status
 // counts plus the derived completed/total/percent figures. It intentionally
 // carries no bar string — the bar is a presentation-only concern of the
 // plain-text renderer below.
@@ -44,24 +44,24 @@ With an ID argument (for example a milestone or epic), the counts cover that bea
 	Args: cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
-		resolver := &beangraph.CoreResolver{Core: core}
+		resolver := &itemgraph.CoreResolver{Core: core}
 
-		allBeans, err := resolver.Beans(ctx, nil)
+		allItems, err := resolver.Items(ctx, nil)
 		if err != nil {
 			return cmdError(progressJSON, output.ErrValidation, "querying beans: %v", err)
 		}
 
-		scope := allBeans
-		var root *bean.Bean
+		scope := allItems
+		var root *item.Item
 		if len(args) == 1 {
-			root, err = resolver.Bean(ctx, args[0])
+			root, err = resolver.Item(ctx, args[0])
 			if err != nil {
 				return cmdError(progressJSON, output.ErrNotFound, "failed to find bean: %v", err)
 			}
 			if root == nil {
 				return cmdError(progressJSON, output.ErrNotFound, "bean not found: %s", args[0])
 			}
-			idx := buildChildrenIndex(allBeans)
+			idx := buildChildrenIndex(allItems)
 			scope = descendants(root.ID, idx)
 		}
 
@@ -120,7 +120,7 @@ With an ID argument (for example a milestone or epic), the counts cover that bea
 // cannot mistake it for a workspace-wide figure. The style mirrors the
 // table's type tint: colour only when the type configures one, bold on
 // emphasis, so an unstyled type keeps the terminal's own text colour.
-func printProgressRootHeader(b *bean.Bean, cfg *config.Config) {
+func printProgressRootHeader(b *item.Item, cfg *config.Config) {
 	st := lipgloss.NewStyle()
 	if tc := cfg.GetType(b.Type); tc != nil {
 		st = st.Bold(tc.Emphasis)

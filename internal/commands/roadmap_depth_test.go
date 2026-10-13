@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/xRiErOS/lif/pkg/bean"
+	"github.com/xRiErOS/lif/pkg/item"
 )
 
 // depthFixture builds a roadmap that exercises every branch the pruner has
@@ -15,22 +15,22 @@ import (
 // shape. Every level from 1 to 4 is populated, so a test can pin exactly
 // which of them survives a given --depth.
 func depthFixture() *roadmapData {
-	ms := &bean.Bean{ID: "beans-ms01", Title: "Milestone", Type: "milestone", Status: "todo"}
-	msEpic := &bean.Bean{ID: "beans-ep01", Title: "Epic", Type: "epic", Status: "todo", Parent: ms.ID}
-	msEpicItem := &bean.Bean{ID: "beans-it01", Title: "Epic item", Type: "task", Status: "todo", Parent: msEpic.ID}
-	msEpicFeat := &bean.Bean{ID: "beans-ft01", Title: "Epic feature", Type: "feature", Status: "todo", Parent: msEpic.ID}
-	msEpicFeatItem := &bean.Bean{ID: "beans-it02", Title: "Epic feature item", Type: "task", Status: "todo", Parent: msEpicFeat.ID}
-	msFeat := &bean.Bean{ID: "beans-ft02", Title: "Milestone feature", Type: "feature", Status: "todo", Parent: ms.ID}
-	msFeatItem := &bean.Bean{ID: "beans-it03", Title: "Milestone feature item", Type: "task", Status: "todo", Parent: msFeat.ID}
-	msOther := &bean.Bean{ID: "beans-it04", Title: "Milestone leaf", Type: "task", Status: "todo", Parent: ms.ID}
+	ms := &item.Item{ID: "beans-ms01", Title: "Milestone", Type: "milestone", Status: "todo"}
+	msEpic := &item.Item{ID: "beans-ep01", Title: "Epic", Type: "epic", Status: "todo", Parent: ms.ID}
+	msEpicItem := &item.Item{ID: "beans-it01", Title: "Epic item", Type: "task", Status: "todo", Parent: msEpic.ID}
+	msEpicFeat := &item.Item{ID: "beans-ft01", Title: "Epic feature", Type: "feature", Status: "todo", Parent: msEpic.ID}
+	msEpicFeatItem := &item.Item{ID: "beans-it02", Title: "Epic feature item", Type: "task", Status: "todo", Parent: msEpicFeat.ID}
+	msFeat := &item.Item{ID: "beans-ft02", Title: "Milestone feature", Type: "feature", Status: "todo", Parent: ms.ID}
+	msFeatItem := &item.Item{ID: "beans-it03", Title: "Milestone feature item", Type: "task", Status: "todo", Parent: msFeat.ID}
+	msOther := &item.Item{ID: "beans-it04", Title: "Milestone leaf", Type: "task", Status: "todo", Parent: ms.ID}
 
-	unEpic := &bean.Bean{ID: "beans-ep02", Title: "Unscheduled epic", Type: "epic", Status: "todo"}
-	unEpicItem := &bean.Bean{ID: "beans-it05", Title: "Unscheduled epic item", Type: "task", Status: "todo", Parent: unEpic.ID}
-	unEpicFeat := &bean.Bean{ID: "beans-ft03", Title: "Unscheduled epic feature", Type: "feature", Status: "todo", Parent: unEpic.ID}
-	unEpicFeatItem := &bean.Bean{ID: "beans-it06", Title: "Unscheduled epic feature item", Type: "task", Status: "todo", Parent: unEpicFeat.ID}
-	unFeat := &bean.Bean{ID: "beans-ft04", Title: "Unscheduled feature", Type: "feature", Status: "todo"}
-	unFeatItem := &bean.Bean{ID: "beans-it07", Title: "Unscheduled feature item", Type: "task", Status: "todo", Parent: unFeat.ID}
-	unOther := &bean.Bean{ID: "beans-it08", Title: "Orphan leaf", Type: "task", Status: "todo"}
+	unEpic := &item.Item{ID: "beans-ep02", Title: "Unscheduled epic", Type: "epic", Status: "todo"}
+	unEpicItem := &item.Item{ID: "beans-it05", Title: "Unscheduled epic item", Type: "task", Status: "todo", Parent: unEpic.ID}
+	unEpicFeat := &item.Item{ID: "beans-ft03", Title: "Unscheduled epic feature", Type: "feature", Status: "todo", Parent: unEpic.ID}
+	unEpicFeatItem := &item.Item{ID: "beans-it06", Title: "Unscheduled epic feature item", Type: "task", Status: "todo", Parent: unEpicFeat.ID}
+	unFeat := &item.Item{ID: "beans-ft04", Title: "Unscheduled feature", Type: "feature", Status: "todo"}
+	unFeatItem := &item.Item{ID: "beans-it07", Title: "Unscheduled feature item", Type: "task", Status: "todo", Parent: unFeat.ID}
+	unOther := &item.Item{ID: "beans-it08", Title: "Orphan leaf", Type: "task", Status: "todo"}
 
 	return &roadmapData{
 		Milestones: []milestoneGroup{
@@ -39,39 +39,39 @@ func depthFixture() *roadmapData {
 				Containers: []roadmapContainer{
 					{Epic: &epicGroup{
 						Epic:     msEpic,
-						Items:    []*bean.Bean{msEpicItem},
-						Features: []featureGroup{{Feature: msEpicFeat, Items: []*bean.Bean{msEpicFeatItem}}},
+						Items:    []*item.Item{msEpicItem},
+						Features: []featureGroup{{Feature: msEpicFeat, Items: []*item.Item{msEpicFeatItem}}},
 					}},
-					{Feature: &featureGroup{Feature: msFeat, Items: []*bean.Bean{msFeatItem}}},
+					{Feature: &featureGroup{Feature: msFeat, Items: []*item.Item{msFeatItem}}},
 				},
-				Other: []*bean.Bean{msOther},
+				Other: []*item.Item{msOther},
 			},
 		},
 		Unscheduled: &unscheduledGroup{
 			Containers: []roadmapContainer{
 				{Epic: &epicGroup{
 					Epic:     unEpic,
-					Items:    []*bean.Bean{unEpicItem},
-					Features: []featureGroup{{Feature: unEpicFeat, Items: []*bean.Bean{unEpicFeatItem}}},
+					Items:    []*item.Item{unEpicItem},
+					Features: []featureGroup{{Feature: unEpicFeat, Items: []*item.Item{unEpicFeatItem}}},
 				}},
-				{Feature: &featureGroup{Feature: unFeat, Items: []*bean.Bean{unFeatItem}}},
+				{Feature: &featureGroup{Feature: unFeat, Items: []*item.Item{unFeatItem}}},
 			},
-			Other: []*bean.Bean{unOther},
+			Other: []*item.Item{unOther},
 		},
 	}
 }
 
 // scopedEpicFixture is what buildScopedRoadmap produces for an epic root.
 func scopedEpicFixture() *roadmapData {
-	epic := &bean.Bean{ID: "beans-ep01", Title: "Epic", Type: "epic", Status: "todo"}
-	item := &bean.Bean{ID: "beans-it01", Title: "Epic item", Type: "task", Status: "todo", Parent: epic.ID}
-	feat := &bean.Bean{ID: "beans-ft01", Title: "Epic feature", Type: "feature", Status: "todo", Parent: epic.ID}
-	featItem := &bean.Bean{ID: "beans-it02", Title: "Epic feature item", Type: "task", Status: "todo", Parent: feat.ID}
+	epic := &item.Item{ID: "beans-ep01", Title: "Epic", Type: "epic", Status: "todo"}
+	epicTask := &item.Item{ID: "beans-it01", Title: "Epic item", Type: "task", Status: "todo", Parent: epic.ID}
+	feat := &item.Item{ID: "beans-ft01", Title: "Epic feature", Type: "feature", Status: "todo", Parent: epic.ID}
+	featItem := &item.Item{ID: "beans-it02", Title: "Epic feature item", Type: "task", Status: "todo", Parent: feat.ID}
 
 	return &roadmapData{Root: &rootGroup{Epic: &epicGroup{
 		Epic:     epic,
-		Items:    []*bean.Bean{item},
-		Features: []featureGroup{{Feature: feat, Items: []*bean.Bean{featItem}}},
+		Items:    []*item.Item{epicTask},
+		Features: []featureGroup{{Feature: feat, Items: []*item.Item{featItem}}},
 	}}}
 }
 
@@ -253,9 +253,9 @@ func TestPruneRoadmapDepthScopedEpicRoot(t *testing.T) {
 // TestPruneRoadmapDepthScopedFeatureRoot pins the feature root: its items are
 // level 1, so depth 1 keeps them and the root row stays either way.
 func TestPruneRoadmapDepthScopedFeatureRoot(t *testing.T) {
-	feat := &bean.Bean{ID: "beans-ft01", Title: "Feature", Type: "feature", Status: "todo"}
-	item := &bean.Bean{ID: "beans-it01", Title: "Item", Type: "task", Status: "todo", Parent: feat.ID}
-	data := &roadmapData{Root: &rootGroup{Feature: &featureGroup{Feature: feat, Items: []*bean.Bean{item}}}}
+	feat := &item.Item{ID: "beans-ft01", Title: "Feature", Type: "feature", Status: "todo"}
+	featTask := &item.Item{ID: "beans-it01", Title: "Item", Type: "task", Status: "todo", Parent: feat.ID}
+	data := &roadmapData{Root: &rootGroup{Feature: &featureGroup{Feature: feat, Items: []*item.Item{featTask}}}}
 
 	pruneRoadmapDepth(data, 1, true)
 
@@ -303,15 +303,15 @@ func TestRoadmapCmdJSONRespectsDepth(t *testing.T) {
 	testCore := setupRoadmapCmdTest(t)
 	resetRoadmapFlags(t)
 
-	milestone := &bean.Bean{ID: "beans-mile1", Slug: bean.Slugify("v1"), Title: "v1", Status: "todo", Type: "milestone"}
+	milestone := &item.Item{ID: "beans-mile1", Slug: item.Slugify("v1"), Title: "v1", Status: "todo", Type: "milestone"}
 	if err := testCore.Create(milestone); err != nil {
 		t.Fatalf("core.Create(milestone) error = %v", err)
 	}
-	epic := &bean.Bean{ID: "beans-epic1", Slug: bean.Slugify("Auth"), Title: "Auth", Status: "todo", Type: "epic", Parent: milestone.ID}
+	epic := &item.Item{ID: "beans-epic1", Slug: item.Slugify("Auth"), Title: "Auth", Status: "todo", Type: "epic", Parent: milestone.ID}
 	if err := testCore.Create(epic); err != nil {
 		t.Fatalf("core.Create(epic) error = %v", err)
 	}
-	task := &bean.Bean{ID: "beans-task1", Slug: bean.Slugify("Login"), Title: "Login", Status: "todo", Type: "task", Parent: epic.ID}
+	task := &item.Item{ID: "beans-task1", Slug: item.Slugify("Login"), Title: "Login", Status: "todo", Type: "task", Parent: epic.ID}
 	if err := testCore.Create(task); err != nil {
 		t.Fatalf("core.Create(task) error = %v", err)
 	}
@@ -344,15 +344,15 @@ func TestRoadmapCmdDepthWithScopeCountsFromRoot(t *testing.T) {
 	testCore := setupRoadmapCmdTest(t)
 	resetRoadmapFlags(t)
 
-	milestone := &bean.Bean{ID: "beans-mile1", Slug: bean.Slugify("v1"), Title: "v1", Status: "todo", Type: "milestone"}
+	milestone := &item.Item{ID: "beans-mile1", Slug: item.Slugify("v1"), Title: "v1", Status: "todo", Type: "milestone"}
 	if err := testCore.Create(milestone); err != nil {
 		t.Fatalf("core.Create(milestone) error = %v", err)
 	}
-	epic := &bean.Bean{ID: "beans-epic1", Slug: bean.Slugify("Auth"), Title: "Auth", Status: "todo", Type: "epic", Parent: milestone.ID}
+	epic := &item.Item{ID: "beans-epic1", Slug: item.Slugify("Auth"), Title: "Auth", Status: "todo", Type: "epic", Parent: milestone.ID}
 	if err := testCore.Create(epic); err != nil {
 		t.Fatalf("core.Create(epic) error = %v", err)
 	}
-	task := &bean.Bean{ID: "beans-task1", Slug: bean.Slugify("Login"), Title: "Login", Status: "todo", Type: "task", Parent: epic.ID}
+	task := &item.Item{ID: "beans-task1", Slug: item.Slugify("Login"), Title: "Login", Status: "todo", Type: "task", Parent: epic.ID}
 	if err := testCore.Create(task); err != nil {
 		t.Fatalf("core.Create(task) error = %v", err)
 	}

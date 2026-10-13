@@ -60,8 +60,8 @@ func resetFlags(cmd *cobra.Command) {
 func runRootWithArgs(t *testing.T, args ...string) (stdout, stderr string, err error) {
 	t.Helper()
 
-	beansDir := filepath.Join(t.TempDir(), ".beans")
-	if err := os.MkdirAll(beansDir, 0755); err != nil {
+	itemsDir := filepath.Join(t.TempDir(), ".beans")
+	if err := os.MkdirAll(itemsDir, 0755); err != nil {
 		t.Fatalf("creating test .beans dir: %v", err)
 	}
 
@@ -71,7 +71,7 @@ func runRootWithArgs(t *testing.T, args ...string) (stdout, stderr string, err e
 	var outBuf, errBuf bytes.Buffer
 	root.SetOut(&outBuf)
 	root.SetErr(&errBuf)
-	root.SetArgs(append([]string{"--beans-path", beansDir}, args...))
+	root.SetArgs(append([]string{"--beans-path", itemsDir}, args...))
 
 	cmd, err := root.ExecuteC()
 	if err != nil {

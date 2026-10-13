@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/xRiErOS/lif/internal/ui"
-	"github.com/xRiErOS/lif/pkg/bean"
 	"github.com/xRiErOS/lif/pkg/config"
+	"github.com/xRiErOS/lif/pkg/item"
 )
 
 // epicGroupsOf extracts the epic-slot groups from a mixed container list, in
@@ -48,7 +48,7 @@ func TestBuildRoadmap(t *testing.T) {
 
 	tests := []struct {
 		name                  string
-		beans                 []*bean.Bean
+		items                 []*item.Item
 		includeDone           bool
 		wantMilestones        int
 		wantUnscheduledEpics  int
@@ -56,12 +56,12 @@ func TestBuildRoadmap(t *testing.T) {
 	}{
 		{
 			name:           "empty beans",
-			beans:          []*bean.Bean{},
+			items:          []*item.Item{},
 			wantMilestones: 0,
 		},
 		{
 			name: "milestone with epic and items",
-			beans: []*bean.Bean{
+			items: []*item.Item{
 				{ID: "m1", Type: "milestone", Title: "v1.0", Status: "todo", CreatedAt: &now},
 				{ID: "e1", Type: "epic", Title: "Auth", Status: "todo", Parent: "m1"},
 				{ID: "t1", Type: "task", Title: "Login", Status: "todo", Parent: "e1"},
@@ -70,7 +70,7 @@ func TestBuildRoadmap(t *testing.T) {
 		},
 		{
 			name: "milestone with direct children (no epic)",
-			beans: []*bean.Bean{
+			items: []*item.Item{
 				{ID: "m1", Type: "milestone", Title: "v1.0", Status: "todo", CreatedAt: &now},
 				{ID: "t1", Type: "task", Title: "Docs", Status: "todo", Parent: "m1"},
 			},
@@ -78,7 +78,7 @@ func TestBuildRoadmap(t *testing.T) {
 		},
 		{
 			name: "unscheduled epic",
-			beans: []*bean.Bean{
+			items: []*item.Item{
 				{ID: "e1", Type: "epic", Title: "Future", Status: "todo"},
 				{ID: "t1", Type: "task", Title: "Nice to have", Status: "todo", Parent: "e1"},
 			},
@@ -87,7 +87,7 @@ func TestBuildRoadmap(t *testing.T) {
 		},
 		{
 			name: "done items excluded by default",
-			beans: []*bean.Bean{
+			items: []*item.Item{
 				{ID: "m1", Type: "milestone", Title: "v1.0", Status: "todo", CreatedAt: &now},
 				{ID: "t1", Type: "task", Title: "Done task", Status: "completed", Parent: "m1"},
 			},
@@ -96,7 +96,7 @@ func TestBuildRoadmap(t *testing.T) {
 		},
 		{
 			name: "done items included when requested",
-			beans: []*bean.Bean{
+			items: []*item.Item{
 				{ID: "m1", Type: "milestone", Title: "v1.0", Status: "todo", CreatedAt: &now},
 				{ID: "t1", Type: "task", Title: "Done task", Status: "completed", Parent: "m1"},
 			},
@@ -105,7 +105,7 @@ func TestBuildRoadmap(t *testing.T) {
 		},
 		{
 			name: "orphan bean appears in unscheduled other",
-			beans: []*bean.Bean{
+			items: []*item.Item{
 				{ID: "m1", Type: "milestone", Title: "v1.0", Status: "todo", CreatedAt: &now},
 				{ID: "t1", Type: "task", Title: "Orphan", Status: "todo"}, // no parent link
 			},
@@ -114,7 +114,7 @@ func TestBuildRoadmap(t *testing.T) {
 		},
 		{
 			name: "leaf nested under feature under epic under milestone is not lost",
-			beans: []*bean.Bean{
+			items: []*item.Item{
 				{ID: "m1", Type: "milestone", Title: "v1.0", Status: "todo", CreatedAt: &now},
 				{ID: "e1", Type: "epic", Title: "Auth", Status: "todo", Parent: "m1"},
 				{ID: "f1", Type: "feature", Title: "SSO", Status: "todo", Parent: "e1"},
@@ -124,7 +124,7 @@ func TestBuildRoadmap(t *testing.T) {
 		},
 		{
 			name: "milestone with direct feature child and no epic is not dropped",
-			beans: []*bean.Bean{
+			items: []*item.Item{
 				{ID: "m1", Type: "milestone", Title: "v1.0", Status: "todo", CreatedAt: &now},
 				{ID: "f1", Type: "feature", Title: "SSO", Status: "todo", Parent: "m1"},
 				{ID: "t1", Type: "task", Title: "OIDC login", Status: "todo", Parent: "f1"},
@@ -135,7 +135,7 @@ func TestBuildRoadmap(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := buildRoadmap(tt.beans, tt.includeDone, nil, nil)
+			result := buildRoadmap(tt.items, tt.includeDone, nil, nil)
 
 			if got := len(result.Milestones); got != tt.wantMilestones {
 				t.Errorf("got %d milestones, want %d", got, tt.wantMilestones)
@@ -205,37 +205,37 @@ func TestFirstParagraph(t *testing.T) {
 	}
 }
 
-func TestRenderBeanRef(t *testing.T) {
+func TestRenderItemRef(t *testing.T) {
 	tests := []struct {
 		name       string
-		bean       *bean.Bean
+		item       *item.Item
 		asLink     bool
 		linkPrefix string
 		want       string
 	}{
 		{
 			name:   "no link - just ID",
-			bean:   &bean.Bean{ID: "abc", Path: "abc--milestone.md"},
+			item:   &item.Item{ID: "abc", Path: "abc--milestone.md"},
 			asLink: false,
 			want:   "(abc)",
 		},
 		{
 			name:       "link without prefix",
-			bean:       &bean.Bean{ID: "abc", Path: "abc--milestone.md"},
+			item:       &item.Item{ID: "abc", Path: "abc--milestone.md"},
 			asLink:     true,
 			linkPrefix: "",
 			want:       "([abc](abc--milestone.md))",
 		},
 		{
 			name:       "link with prefix",
-			bean:       &bean.Bean{ID: "abc", Path: "abc--milestone.md"},
+			item:       &item.Item{ID: "abc", Path: "abc--milestone.md"},
 			asLink:     true,
 			linkPrefix: "https://example.com/beans/",
 			want:       "([abc](https://example.com/beans/abc--milestone.md))",
 		},
 		{
 			name:       "link with prefix without trailing slash",
-			bean:       &bean.Bean{ID: "abc", Path: "abc--milestone.md"},
+			item:       &item.Item{ID: "abc", Path: "abc--milestone.md"},
 			asLink:     true,
 			linkPrefix: ".beans",
 			want:       "([abc](.beans/abc--milestone.md))",
@@ -244,7 +244,7 @@ func TestRenderBeanRef(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := renderBeanRef(tt.bean, tt.asLink, tt.linkPrefix)
+			got := renderItemRef(tt.item, tt.asLink, tt.linkPrefix)
 			if got != tt.want {
 				t.Errorf("renderBeanRef() = %q, want %q", got, tt.want)
 			}
@@ -259,7 +259,7 @@ func TestStatusFiltering(t *testing.T) {
 	cfg = config.Default()
 
 	now := time.Now()
-	beans := []*bean.Bean{
+	items := []*item.Item{
 		{ID: "m1", Type: "milestone", Title: "Todo Milestone", Status: "todo", CreatedAt: &now},
 		{ID: "m2", Type: "milestone", Title: "In Progress Milestone", Status: "in-progress", CreatedAt: &now},
 		{ID: "t1", Type: "task", Title: "Task 1", Status: "todo", Parent: "m1"},
@@ -267,7 +267,7 @@ func TestStatusFiltering(t *testing.T) {
 	}
 
 	t.Run("filter by status", func(t *testing.T) {
-		result := buildRoadmap(beans, false, []string{"todo"}, nil)
+		result := buildRoadmap(items, false, []string{"todo"}, nil)
 		if len(result.Milestones) != 1 {
 			t.Errorf("expected 1 milestone, got %d", len(result.Milestones))
 		}
@@ -277,7 +277,7 @@ func TestStatusFiltering(t *testing.T) {
 	})
 
 	t.Run("exclude by status", func(t *testing.T) {
-		result := buildRoadmap(beans, false, nil, []string{"in-progress"})
+		result := buildRoadmap(items, false, nil, []string{"in-progress"})
 		if len(result.Milestones) != 1 {
 			t.Errorf("expected 1 milestone, got %d", len(result.Milestones))
 		}
@@ -295,7 +295,7 @@ func TestMilestoneOrderRespectsManualOrderKey(t *testing.T) {
 
 	older := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 	newer := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
-	beans := []*bean.Bean{
+	items := []*item.Item{
 		// Created later but manually ordered first via the "order" key.
 		{ID: "m2", Type: "milestone", Title: "v2.0", Status: "todo", Order: "a", CreatedAt: &newer},
 		{ID: "t2", Type: "task", Title: "Task 2", Status: "todo", Parent: "m2"},
@@ -303,7 +303,7 @@ func TestMilestoneOrderRespectsManualOrderKey(t *testing.T) {
 		{ID: "t1", Type: "task", Title: "Task 1", Status: "todo", Parent: "m1"},
 	}
 
-	result := buildRoadmap(beans, false, nil, nil)
+	result := buildRoadmap(items, false, nil, nil)
 
 	if len(result.Milestones) != 2 {
 		t.Fatalf("expected 2 milestones, got %d", len(result.Milestones))
@@ -323,14 +323,14 @@ func TestMilestoneOrderRespectsBlockingDependency(t *testing.T) {
 	// IDs deliberately sort the "wrong" way (aa- before zz-) so the ID
 	// fallback alone cannot make this test pass -- only Blocking/BlockedBy
 	// awareness can put the blocker first.
-	beans := []*bean.Bean{
+	items := []*item.Item{
 		{ID: "aa-blocked", Type: "milestone", Title: "Blocked", Status: "todo", BlockedBy: []string{"zz-blocker"}},
 		{ID: "t2", Type: "task", Title: "Task 2", Status: "todo", Parent: "aa-blocked"},
 		{ID: "zz-blocker", Type: "milestone", Title: "Blocker", Status: "todo", Blocking: []string{"aa-blocked"}},
 		{ID: "t1", Type: "task", Title: "Task 1", Status: "todo", Parent: "zz-blocker"},
 	}
 
-	result := buildRoadmap(beans, false, nil, nil)
+	result := buildRoadmap(items, false, nil, nil)
 
 	if len(result.Milestones) != 2 {
 		t.Fatalf("expected 2 milestones, got %d", len(result.Milestones))
@@ -342,13 +342,13 @@ func TestMilestoneOrderRespectsBlockingDependency(t *testing.T) {
 }
 
 func TestSplitByContainerType(t *testing.T) {
-	beans := []*bean.Bean{
+	items := []*item.Item{
 		{ID: "f1", Type: "feature", Title: "F1"},
 		{ID: "t1", Type: "task", Title: "T1"},
 		{ID: "b1", Type: "bug", Title: "B1"},
 	}
 
-	leafs, features := splitByContainerType(beans)
+	leafs, features := splitByContainerType(items)
 
 	if len(leafs) != 2 {
 		t.Errorf("got %d leafs, want 2", len(leafs))
@@ -366,7 +366,7 @@ func TestCollectLeafDescendants(t *testing.T) {
 	defer func() { cfg = oldCfg }()
 	cfg = config.Default()
 
-	children := map[string][]*bean.Bean{
+	children := map[string][]*item.Item{
 		"feat1": {
 			{ID: "t1", Type: "task", Title: "Direct leaf", Status: "todo", Parent: "feat1"},
 			{ID: "feat2", Type: "feature", Title: "Nested feature", Status: "todo", Parent: "feat1"},
@@ -404,10 +404,10 @@ func TestCollectLeafDescendants(t *testing.T) {
 
 	t.Run("hand-authored parent cycle does not stack-overflow", func(t *testing.T) {
 		// The CLI's ValidateParent/DetectCycle reject this at write time, but
-		// beans are hand-editable markdown -- a manually edited cycle must not
+		// items are hand-editable markdown -- a manually edited cycle must not
 		// crash roadmap generation. This subtest hangs/panics without the
 		// visited guard in collectLeafDescendantsVisited.
-		cyclic := map[string][]*bean.Bean{
+		cyclic := map[string][]*item.Item{
 			"featA": {
 				{ID: "featB", Type: "feature", Title: "B", Status: "todo", Parent: "featA"},
 			},
@@ -429,7 +429,7 @@ func TestBuildMilestoneGroupResolvesFeatureNesting(t *testing.T) {
 	cfg = config.Default()
 
 	now := time.Now()
-	beans := []*bean.Bean{
+	items := []*item.Item{
 		{ID: "m1", Type: "milestone", Title: "v1.0", Status: "todo", CreatedAt: &now},
 		{ID: "e1", Type: "epic", Title: "Auth", Status: "todo", Parent: "m1"},
 		{ID: "f1", Type: "feature", Title: "SSO", Status: "todo", Parent: "e1"},
@@ -437,7 +437,7 @@ func TestBuildMilestoneGroupResolvesFeatureNesting(t *testing.T) {
 		{ID: "b1", Type: "bug", Title: "Direct epic bug", Status: "todo", Parent: "e1"},
 	}
 
-	result := buildRoadmap(beans, false, nil, nil)
+	result := buildRoadmap(items, false, nil, nil)
 
 	if len(result.Milestones) != 1 {
 		t.Fatalf("got %d milestones, want 1", len(result.Milestones))
@@ -466,12 +466,12 @@ func TestUnscheduledFeatureResolvesNesting(t *testing.T) {
 	defer func() { cfg = oldCfg }()
 	cfg = config.Default()
 
-	beans := []*bean.Bean{
+	items := []*item.Item{
 		{ID: "f1", Type: "feature", Title: "Standalone feature", Status: "todo"},
 		{ID: "t1", Type: "task", Title: "Leaf under orphan feature", Status: "todo", Parent: "f1"},
 	}
 
-	result := buildRoadmap(beans, false, nil, nil)
+	result := buildRoadmap(items, false, nil, nil)
 
 	if result.Unscheduled == nil {
 		t.Fatal("expected Unscheduled to be non-nil")
@@ -499,13 +499,13 @@ func TestUnscheduledEpicWithFeatureNesting(t *testing.T) {
 	defer func() { cfg = oldCfg }()
 	cfg = config.Default()
 
-	beans := []*bean.Bean{
+	items := []*item.Item{
 		{ID: "e1", Type: "epic", Title: "Unscheduled epic", Status: "todo"},
 		{ID: "f1", Type: "feature", Title: "Feature under unscheduled epic", Status: "todo", Parent: "e1"},
 		{ID: "t1", Type: "task", Title: "Leaf", Status: "todo", Parent: "f1"},
 	}
 
-	result := buildRoadmap(beans, false, nil, nil)
+	result := buildRoadmap(items, false, nil, nil)
 
 	unscheduledEpics := epicGroupsOf(result.Unscheduled.Containers)
 	if len(unscheduledEpics) != 1 {
@@ -529,13 +529,13 @@ func TestUnscheduledNestedFeatureNotDoubleRendered(t *testing.T) {
 	defer func() { cfg = oldCfg }()
 	cfg = config.Default()
 
-	beans := []*bean.Bean{
+	items := []*item.Item{
 		{ID: "f1", Type: "feature", Title: "Top feature", Status: "todo"},
 		{ID: "f2", Type: "feature", Title: "Nested feature", Status: "todo", Parent: "f1"},
 		{ID: "t1", Type: "task", Title: "Leaf", Status: "todo", Parent: "f2"},
 	}
 
-	result := buildRoadmap(beans, false, nil, nil)
+	result := buildRoadmap(items, false, nil, nil)
 
 	unscheduledFeatures := featureGroupsOf(result.Unscheduled.Containers)
 	if len(unscheduledFeatures) != 1 {
@@ -561,11 +561,11 @@ func TestOrphanChildlessFeatureAppearsAsFlatLeaf(t *testing.T) {
 	defer func() { cfg = oldCfg }()
 	cfg = config.Default()
 
-	beans := []*bean.Bean{
+	items := []*item.Item{
 		{ID: "f1", Type: "feature", Title: "Lonely", Status: "todo"},
 	}
 
-	result := buildRoadmap(beans, false, nil, nil)
+	result := buildRoadmap(items, false, nil, nil)
 
 	if result.Unscheduled == nil {
 		t.Fatal("expected Unscheduled to be non-nil")
@@ -586,13 +586,13 @@ func TestChildlessFeatureUnderEpicAppearsInEpicItems(t *testing.T) {
 	cfg = config.Default()
 
 	now := time.Now()
-	beans := []*bean.Bean{
+	items := []*item.Item{
 		{ID: "m1", Type: "milestone", Title: "v1.0", Status: "todo", CreatedAt: &now},
 		{ID: "e1", Type: "epic", Title: "Auth", Status: "todo", Parent: "m1"},
 		{ID: "f1", Type: "feature", Title: "Lonely", Status: "todo", Parent: "e1"},
 	}
 
-	result := buildRoadmap(beans, false, nil, nil)
+	result := buildRoadmap(items, false, nil, nil)
 
 	if len(result.Milestones) != 1 {
 		t.Fatalf("got %d milestones, want 1", len(result.Milestones))
@@ -618,12 +618,12 @@ func TestChildlessFeatureDirectUnderMilestoneAppearsInOther(t *testing.T) {
 	cfg = config.Default()
 
 	now := time.Now()
-	beans := []*bean.Bean{
+	items := []*item.Item{
 		{ID: "m1", Type: "milestone", Title: "v1.0", Status: "todo", CreatedAt: &now},
 		{ID: "f1", Type: "feature", Title: "Lonely", Status: "todo", Parent: "m1"},
 	}
 
-	result := buildRoadmap(beans, false, nil, nil)
+	result := buildRoadmap(items, false, nil, nil)
 
 	if len(result.Milestones) != 1 {
 		t.Fatalf("got %d milestones, want 1", len(result.Milestones))
@@ -646,7 +646,7 @@ func TestFeatureWithChildRemainsContainerAlongsideChildlessSibling(t *testing.T)
 	cfg = config.Default()
 
 	now := time.Now()
-	beans := []*bean.Bean{
+	items := []*item.Item{
 		{ID: "m1", Type: "milestone", Title: "v1.0", Status: "todo", CreatedAt: &now},
 		{ID: "e1", Type: "epic", Title: "Auth", Status: "todo", Parent: "m1"},
 		{ID: "f1", Type: "feature", Title: "Childless", Status: "todo", Parent: "e1"},
@@ -654,7 +654,7 @@ func TestFeatureWithChildRemainsContainerAlongsideChildlessSibling(t *testing.T)
 		{ID: "t1", Type: "task", Title: "OIDC login", Status: "todo", Parent: "f2"},
 	}
 
-	result := buildRoadmap(beans, false, nil, nil)
+	result := buildRoadmap(items, false, nil, nil)
 
 	epic := epicGroupsOf(result.Milestones[0].Containers)[0]
 	if len(epic.Items) != 1 || epic.Items[0].ID != "f1" {
@@ -675,11 +675,11 @@ func TestChildlessCompletedFeatureDroppedByArchiveFilter(t *testing.T) {
 	defer func() { cfg = oldCfg }()
 	cfg = config.Default()
 
-	beans := []*bean.Bean{
+	items := []*item.Item{
 		{ID: "f1", Type: "feature", Title: "Done and lonely", Status: "completed"},
 	}
 
-	result := buildRoadmap(beans, false, nil, nil)
+	result := buildRoadmap(items, false, nil, nil)
 
 	if result.Unscheduled != nil {
 		t.Errorf("expected Unscheduled to be nil (completed childless feature dropped), got %+v", result.Unscheduled)
@@ -694,11 +694,11 @@ func TestOrphanChildlessEpicAppearsAsFlatLeaf(t *testing.T) {
 	defer func() { cfg = oldCfg }()
 	cfg = config.Default()
 
-	beans := []*bean.Bean{
+	items := []*item.Item{
 		{ID: "e1", Type: "epic", Title: "Lonely Epic", Status: "todo"},
 	}
 
-	result := buildRoadmap(beans, false, nil, nil)
+	result := buildRoadmap(items, false, nil, nil)
 
 	if result.Unscheduled == nil {
 		t.Fatal("expected Unscheduled to be non-nil")
@@ -722,7 +722,7 @@ func TestRoadmapInterleavesEpicAndFeatureContainersByOrder(t *testing.T) {
 	defer func() { cfg = oldCfg }()
 	cfg = config.Default()
 
-	beans := []*bean.Bean{
+	items := []*item.Item{
 		{ID: "beans-m1", Type: "milestone", Title: "v1.0", Status: "todo"},
 		{ID: "beans-e1", Type: "epic", Title: "Cross-cutting alignment", Status: "todo", Parent: "beans-m1", Order: "2"},
 		{ID: "beans-et1", Type: "task", Title: "Epic task", Status: "todo", Parent: "beans-e1"},
@@ -730,7 +730,7 @@ func TestRoadmapInterleavesEpicAndFeatureContainersByOrder(t *testing.T) {
 		{ID: "beans-ft1", Type: "task", Title: "Feature task", Status: "todo", Parent: "beans-f1"},
 	}
 
-	data := buildRoadmap(beans, false, nil, nil)
+	data := buildRoadmap(items, false, nil, nil)
 
 	if len(data.Milestones) != 1 {
 		t.Fatalf("got %d milestone groups, want 1", len(data.Milestones))
@@ -765,15 +765,15 @@ func TestRoadmapInterleavesEpicAndFeatureContainersByOrder(t *testing.T) {
 
 func roadmapOutputFixture() *roadmapData {
 	now := time.Now()
-	m := &bean.Bean{ID: "beans-m1", Type: "milestone", Title: "v1.0", Status: "todo", CreatedAt: &now, Path: "m1--v10.md"}
-	e := &bean.Bean{ID: "beans-e1", Type: "epic", Title: "Auth", Status: "todo", Path: "e1--auth.md"}
-	t1 := &bean.Bean{ID: "beans-t1", Type: "task", Title: "Login", Status: "todo", Priority: "high", Path: "t1--login.md"}
+	m := &item.Item{ID: "beans-m1", Type: "milestone", Title: "v1.0", Status: "todo", CreatedAt: &now, Path: "m1--v10.md"}
+	e := &item.Item{ID: "beans-e1", Type: "epic", Title: "Auth", Status: "todo", Path: "e1--auth.md"}
+	t1 := &item.Item{ID: "beans-t1", Type: "task", Title: "Login", Status: "todo", Priority: "high", Path: "t1--login.md"}
 	return &roadmapData{
 		Milestones: []milestoneGroup{
 			{
 				Milestone: m,
 				Containers: []roadmapContainer{
-					{Epic: &epicGroup{Epic: e, Items: []*bean.Bean{t1}}},
+					{Epic: &epicGroup{Epic: e, Items: []*item.Item{t1}}},
 				},
 			},
 		},
@@ -791,16 +791,16 @@ func roadmapOutputFixture() *roadmapData {
 // Depth on roadmapRows' own output is the only thing that catches that.
 func TestRoadmapRowsNestItemsUnderTheirEpic(t *testing.T) {
 	now := time.Now()
-	m := &bean.Bean{ID: "beans-m1", Type: "milestone", Title: "v1.0", Status: "todo", CreatedAt: &now, Path: "m1--v10.md"}
-	e := &bean.Bean{ID: "beans-e1", Type: "epic", Title: "Auth", Status: "todo", Path: "e1--auth.md"}
-	f := &bean.Bean{ID: "beans-f1", Type: "feature", Title: "Login flow", Status: "todo", Path: "f1--login-flow.md"}
-	task := &bean.Bean{ID: "beans-t1", Type: "task", Title: "Login", Status: "todo", Priority: "high", Path: "t1--login.md"}
+	m := &item.Item{ID: "beans-m1", Type: "milestone", Title: "v1.0", Status: "todo", CreatedAt: &now, Path: "m1--v10.md"}
+	e := &item.Item{ID: "beans-e1", Type: "epic", Title: "Auth", Status: "todo", Path: "e1--auth.md"}
+	f := &item.Item{ID: "beans-f1", Type: "feature", Title: "Login flow", Status: "todo", Path: "f1--login-flow.md"}
+	task := &item.Item{ID: "beans-t1", Type: "task", Title: "Login", Status: "todo", Priority: "high", Path: "t1--login.md"}
 	data := &roadmapData{
 		Milestones: []milestoneGroup{
 			{
 				Milestone: m,
 				Containers: []roadmapContainer{
-					{Epic: &epicGroup{Epic: e, Features: []featureGroup{{Feature: f, Items: []*bean.Bean{task}}}}},
+					{Epic: &epicGroup{Epic: e, Features: []featureGroup{{Feature: f, Items: []*item.Item{task}}}}},
 				},
 			},
 		},
@@ -821,8 +821,8 @@ func TestRoadmapRowsNestItemsUnderTheirEpic(t *testing.T) {
 		t.Fatalf("got %d rows, want %d: %+v", len(rows), len(want), rows)
 	}
 	for i, w := range want {
-		if rows[i].Bean == nil || rows[i].Bean.ID != w.id {
-			t.Errorf("row %d: bean = %v, want id %s", i, rows[i].Bean, w.id)
+		if rows[i].Item == nil || rows[i].Item.ID != w.id {
+			t.Errorf("row %d: bean = %v, want id %s", i, rows[i].Item, w.id)
 		}
 		if rows[i].Depth != w.depth {
 			t.Errorf("row %d (%s): Depth = %d, want %d", i, w.id, rows[i].Depth, w.depth)
@@ -857,7 +857,7 @@ func TestRoadmapOutputSwitchesOnTTY(t *testing.T) {
 		if strings.Contains(got, "](") {
 			t.Error("TTY output must not contain markdown link syntax (EARS-4)")
 		}
-		// Since beans-dbph Step B the milestone bean itself is the heading
+		// Since beans-dbph Step B the milestone item itself is the heading
 		// (a Row of type "milestone"), not a custom "■ Milestone" prefix --
 		// its ID showing up proves the milestone row rendered.
 		if !strings.Contains(got, "beans-m1") {
@@ -873,11 +873,11 @@ func TestRoadmapOutputSwitchesOnTTY(t *testing.T) {
 // renderer-specific tests (TestRenderRoadmapMarkdownRootEpic, etc.) that test
 // each renderer in isolation.
 func TestRoadmapOutputSwitchesOnTTYWithRoot(t *testing.T) {
-	epic := &bean.Bean{ID: "beans-epic1", Type: "epic", Title: "Auth", Status: "todo", Path: "epic1--auth.md"}
-	item := &bean.Bean{ID: "beans-task1", Type: "task", Title: "Login", Status: "todo", Path: "task1--login.md"}
+	epic := &item.Item{ID: "beans-epic1", Type: "epic", Title: "Auth", Status: "todo", Path: "epic1--auth.md"}
+	epicTask := &item.Item{ID: "beans-task1", Type: "task", Title: "Login", Status: "todo", Path: "task1--login.md"}
 	data := &roadmapData{
 		Root: &rootGroup{
-			Epic: &epicGroup{Epic: epic, Items: []*bean.Bean{item}},
+			Epic: &epicGroup{Epic: epic, Items: []*item.Item{epicTask}},
 		},
 	}
 
@@ -905,7 +905,7 @@ func TestRoadmapOutputSwitchesOnTTYWithRoot(t *testing.T) {
 		if !strings.HasPrefix(got, "Roadmap") {
 			t.Errorf("got prefix %q, want %q", got[:min(len(got), 20)], "Roadmap")
 		}
-		// Since beans-dbph Step B the epic bean itself is the heading (a Row
+		// Since beans-dbph Step B the epic item itself is the heading (a Row
 		// of type "epic"), not a custom "▸ Epic" prefix -- its ID showing up
 		// proves the epic row rendered.
 		if !strings.Contains(got, "beans-epic1") {
@@ -959,7 +959,7 @@ func TestRoadmapMarkdownByteIdentical(t *testing.T) {
 				t.Errorf("roadmapOutput(non-tty, links=%v, false) diverged from renderRoadmapMarkdown:\ngot:  %q\nwant: %q", tt.links, got, want)
 			}
 			// links=false must actually change the rendered output relative
-			// to links=true for this fixture (has a milestone with a bean
+			// to links=true for this fixture (has a milestone with an item
 			// ref) -- otherwise the two subtests could both pass vacuously
 			// against a `links` argument that was never wired through at all.
 			withLinks := renderRoadmapMarkdown(data, true, "some/prefix", false)
@@ -978,7 +978,7 @@ func TestBuildScopedRoadmapMilestoneRoot(t *testing.T) {
 	cfg = config.Default()
 
 	now := time.Now()
-	beans := []*bean.Bean{
+	items := []*item.Item{
 		{ID: "m1", Type: "milestone", Title: "v1.0", Status: "todo", CreatedAt: &now},
 		{ID: "e1", Type: "epic", Title: "Auth", Status: "todo", Parent: "m1"},
 		{ID: "t1", Type: "task", Title: "Login", Status: "todo", Parent: "e1"},
@@ -987,8 +987,8 @@ func TestBuildScopedRoadmapMilestoneRoot(t *testing.T) {
 		{ID: "e3", Type: "epic", Title: "Unscheduled", Status: "todo"},
 	}
 
-	root := beans[0] // m1
-	result := buildScopedRoadmap(beans, false, root)
+	root := items[0] // m1
+	result := buildScopedRoadmap(items, false, root)
 
 	if len(result.Milestones) != 1 {
 		t.Fatalf("got %d milestones, want 1", len(result.Milestones))
@@ -1010,10 +1010,10 @@ func TestBuildScopedRoadmapMilestoneRootWithNoVisibleChildren(t *testing.T) {
 	cfg = config.Default()
 
 	now := time.Now()
-	root := &bean.Bean{ID: "m1", Type: "milestone", Title: "v1.0", Status: "todo", CreatedAt: &now}
-	beans := []*bean.Bean{root}
+	root := &item.Item{ID: "m1", Type: "milestone", Title: "v1.0", Status: "todo", CreatedAt: &now}
+	items := []*item.Item{root}
 
-	result := buildScopedRoadmap(beans, false, root)
+	result := buildScopedRoadmap(items, false, root)
 
 	if len(result.Milestones) != 1 {
 		t.Fatalf("got %d milestones, want 1 (empty container still rendered)", len(result.Milestones))
@@ -1031,8 +1031,8 @@ func TestBuildScopedRoadmapEpicRoot(t *testing.T) {
 	defer func() { cfg = oldCfg }()
 	cfg = config.Default()
 
-	root := &bean.Bean{ID: "e1", Type: "epic", Title: "Auth", Status: "todo"}
-	beans := []*bean.Bean{
+	root := &item.Item{ID: "e1", Type: "epic", Title: "Auth", Status: "todo"}
+	items := []*item.Item{
 		root,
 		{ID: "t1", Type: "task", Title: "Login", Status: "todo", Parent: "e1"},
 		{ID: "f1", Type: "feature", Title: "SSO", Status: "todo", Parent: "e1"},
@@ -1040,7 +1040,7 @@ func TestBuildScopedRoadmapEpicRoot(t *testing.T) {
 		{ID: "m1", Type: "milestone", Title: "Other", Status: "todo"},
 	}
 
-	result := buildScopedRoadmap(beans, false, root)
+	result := buildScopedRoadmap(items, false, root)
 
 	if result.Root == nil || result.Root.Epic == nil {
 		t.Fatalf("expected Root.Epic to be set, got %+v", result.Root)
@@ -1064,13 +1064,13 @@ func TestBuildScopedRoadmapFeatureRoot(t *testing.T) {
 	defer func() { cfg = oldCfg }()
 	cfg = config.Default()
 
-	root := &bean.Bean{ID: "f1", Type: "feature", Title: "SSO", Status: "todo"}
-	beans := []*bean.Bean{
+	root := &item.Item{ID: "f1", Type: "feature", Title: "SSO", Status: "todo"}
+	items := []*item.Item{
 		root,
 		{ID: "t1", Type: "task", Title: "OIDC", Status: "todo", Parent: "f1"},
 	}
 
-	result := buildScopedRoadmap(beans, false, root)
+	result := buildScopedRoadmap(items, false, root)
 
 	if result.Root == nil || result.Root.Feature == nil {
 		t.Fatalf("expected Root.Feature to be set, got %+v", result.Root)
@@ -1088,10 +1088,10 @@ func TestBuildScopedRoadmapEpicRootWithNoVisibleChildren(t *testing.T) {
 	defer func() { cfg = oldCfg }()
 	cfg = config.Default()
 
-	root := &bean.Bean{ID: "e1", Type: "epic", Title: "Empty epic", Status: "todo"}
-	beans := []*bean.Bean{root}
+	root := &item.Item{ID: "e1", Type: "epic", Title: "Empty epic", Status: "todo"}
+	items := []*item.Item{root}
 
-	result := buildScopedRoadmap(beans, false, root)
+	result := buildScopedRoadmap(items, false, root)
 
 	if result.Root == nil || result.Root.Epic == nil {
 		t.Fatalf("expected Root.Epic to still be set for an empty epic, got %+v", result.Root)
@@ -1109,10 +1109,10 @@ func TestBuildScopedRoadmapFeatureRootWithNoVisibleChildren(t *testing.T) {
 	defer func() { cfg = oldCfg }()
 	cfg = config.Default()
 
-	root := &bean.Bean{ID: "f1", Type: "feature", Title: "Empty feature", Status: "todo"}
-	beans := []*bean.Bean{root}
+	root := &item.Item{ID: "f1", Type: "feature", Title: "Empty feature", Status: "todo"}
+	items := []*item.Item{root}
 
-	result := buildScopedRoadmap(beans, false, root)
+	result := buildScopedRoadmap(items, false, root)
 
 	if result.Root == nil || result.Root.Feature == nil {
 		t.Fatalf("expected Root.Feature to still be set for an empty feature, got %+v", result.Root)
@@ -1127,7 +1127,7 @@ func TestBuildScopedRoadmapFeatureRootWithNoVisibleChildren(t *testing.T) {
 
 func TestValidateRoadmapRootType(t *testing.T) {
 	tests := []struct {
-		beanType string
+		itemType string
 		wantErr  bool
 	}{
 		{"milestone", false},
@@ -1137,11 +1137,11 @@ func TestValidateRoadmapRootType(t *testing.T) {
 		{"bug", true},
 	}
 	for _, tt := range tests {
-		t.Run(tt.beanType, func(t *testing.T) {
-			b := &bean.Bean{ID: "x1", Type: tt.beanType}
+		t.Run(tt.itemType, func(t *testing.T) {
+			b := &item.Item{ID: "x1", Type: tt.itemType}
 			err := validateRoadmapRootType(b)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("validateRoadmapRootType(%s) error = %v, wantErr %v", tt.beanType, err, tt.wantErr)
+				t.Errorf("validateRoadmapRootType(%s) error = %v, wantErr %v", tt.itemType, err, tt.wantErr)
 			}
 		})
 	}
@@ -1161,7 +1161,7 @@ func TestValidateRoadmapRootTypeWithNoContainerTypes(t *testing.T) {
 	}}
 	defer func() { cfg = prev }()
 
-	err := validateRoadmapRootType(&bean.Bean{ID: "x-1", Type: "task"})
+	err := validateRoadmapRootType(&item.Item{ID: "x-1", Type: "task"})
 	if err == nil {
 		t.Fatal("expected an error when the project defines no container types")
 	}
@@ -1174,11 +1174,11 @@ func TestValidateRoadmapRootTypeWithNoContainerTypes(t *testing.T) {
 }
 
 func TestRenderRoadmapMarkdownRootEpic(t *testing.T) {
-	e := &bean.Bean{ID: "beans-e1", Type: "epic", Title: "Auth", Status: "todo", Path: "e1--auth.md"}
-	item1 := &bean.Bean{ID: "beans-t1", Type: "task", Title: "Login", Status: "todo", Path: "t1--login.md"}
+	e := &item.Item{ID: "beans-e1", Type: "epic", Title: "Auth", Status: "todo", Path: "e1--auth.md"}
+	item1 := &item.Item{ID: "beans-t1", Type: "task", Title: "Login", Status: "todo", Path: "t1--login.md"}
 	data := &roadmapData{
 		Root: &rootGroup{
-			Epic: &epicGroup{Epic: e, Items: []*bean.Bean{item1}},
+			Epic: &epicGroup{Epic: e, Items: []*item.Item{item1}},
 		},
 	}
 
@@ -1202,11 +1202,11 @@ func TestRenderRoadmapMarkdownRootEpic(t *testing.T) {
 }
 
 func TestRenderRoadmapMarkdownRootFeature(t *testing.T) {
-	f := &bean.Bean{ID: "beans-f1", Type: "feature", Title: "SSO", Status: "todo", Path: "f1--sso.md"}
-	item1 := &bean.Bean{ID: "beans-t1", Type: "task", Title: "OIDC", Status: "todo", Path: "t1--oidc.md"}
+	f := &item.Item{ID: "beans-f1", Type: "feature", Title: "SSO", Status: "todo", Path: "f1--sso.md"}
+	item1 := &item.Item{ID: "beans-t1", Type: "task", Title: "OIDC", Status: "todo", Path: "t1--oidc.md"}
 	data := &roadmapData{
 		Root: &rootGroup{
-			Feature: &featureGroup{Feature: f, Items: []*bean.Bean{item1}},
+			Feature: &featureGroup{Feature: f, Items: []*item.Item{item1}},
 		},
 	}
 
@@ -1226,13 +1226,13 @@ func TestRoadmapPlacesAConfiguredRank2TypeInTheEpicSlot(t *testing.T) {
 	cfg = &config.Config{Types: []config.TypeOverride{{Name: "package", Rank: &rank}}}
 	defer func() { cfg = prev }()
 
-	beans := []*bean.Bean{
+	items := []*item.Item{
 		{ID: "m1", Type: "milestone", Status: "todo", Title: "Release"},
 		{ID: "p1", Type: "package", Status: "todo", Title: "A package", Parent: "m1"},
 		{ID: "t1", Type: "task", Status: "todo", Title: "A task", Parent: "p1"},
 	}
 
-	data := buildRoadmap(beans, false, nil, nil)
+	data := buildRoadmap(items, false, nil, nil)
 
 	if len(data.Milestones) != 1 {
 		t.Fatalf("got %d milestone groups, want 1", len(data.Milestones))
@@ -1256,7 +1256,7 @@ func TestRoadmapAcceptsAConfiguredRank1TypeAsScopeRoot(t *testing.T) {
 	cfg = &config.Config{Types: []config.TypeOverride{{Name: "release", Rank: &rank}}}
 	defer func() { cfg = prev }()
 
-	root := &bean.Bean{ID: "r1", Type: "release", Status: "todo", Title: "v1"}
+	root := &item.Item{ID: "r1", Type: "release", Status: "todo", Title: "v1"}
 	if err := validateRoadmapRootType(root); err != nil {
 		t.Errorf("validateRoadmapRootType(release) = %v, want nil", err)
 	}
@@ -1267,7 +1267,7 @@ func TestRoadmapRejectsALeafAsScopeRoot(t *testing.T) {
 	cfg = &config.Config{}
 	defer func() { cfg = prev }()
 
-	if err := validateRoadmapRootType(&bean.Bean{ID: "t1", Type: "task"}); err == nil {
+	if err := validateRoadmapRootType(&item.Item{ID: "t1", Type: "task"}); err == nil {
 		t.Error("a leaf type must not be accepted as a roadmap root")
 	}
 }
@@ -1281,14 +1281,14 @@ func TestHiddenContainerAndItsSubtreeStayOutOfTheRoadmap(t *testing.T) {
 	}}
 	defer func() { cfg = prev }()
 
-	beans := []*bean.Bean{
+	items := []*item.Item{
 		{ID: "m1", Type: "milestone", Status: "todo", Title: "Release"},
 		{ID: "t1", Type: "task", Status: "todo", Title: "Planned", Parent: "m1"},
 		{ID: "b1", Type: "bucket", Status: "todo", Title: "Parking lot"},
 		{ID: "t2", Type: "task", Status: "todo", Title: "Someday", Parent: "b1"},
 	}
 
-	data := buildRoadmap(beans, false, nil, nil)
+	data := buildRoadmap(items, false, nil, nil)
 
 	for _, g := range data.Milestones {
 		if g.Milestone.ID == "b1" {
@@ -1323,7 +1323,7 @@ func TestHiddenContainerHidesEveryRankBeneathIt(t *testing.T) {
 	}}
 	defer func() { cfg = prev }()
 
-	beans := []*bean.Bean{
+	items := []*item.Item{
 		{ID: "b1", Type: "bucket", Status: "todo", Title: "Parking lot"},
 		{ID: "e1", Type: "epic", Status: "todo", Title: "Nested epic", Parent: "b1"},
 		{ID: "f1", Type: "feature", Status: "todo", Title: "Nested feature", Parent: "e1"},
@@ -1332,7 +1332,7 @@ func TestHiddenContainerHidesEveryRankBeneathIt(t *testing.T) {
 		{ID: "t2", Type: "task", Status: "todo", Title: "Leaf under direct feature", Parent: "f2"},
 	}
 
-	data := buildRoadmap(beans, false, nil, nil)
+	data := buildRoadmap(items, false, nil, nil)
 
 	if data.Unscheduled != nil {
 		for _, eg := range epicGroupsOf(data.Unscheduled.Containers) {
@@ -1372,14 +1372,14 @@ func TestHiddenContainerNestedUnderVisibleParentVanishesEntirely(t *testing.T) {
 	}}
 	defer func() { cfg = prev }()
 
-	beans := []*bean.Bean{
+	items := []*item.Item{
 		{ID: "m1", Type: "milestone", Status: "todo", Title: "Release"},
 		{ID: "t0", Type: "task", Status: "todo", Title: "Planned", Parent: "m1"},
 		{ID: "b1", Type: "bucket", Status: "todo", Title: "Parking lot", Parent: "m1"},
 		{ID: "t1", Type: "task", Status: "todo", Title: "Someday", Parent: "b1"},
 	}
 
-	data := buildRoadmap(beans, false, nil, nil)
+	data := buildRoadmap(items, false, nil, nil)
 
 	if len(data.Milestones) != 1 || data.Milestones[0].Milestone.ID != "m1" {
 		t.Fatalf("the visible milestone must still render, got %+v", data.Milestones)
@@ -1416,7 +1416,7 @@ func TestHiddenContainerNestedUnderVisibleParentVanishesEntirely(t *testing.T) {
 //     renders its full subtree: a direct-by-ID lookup is not the aggregate
 //     view the visibility flag governs, and an ancestor's opt-out must not
 //     reach down past the scoped root. This is the fix-round-4 bug: seeding
-//     hidden from a bean whose ID merely differs from root reaches ancestors
+//     hidden from an item whose ID merely differs from root reaches ancestors
 //     of root too, and marks everything root and its descendants ancestrally
 //     shared.
 //   - Naming a visible container that CONTAINS a hidden container still
@@ -1436,16 +1436,16 @@ func TestScopedRoadmapHidingRespectsScopeBoundary(t *testing.T) {
 	}}
 	defer func() { cfg = prev }()
 
-	m1 := &bean.Bean{ID: "m1", Type: "milestone", Status: "todo", Title: "Release"}
-	b1 := &bean.Bean{ID: "b1", Type: "bucket", Status: "todo", Title: "Parking lot", Parent: "m1"}
-	t1 := &bean.Bean{ID: "t1", Type: "task", Status: "todo", Title: "Someday", Parent: "b1"}
-	v1 := &bean.Bean{ID: "v1", Type: "vault", Status: "todo", Title: "Attic"}
-	e2 := &bean.Bean{ID: "e2", Type: "epic", Status: "todo", Title: "Someday feature", Parent: "v1"}
-	t2 := &bean.Bean{ID: "t2", Type: "task", Status: "todo", Title: "Someday task", Parent: "e2"}
-	beans := []*bean.Bean{m1, b1, t1, v1, e2, t2}
+	m1 := &item.Item{ID: "m1", Type: "milestone", Status: "todo", Title: "Release"}
+	b1 := &item.Item{ID: "b1", Type: "bucket", Status: "todo", Title: "Parking lot", Parent: "m1"}
+	t1 := &item.Item{ID: "t1", Type: "task", Status: "todo", Title: "Someday", Parent: "b1"}
+	v1 := &item.Item{ID: "v1", Type: "vault", Status: "todo", Title: "Attic"}
+	e2 := &item.Item{ID: "e2", Type: "epic", Status: "todo", Title: "Someday feature", Parent: "v1"}
+	t2 := &item.Item{ID: "t2", Type: "task", Status: "todo", Title: "Someday task", Parent: "e2"}
+	items := []*item.Item{m1, b1, t1, v1, e2, t2}
 
 	t.Run("scoped to a visible container that contains a hidden one, the hidden subtree is suppressed", func(t *testing.T) {
-		data := buildScopedRoadmap(beans, false, m1)
+		data := buildScopedRoadmap(items, false, m1)
 		if len(data.Milestones) != 1 || data.Milestones[0].Milestone.ID != "m1" {
 			t.Fatalf("expected the named root m1 to render, got %+v", data.Milestones)
 		}
@@ -1463,7 +1463,7 @@ func TestScopedRoadmapHidingRespectsScopeBoundary(t *testing.T) {
 	})
 
 	t.Run("scoped directly to a hidden rank-2 container, it renders in full", func(t *testing.T) {
-		data := buildScopedRoadmap(beans, false, b1)
+		data := buildScopedRoadmap(items, false, b1)
 		if data.Root == nil || data.Root.Epic == nil || data.Root.Epic.Epic.ID != "b1" {
 			t.Fatalf("a scoped hidden root must still render as its own container, got %+v", data.Root)
 		}
@@ -1479,7 +1479,7 @@ func TestScopedRoadmapHidingRespectsScopeBoundary(t *testing.T) {
 	})
 
 	t.Run("scoped directly to a hidden rank-1 container, it renders in full", func(t *testing.T) {
-		data := buildScopedRoadmap(beans, false, v1)
+		data := buildScopedRoadmap(items, false, v1)
 		if len(data.Milestones) != 1 || data.Milestones[0].Milestone.ID != "v1" {
 			t.Fatalf("a scoped hidden rank-1 root must still render as its own container, got %+v", data.Milestones)
 		}
@@ -1500,7 +1500,7 @@ func TestScopedRoadmapHidingRespectsScopeBoundary(t *testing.T) {
 	})
 
 	t.Run("scoped to a visible container below a hidden ancestor, it renders in full", func(t *testing.T) {
-		data := buildScopedRoadmap(beans, false, e2)
+		data := buildScopedRoadmap(items, false, e2)
 		if data.Root == nil || data.Root.Epic == nil || data.Root.Epic.Epic.ID != "e2" {
 			t.Fatalf("expected the named root e2 to render, got %+v", data.Root)
 		}
@@ -1528,7 +1528,7 @@ func TestHiddenRank3ContainerVanishesWithItsLeaf(t *testing.T) {
 	}}
 	defer func() { cfg = prev }()
 
-	beans := []*bean.Bean{
+	items := []*item.Item{
 		{ID: "m1", Type: "milestone", Status: "todo", Title: "Release"},
 		{ID: "e1", Type: "epic", Status: "todo", Title: "Auth", Parent: "m1"},
 		{ID: "t2", Type: "task", Status: "todo", Title: "Planned", Parent: "e1"},
@@ -1536,7 +1536,7 @@ func TestHiddenRank3ContainerVanishesWithItsLeaf(t *testing.T) {
 		{ID: "t1", Type: "task", Status: "todo", Title: "Someday", Parent: "d1"},
 	}
 
-	data := buildRoadmap(beans, false, nil, nil)
+	data := buildRoadmap(items, false, nil, nil)
 
 	if len(data.Milestones) != 1 {
 		t.Fatalf("got %d milestone groups, want 1", len(data.Milestones))
@@ -1580,13 +1580,13 @@ func TestScopedRoadmapRank3RootBypassesItsOwnHiddenType(t *testing.T) {
 	}}
 	defer func() { cfg = prev }()
 
-	root := &bean.Bean{ID: "d1", Type: "drawer", Status: "todo", Title: "Hidden drawer"}
-	beans := []*bean.Bean{
+	root := &item.Item{ID: "d1", Type: "drawer", Status: "todo", Title: "Hidden drawer"}
+	items := []*item.Item{
 		root,
 		{ID: "t1", Type: "task", Status: "todo", Title: "Someday", Parent: "d1"},
 	}
 
-	data := buildScopedRoadmap(beans, false, root)
+	data := buildScopedRoadmap(items, false, root)
 
 	if data.Root == nil || data.Root.Feature == nil || data.Root.Feature.Feature.ID != "d1" {
 		t.Fatalf("a scoped hidden rank-3 root must still render as its own container, got %+v", data.Root)
@@ -1610,7 +1610,7 @@ func TestTypeBadgeUsesTheConfiguredColour(t *testing.T) {
 	}}
 	defer func() { cfg = prev }()
 
-	got := typeBadge(&bean.Bean{ID: "c1", Type: "chore"})
+	got := typeBadge(&item.Item{ID: "c1", Type: "chore"})
 
 	if strings.Contains(got, "gray") {
 		t.Errorf("badge fell back to gray: %s", got)
@@ -1620,8 +1620,8 @@ func TestTypeBadgeUsesTheConfiguredColour(t *testing.T) {
 	}
 }
 
-func TestTypeBadgeStaysEmptyForATypelessBean(t *testing.T) {
-	if got := typeBadge(&bean.Bean{ID: "x1"}); got != "" {
+func TestTypeBadgeStaysEmptyForATypelessItem(t *testing.T) {
+	if got := typeBadge(&item.Item{ID: "x1"}); got != "" {
 		t.Errorf("typeBadge() = %q, want empty", got)
 	}
 }
@@ -1640,7 +1640,7 @@ func TestTypeBadgeURLOmitsTheLeadingHash(t *testing.T) {
 	}}
 	defer func() { cfg = prev }()
 
-	got := typeBadge(&bean.Bean{ID: "c1", Type: "chore"})
+	got := typeBadge(&item.Item{ID: "c1", Type: "chore"})
 
 	m := badgeURLPattern.FindStringSubmatch(got)
 	if m == nil {
@@ -1662,7 +1662,7 @@ func TestTypeBadgeFallsBackToGrayForATypeWithNoColour(t *testing.T) {
 	}}
 	defer func() { cfg = prev }()
 
-	got := typeBadge(&bean.Bean{ID: "t1", Type: "task"})
+	got := typeBadge(&item.Item{ID: "t1", Type: "task"})
 
 	want := "![task](https://img.shields.io/badge/task-gray?style=flat-square)"
 	if got != want {
@@ -1675,7 +1675,7 @@ func TestTypeBadgeFallsBackToGrayForAnUnknownType(t *testing.T) {
 	cfg = &config.Config{Types: []config.TypeOverride{}}
 	defer func() { cfg = prev }()
 
-	got := typeBadge(&bean.Bean{ID: "u1", Type: "mystery"})
+	got := typeBadge(&item.Item{ID: "u1", Type: "mystery"})
 
 	want := "![mystery](https://img.shields.io/badge/mystery-gray?style=flat-square)"
 	if got != want {
@@ -1691,7 +1691,7 @@ func TestTypeBadgeAcceptsARawHexColour(t *testing.T) {
 	}}
 	defer func() { cfg = prev }()
 
-	got := typeBadge(&bean.Bean{ID: "c1", Type: "chore"})
+	got := typeBadge(&item.Item{ID: "c1", Type: "chore"})
 
 	want := "![chore](https://img.shields.io/badge/chore-123abc?style=flat-square)"
 	if got != want {
@@ -1699,7 +1699,7 @@ func TestTypeBadgeAcceptsARawHexColour(t *testing.T) {
 	}
 }
 
-// --- Heading labels follow the bean's own type (beans-0mvv fix wave 2) -----
+// --- Heading labels follow the item's own type (beans-0mvv fix wave 2) -----
 //
 // Task 4 moved the roadmap's container *selection* to rank but left the
 // *labels* hardcoded to "Milestone"/"Epic"/"Feature" in both renderers. On a
@@ -1730,17 +1730,17 @@ func TestTypeHeadingLabel(t *testing.T) {
 	}
 }
 
-// TestRoadmapMarkdownHeadingsUseTheBeansOwnType is the direct regression
+// TestRoadmapMarkdownHeadingsUseTheItemsOwnType is the direct regression
 // test for the defect: on a project whose rank-1 type is "release" and
 // whose rank-2 type is "chore" (the "complex" profile shape), the roadmap
 // heading must say "Release"/"Chore", not the classic-profile words. A
 // reversion to the hardcoded "## Milestone:"/"### Epic:" text keeps the
-// bean data and structure identical but changes only the literal template
+// item data and structure identical but changes only the literal template
 // text, so it would leave every other test in this file green while
 // failing the "contains Release/Chore" and "does not contain Milestone/
 // Epic" assertions below -- exactly the defect reported against a real
 // store ("Parking lot" rendering as "## Milestone: Parking lot").
-func TestRoadmapMarkdownHeadingsUseTheBeansOwnType(t *testing.T) {
+func TestRoadmapMarkdownHeadingsUseTheItemsOwnType(t *testing.T) {
 	rank1, rank2 := 1, 2
 	prev := cfg
 	cfg = &config.Config{Types: []config.TypeOverride{
@@ -1749,12 +1749,12 @@ func TestRoadmapMarkdownHeadingsUseTheBeansOwnType(t *testing.T) {
 	}}
 	defer func() { cfg = prev }()
 
-	beans := []*bean.Bean{
+	items := []*item.Item{
 		{ID: "r1", Type: "release", Status: "todo", Title: "v2.0"},
 		{ID: "c1", Type: "chore", Status: "todo", Title: "Tidy the store", Parent: "r1"},
 		{ID: "t1", Type: "task", Status: "todo", Title: "Sweep", Parent: "c1"},
 	}
-	data := buildRoadmap(beans, false, nil, nil)
+	data := buildRoadmap(items, false, nil, nil)
 	got := renderRoadmapMarkdown(data, false, "", false)
 
 	if !strings.Contains(got, "## Release: v2.0") {
@@ -1768,11 +1768,11 @@ func TestRoadmapMarkdownHeadingsUseTheBeansOwnType(t *testing.T) {
 	}
 }
 
-// TestRoadmapMarkdownHeadingForUnknownType covers a bean whose type the
-// config no longer knows (surfaced by `beans check`'s unknownTypeBeans): the
-// heading must still show the bean's own type name, capitalised, rather than
+// TestRoadmapMarkdownHeadingForUnknownType covers an item whose type the
+// config no longer knows (surfaced by `lif check`'s unknownTypeItems): the
+// heading must still show the item's own type name, capitalised, rather than
 // an empty or nonsensical heading. This bypasses buildRoadmap (an
-// unknown-typed bean is never classified onto a container rank by RankOf)
+// unknown-typed item is never classified onto a container rank by RankOf)
 // and drives renderRoadmapMarkdown directly with a hand-built rootGroup, the
 // same way TestRenderRoadmapMarkdownRootEpic does, since the heading
 // renderer itself must tolerate whatever string reaches it.
@@ -1781,7 +1781,7 @@ func TestRoadmapMarkdownHeadingForUnknownType(t *testing.T) {
 	cfg = &config.Config{Types: []config.TypeOverride{}}
 	defer func() { cfg = prev }()
 
-	e := &bean.Bean{ID: "beans-legacy1", Type: "legacy", Title: "Old container", Status: "todo"}
+	e := &item.Item{ID: "beans-legacy1", Type: "legacy", Title: "Old container", Status: "todo"}
 	data := &roadmapData{Root: &rootGroup{Epic: &epicGroup{Epic: e}}}
 
 	got := renderRoadmapMarkdown(data, false, "", false)
@@ -1794,11 +1794,11 @@ func TestRoadmapMarkdownHeadingForUnknownType(t *testing.T) {
 // TestRoadmapMarkdownHeadingForEmptyType covers an empty type string
 // reaching the heading renderer directly (defensive: RankOf("") resolves to
 // LeafRank via cfg.GetType, so buildRoadmap itself never classifies an
-// empty-typed bean onto a container rank -- but a hand-built roadmapData, or
+// empty-typed item onto a container rank -- but a hand-built roadmapData, or
 // a future caller, could still hand the renderer one). "Untyped" must
 // appear rather than an empty "### : Title" heading.
 func TestRoadmapMarkdownHeadingForEmptyType(t *testing.T) {
-	f := &bean.Bean{ID: "beans-notype1", Type: "", Title: "Mystery container", Status: "todo"}
+	f := &item.Item{ID: "beans-notype1", Type: "", Title: "Mystery container", Status: "todo"}
 	data := &roadmapData{Root: &rootGroup{Feature: &featureGroup{Feature: f}}}
 
 	got := renderRoadmapMarkdown(data, false, "", false)
@@ -1818,11 +1818,11 @@ func TestRoadmapMarkdownHeadingForEmptyType(t *testing.T) {
 // not exist at all (the "todo" profile). A reversion to the literal
 // "No Milestone" string would fail this on any of those projects.
 func TestRoadmapMarkdownUnscheduledHeadingSaysUnscheduled(t *testing.T) {
-	m := &bean.Bean{ID: "m1", Type: "milestone", Status: "todo", Title: "v1"}
-	orphanTask := &bean.Bean{ID: "t1", Type: "task", Status: "todo", Title: "Loose end"}
+	m := &item.Item{ID: "m1", Type: "milestone", Status: "todo", Title: "v1"}
+	orphanTask := &item.Item{ID: "t1", Type: "task", Status: "todo", Title: "Loose end"}
 	data := &roadmapData{
-		Milestones:  []milestoneGroup{{Milestone: m, Other: []*bean.Bean{}}},
-		Unscheduled: &unscheduledGroup{Other: []*bean.Bean{orphanTask}},
+		Milestones:  []milestoneGroup{{Milestone: m, Other: []*item.Item{}}},
+		Unscheduled: &unscheduledGroup{Other: []*item.Item{orphanTask}},
 	}
 	got := renderRoadmapMarkdown(data, false, "", false)
 
@@ -1847,7 +1847,7 @@ func TestRoadmapMarkdownBlockSeparation(t *testing.T) {
 	cfg = config.Default()
 	defer func() { cfg = prev }()
 
-	beans := []*bean.Bean{
+	items := []*item.Item{
 		{ID: "t-m1", Type: "milestone", Status: "todo", Title: "Milestone One", Body: "M body"},
 		{ID: "t-e1", Type: "epic", Status: "todo", Title: "Epic One", Body: "E body", Parent: "t-m1"},
 		{ID: "t-l1", Type: "task", Status: "todo", Title: "Direct leaf", Parent: "t-e1"},
@@ -1856,7 +1856,7 @@ func TestRoadmapMarkdownBlockSeparation(t *testing.T) {
 		{ID: "t-of", Type: "feature", Status: "todo", Title: "Orphan Feature", Parent: ""},
 		{ID: "t-l3", Type: "task", Status: "todo", Title: "Orphan nested leaf", Parent: "t-of"},
 	}
-	data := buildRoadmap(beans, false, nil, nil)
+	data := buildRoadmap(items, false, nil, nil)
 	got := renderRoadmapMarkdown(data, false, "", false)
 
 	const taskBadge = "![task](https://img.shields.io/badge/task-gray?style=flat-square)"

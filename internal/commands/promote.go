@@ -10,10 +10,10 @@ import (
 	"github.com/santhosh-tekuri/jsonschema/v6"
 	"github.com/spf13/cobra"
 	"github.com/xRiErOS/lif/internal/output"
-	"github.com/xRiErOS/lif/pkg/bean"
-	"github.com/xRiErOS/lif/pkg/beancore"
-	"github.com/xRiErOS/lif/pkg/beangraph"
-	"github.com/xRiErOS/lif/pkg/beangraph/model"
+	"github.com/xRiErOS/lif/pkg/item"
+	"github.com/xRiErOS/lif/pkg/itemcore"
+	"github.com/xRiErOS/lif/pkg/itemgraph"
+	"github.com/xRiErOS/lif/pkg/itemgraph/model"
 )
 
 var promoteJSON bool
@@ -105,10 +105,10 @@ earlier call rather than duplicating it.`,
 			records[i] = rec
 		}
 
-		resolver := &beangraph.CoreResolver{Core: core}
+		resolver := &itemgraph.CoreResolver{Core: core}
 		ctx := context.Background()
 
-		done := make([]*bean.Bean, 0, len(records))
+		done := make([]*item.Item, 0, len(records))
 		for _, rec := range records {
 			if alreadyPromoted(artifactPath, rec.ID) {
 				if !promoteJSON {
@@ -117,7 +117,7 @@ earlier call rather than duplicating it.`,
 				continue
 			}
 
-			b, err := createPromotedBean(ctx, resolver, artifactPath, rec)
+			b, err := createPromotedItem(ctx, resolver, artifactPath, rec)
 			if err != nil {
 				return emitBatchFailure(promoteJSON, done, fmt.Errorf("failed to create bean for %s: %v", rec.ID, err))
 			}
@@ -125,8 +125,8 @@ earlier call rather than duplicating it.`,
 		}
 
 		return emitBatchSuccess(promoteJSON, done,
-			func(b *bean.Bean) error { return output.SuccessSingle(b) },
-			func(b *bean.Bean) string { return fmt.Sprintf("Created %s %s", b.ID, b.Title) },
+			func(b *item.Item) error { return output.SuccessSingle(b) },
+			func(b *item.Item) string { return fmt.Sprintf("Created %s %s", b.ID, b.Title) },
 		)
 	},
 }
@@ -274,17 +274,17 @@ func alreadyPromoted(artifactPath, findingID string) bool {
 	return len(matches) > 0
 }
 
-// createPromotedBean renders and creates one bean from a validated finding
+// createPromotedItem renders and creates one item from a validated finding
 // record, applying the fixed code-to-type mapping (R-16/AC9) and the extra
-// front matter every promoted bean carries (R-27/R-28/R-30/AC10/AC12/AC16).
-func createPromotedBean(ctx context.Context, resolver *beangraph.CoreResolver, artifactPath string, rec findingRecord) (*bean.Bean, error) {
-	var beanType string
+// front matter every promoted item carries (R-27/R-28/R-30/AC10/AC12/AC16).
+func createPromotedItem(ctx context.Context, resolver *itemgraph.CoreResolver, artifactPath string, rec findingRecord) (*item.Item, error) {
+	var itemType string
 	var tags []string
 	switch rec.Code {
 	case "B":
-		beanType = "bug"
+		itemType = "bug"
 	case "I":
-		beanType = "task"
+		itemType = "task"
 		tags = []string{"improvement"}
 	default:
 		return nil, fmt.Errorf("code %s has no promotion mapping", rec.Code)
@@ -304,16 +304,16 @@ func createPromotedBean(ctx context.Context, resolver *beangraph.CoreResolver, a
 	title := rec.Title
 	input := model.CreateBeanInput{
 		Title: title,
-		Type:  &beanType,
+		Type:  &itemType,
 		Tags:  tags,
 	}
 	body := renderPromotedBody(rec, artifactPath)
 	input.Body = &body
 
-	return resolver.CreateBean(ctx, input, beancore.WithExtraOps(setMap, nil))
+	return resolver.CreateItem(ctx, input, itemcore.WithExtraOps(setMap, nil))
 }
 
-// renderPromotedBody renders a promoted bean's body by the fixed mapping
+// renderPromotedBody renders a promoted item's body by the fixed mapping
 // (R-18/AC7/AC8): the record's canonical fields (excluding Schwere, which
 // promote diverts to the severity front matter key instead of duplicating
 // it in the body) become English-headed sections, evidence/source

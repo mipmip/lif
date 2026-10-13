@@ -8,11 +8,11 @@ import (
 	"github.com/xRiErOS/lif/internal/portalloc"
 	"github.com/xRiErOS/lif/internal/terminal"
 	"github.com/xRiErOS/lif/internal/worktree"
-	"github.com/xRiErOS/lif/pkg/bean"
-	"github.com/xRiErOS/lif/pkg/beancore"
-	"github.com/xRiErOS/lif/pkg/beangraph"
-	"github.com/xRiErOS/lif/pkg/beangraph/model"
 	"github.com/xRiErOS/lif/pkg/forge"
+	"github.com/xRiErOS/lif/pkg/item"
+	"github.com/xRiErOS/lif/pkg/itemcore"
+	"github.com/xRiErOS/lif/pkg/itemgraph"
+	"github.com/xRiErOS/lif/pkg/itemgraph/model"
 )
 
 //go:generate go tool gqlgen generate
@@ -26,10 +26,10 @@ const CentralSessionID = "__central__"
 const RunSessionSuffix = "__run"
 
 // Resolver is the root resolver for the GraphQL schema.
-// It embeds CoreResolver for bean CRUD operations and adds UI-specific
+// It embeds CoreResolver for item CRUD operations and adds UI-specific
 // concerns (agents, worktrees, terminals, git operations).
 type Resolver struct {
-	*beangraph.CoreResolver
+	*itemgraph.CoreResolver
 	WorktreeMgr *worktree.Manager
 	AgentMgr    *agent.Manager
 	TerminalMgr *terminal.Manager
@@ -39,16 +39,16 @@ type Resolver struct {
 }
 
 // worktreeToModel converts an internal worktree to a GraphQL model.
-// It takes an optional beancore.Core to resolve BeanIDs into full Bean objects.
+// It takes an optional itemcore.Core to resolve ItemIDs into full Item objects.
 // When computeGitStatus is true, it shells out to git to compute hasChanges and
 // hasUnmergedCommits; otherwise these default to false to avoid expensive subprocess
 // calls on hot paths like subscriptions.
-func worktreeToModel(wt *worktree.Worktree, core *beancore.Core, baseRef string, computeGitStatus bool) *model.Worktree {
+func worktreeToModel(wt *worktree.Worktree, core *itemcore.Core, baseRef string, computeGitStatus bool) *model.Worktree {
 	m := &model.Worktree{
 		ID:     wt.ID,
 		Branch: wt.Branch,
 		Path:   wt.Path,
-		Beans:  []*bean.Bean{},
+		Beans:  []*item.Item{},
 	}
 	if computeGitStatus {
 		m.HasChanges = gitutil.HasChanges(wt.Path)
@@ -63,7 +63,7 @@ func worktreeToModel(wt *worktree.Worktree, core *beancore.Core, baseRef string,
 		m.Description = &wt.Description
 	}
 	if core != nil {
-		for _, id := range wt.BeanIDs {
+		for _, id := range wt.ItemIDs {
 			if b, err := core.Get(id); err == nil {
 				m.Beans = append(m.Beans, b)
 			}

@@ -19,104 +19,104 @@ import (
 	"github.com/xRiErOS/lif/internal/agent"
 	"github.com/xRiErOS/lif/internal/gitutil"
 	"github.com/xRiErOS/lif/internal/worktree"
-	"github.com/xRiErOS/lif/pkg/bean"
-	"github.com/xRiErOS/lif/pkg/beancore"
-	"github.com/xRiErOS/lif/pkg/beangraph/model"
 	"github.com/xRiErOS/lif/pkg/config"
+	"github.com/xRiErOS/lif/pkg/item"
+	"github.com/xRiErOS/lif/pkg/itemcore"
+	"github.com/xRiErOS/lif/pkg/itemgraph/model"
 )
 
 // IsDirty is the resolver for the isDirty field.
-func (r *beanResolver) IsDirty(ctx context.Context, obj *bean.Bean) (bool, error) {
-	return r.CoreResolver.BeanIsDirty(ctx, obj)
+func (r *beanResolver) IsDirty(ctx context.Context, obj *item.Item) (bool, error) {
+	return r.CoreResolver.ItemIsDirty(ctx, obj)
 }
 
 // WorktreeID is the resolver for the worktreeId field.
-func (r *beanResolver) WorktreeID(ctx context.Context, obj *bean.Bean) (*string, error) {
-	return r.CoreResolver.BeanWorktreeID(ctx, obj)
+func (r *beanResolver) WorktreeID(ctx context.Context, obj *item.Item) (*string, error) {
+	return r.CoreResolver.ItemWorktreeID(ctx, obj)
 }
 
 // ParentID is the resolver for the parentId field.
-func (r *beanResolver) ParentID(ctx context.Context, obj *bean.Bean) (*string, error) {
-	return r.CoreResolver.BeanParentID(ctx, obj)
+func (r *beanResolver) ParentID(ctx context.Context, obj *item.Item) (*string, error) {
+	return r.CoreResolver.ItemParentID(ctx, obj)
 }
 
 // BlockingIds is the resolver for the blockingIds field.
-func (r *beanResolver) BlockingIds(ctx context.Context, obj *bean.Bean) ([]string, error) {
-	return r.CoreResolver.BeanBlockingIds(ctx, obj)
+func (r *beanResolver) BlockingIds(ctx context.Context, obj *item.Item) ([]string, error) {
+	return r.CoreResolver.ItemBlockingIds(ctx, obj)
 }
 
 // BlockedByIds is the resolver for the blockedByIds field.
-func (r *beanResolver) BlockedByIds(ctx context.Context, obj *bean.Bean) ([]string, error) {
-	return r.CoreResolver.BeanBlockedByIds(ctx, obj)
+func (r *beanResolver) BlockedByIds(ctx context.Context, obj *item.Item) ([]string, error) {
+	return r.CoreResolver.ItemBlockedByIds(ctx, obj)
 }
 
 // BlockedBy is the resolver for the blockedBy field.
-func (r *beanResolver) BlockedBy(ctx context.Context, obj *bean.Bean, filter *model.BeanFilter) ([]*bean.Bean, error) {
-	return r.CoreResolver.BeanBlockedBy(ctx, obj, filter)
+func (r *beanResolver) BlockedBy(ctx context.Context, obj *item.Item, filter *model.BeanFilter) ([]*item.Item, error) {
+	return r.CoreResolver.ItemBlockedBy(ctx, obj, filter)
 }
 
 // Blocking is the resolver for the blocking field.
-func (r *beanResolver) Blocking(ctx context.Context, obj *bean.Bean, filter *model.BeanFilter) ([]*bean.Bean, error) {
-	return r.CoreResolver.BeanBlocking(ctx, obj, filter)
+func (r *beanResolver) Blocking(ctx context.Context, obj *item.Item, filter *model.BeanFilter) ([]*item.Item, error) {
+	return r.CoreResolver.ItemBlocking(ctx, obj, filter)
 }
 
 // Parent is the resolver for the parent field.
-func (r *beanResolver) Parent(ctx context.Context, obj *bean.Bean) (*bean.Bean, error) {
-	return r.CoreResolver.BeanParent(ctx, obj)
+func (r *beanResolver) Parent(ctx context.Context, obj *item.Item) (*item.Item, error) {
+	return r.CoreResolver.ItemParent(ctx, obj)
 }
 
 // Children is the resolver for the children field.
-func (r *beanResolver) Children(ctx context.Context, obj *bean.Bean, filter *model.BeanFilter) ([]*bean.Bean, error) {
-	return r.CoreResolver.BeanChildren(ctx, obj, filter)
+func (r *beanResolver) Children(ctx context.Context, obj *item.Item, filter *model.BeanFilter) ([]*item.Item, error) {
+	return r.CoreResolver.ItemChildren(ctx, obj, filter)
 }
 
 // ImplicitStatus is the resolver for the implicitStatus field.
-func (r *beanResolver) ImplicitStatus(ctx context.Context, obj *bean.Bean) (*string, error) {
-	return r.CoreResolver.BeanImplicitStatus(ctx, obj)
+func (r *beanResolver) ImplicitStatus(ctx context.Context, obj *item.Item) (*string, error) {
+	return r.CoreResolver.ItemImplicitStatus(ctx, obj)
 }
 
 // ImplicitStatusFrom is the resolver for the implicitStatusFrom field.
-func (r *beanResolver) ImplicitStatusFrom(ctx context.Context, obj *bean.Bean) (*string, error) {
-	return r.CoreResolver.BeanImplicitStatusFrom(ctx, obj)
+func (r *beanResolver) ImplicitStatusFrom(ctx context.Context, obj *item.Item) (*string, error) {
+	return r.CoreResolver.ItemImplicitStatusFrom(ctx, obj)
 }
 
-// CreateBean is the resolver for the createBean field.
-func (r *mutationResolver) CreateBean(ctx context.Context, input model.CreateBeanInput) (*bean.Bean, error) {
-	return r.CoreResolver.CreateBean(ctx, input)
+// CreateItem is the resolver for the createItem field.
+func (r *mutationResolver) CreateBean(ctx context.Context, input model.CreateBeanInput) (*item.Item, error) {
+	return r.CoreResolver.CreateItem(ctx, input)
 }
 
-// UpdateBean is the resolver for the updateBean field.
-func (r *mutationResolver) UpdateBean(ctx context.Context, id string, input model.UpdateBeanInput) (*bean.Bean, error) {
-	return r.CoreResolver.UpdateBean(ctx, id, input)
+// UpdateItem is the resolver for the updateItem field.
+func (r *mutationResolver) UpdateBean(ctx context.Context, id string, input model.UpdateBeanInput) (*item.Item, error) {
+	return r.CoreResolver.UpdateItem(ctx, id, input)
 }
 
-// DeleteBean is the resolver for the deleteBean field.
+// DeleteItem is the resolver for the deleteItem field.
 func (r *mutationResolver) DeleteBean(ctx context.Context, id string) (bool, error) {
-	return r.CoreResolver.DeleteBean(ctx, id)
+	return r.CoreResolver.DeleteItem(ctx, id)
 }
 
 // SetParent is the resolver for the setParent field.
-func (r *mutationResolver) SetParent(ctx context.Context, id string, parentID *string, ifMatch *string) (*bean.Bean, error) {
+func (r *mutationResolver) SetParent(ctx context.Context, id string, parentID *string, ifMatch *string) (*item.Item, error) {
 	return r.CoreResolver.SetParent(ctx, id, parentID, ifMatch)
 }
 
 // AddBlocking is the resolver for the addBlocking field.
-func (r *mutationResolver) AddBlocking(ctx context.Context, id string, targetID string, ifMatch *string) (*bean.Bean, error) {
+func (r *mutationResolver) AddBlocking(ctx context.Context, id string, targetID string, ifMatch *string) (*item.Item, error) {
 	return r.CoreResolver.AddBlocking(ctx, id, targetID, ifMatch)
 }
 
 // RemoveBlocking is the resolver for the removeBlocking field.
-func (r *mutationResolver) RemoveBlocking(ctx context.Context, id string, targetID string, ifMatch *string) (*bean.Bean, error) {
+func (r *mutationResolver) RemoveBlocking(ctx context.Context, id string, targetID string, ifMatch *string) (*item.Item, error) {
 	return r.CoreResolver.RemoveBlocking(ctx, id, targetID, ifMatch)
 }
 
 // AddBlockedBy is the resolver for the addBlockedBy field.
-func (r *mutationResolver) AddBlockedBy(ctx context.Context, id string, targetID string, ifMatch *string) (*bean.Bean, error) {
+func (r *mutationResolver) AddBlockedBy(ctx context.Context, id string, targetID string, ifMatch *string) (*item.Item, error) {
 	return r.CoreResolver.AddBlockedBy(ctx, id, targetID, ifMatch)
 }
 
 // RemoveBlockedBy is the resolver for the removeBlockedBy field.
-func (r *mutationResolver) RemoveBlockedBy(ctx context.Context, id string, targetID string, ifMatch *string) (*bean.Bean, error) {
+func (r *mutationResolver) RemoveBlockedBy(ctx context.Context, id string, targetID string, ifMatch *string) (*item.Item, error) {
 	return r.CoreResolver.RemoveBlockedBy(ctx, id, targetID, ifMatch)
 }
 
@@ -220,8 +220,8 @@ func (r *mutationResolver) CreateWorktree(ctx context.Context, name string) (*mo
 		}
 	}
 
-	// Start watching the worktree's .beans/ directory for bean changes
-	if err := r.Core.WatchWorktreeBeans(wt.Path); err != nil {
+	// Start watching the worktree's .beans/ directory for item changes
+	if err := r.Core.WatchWorktreeItems(wt.Path); err != nil {
 		fmt.Printf("[beans] warning: failed to watch worktree beans: %v\n", err)
 	}
 
@@ -238,7 +238,7 @@ func (r *mutationResolver) RemoveWorktree(ctx context.Context, id string) (bool,
 	worktrees, _ := r.WorktreeMgr.List()
 	for _, wt := range worktrees {
 		if wt.ID == id {
-			r.Core.UnwatchWorktreeBeans(wt.Path)
+			r.Core.UnwatchWorktreeItems(wt.Path)
 			break
 		}
 	}
@@ -271,7 +271,7 @@ func (r *mutationResolver) SendAgentMessage(ctx context.Context, beanID string, 
 		// Central agent chat runs in the project root
 		workDir = r.ProjectRoot
 	} else {
-		// Find the worktree path for this bean
+		// Find the worktree path for this item
 		var err error
 		workDir, err = r.findWorktreePath(beanID)
 		if err != nil {
@@ -378,9 +378,9 @@ func (r *mutationResolver) ClearAgentSession(ctx context.Context, beanID string)
 	return true, nil
 }
 
-// ArchiveBean is the resolver for the archiveBean field.
+// ArchiveItem is the resolver for the archiveItem field.
 func (r *mutationResolver) ArchiveBean(ctx context.Context, id string) (bool, error) {
-	return r.CoreResolver.ArchiveBean(ctx, id)
+	return r.CoreResolver.ArchiveItem(ctx, id)
 }
 
 // SaveDirtyBeans is the resolver for the saveDirtyBeans field.
@@ -388,9 +388,9 @@ func (r *mutationResolver) SaveDirtyBeans(ctx context.Context) (int, error) {
 	return r.Core.SaveDirty()
 }
 
-// SaveBean is the resolver for the saveBean field.
+// SaveItem is the resolver for the saveItem field.
 func (r *mutationResolver) SaveBean(ctx context.Context, id string) (bool, error) {
-	if err := r.Core.SaveBean(id); err != nil {
+	if err := r.Core.SaveItem(id); err != nil {
 		return false, err
 	}
 	return true, nil
@@ -505,14 +505,14 @@ func (r *mutationResolver) OpenInEditor(ctx context.Context, workspaceID string)
 	return true, nil
 }
 
-// Bean is the resolver for the bean field.
-func (r *queryResolver) Bean(ctx context.Context, id string) (*bean.Bean, error) {
-	return r.CoreResolver.Bean(ctx, id)
+// Item is the resolver for the item field.
+func (r *queryResolver) Bean(ctx context.Context, id string) (*item.Item, error) {
+	return r.CoreResolver.Item(ctx, id)
 }
 
-// Beans is the resolver for the beans field.
-func (r *queryResolver) Beans(ctx context.Context, filter *model.BeanFilter) ([]*bean.Bean, error) {
-	return r.CoreResolver.Beans(ctx, filter)
+// Items is the resolver for the items field.
+func (r *queryResolver) Beans(ctx context.Context, filter *model.BeanFilter) ([]*item.Item, error) {
+	return r.CoreResolver.Items(ctx, filter)
 }
 
 // Worktrees is the resolver for the worktrees field.
@@ -941,7 +941,7 @@ func (r *queryResolver) ListFiles(ctx context.Context, workspaceID *string, pref
 
 // BeanChanged is the resolver for the beanChanged field.
 func (r *subscriptionResolver) BeanChanged(ctx context.Context, includeInitial *bool) (<-chan *model.BeanChangeEvent, error) {
-	// Subscribe to bean events from beancore
+	// Subscribe to item events from itemcore
 	eventCh, unsubscribe := r.Core.Subscribe()
 
 	// Create buffered output channel for GraphQL to reduce backpressure on the
@@ -955,18 +955,18 @@ func (r *subscriptionResolver) BeanChanged(ctx context.Context, includeInitial *
 		defer close(out)
 
 		// sendSnapshot emits the full current state as one event. It is both the
-		// initial payload and the answer to a resync: after beancore dropped
+		// initial payload and the answer to a resync: after itemcore dropped
 		// events for this subscriber, incremental updates would build on an
 		// incomplete history, so the client replaces its state wholesale.
 		sendSnapshot := func() bool {
-			beans := r.Core.All()
+			items := r.Core.All()
 			cfg := r.Core.Config()
-			bean.SortByStatusPriorityAndType(beans, cfg.StatusNames(), cfg.PriorityNames(), cfg.TypeNames())
+			item.SortByStatusPriorityAndType(items, cfg.StatusNames(), cfg.PriorityNames(), cfg.TypeNames())
 
 			select {
 			case out <- &model.BeanChangeEvent{
 				Type:  model.ChangeTypeInitialSnapshot,
-				Beans: beans,
+				Beans: items,
 			}:
 				return true
 			case <-ctx.Done():
@@ -974,7 +974,7 @@ func (r *subscriptionResolver) BeanChanged(ctx context.Context, includeInitial *
 			}
 		}
 
-		// If includeInitial is true, emit all current beans as a single snapshot
+		// If includeInitial is true, emit all current items as a single snapshot
 		if includeInitial != nil && *includeInitial {
 			if !sendSnapshot() {
 				return
@@ -994,7 +994,7 @@ func (r *subscriptionResolver) BeanChanged(ctx context.Context, includeInitial *
 
 				// Forward each event to the GraphQL subscription
 				for _, event := range events {
-					if event.Type == beancore.EventResync {
+					if event.Type == itemcore.EventResync {
 						if !sendSnapshot() {
 							return
 						}
@@ -1002,17 +1002,17 @@ func (r *subscriptionResolver) BeanChanged(ctx context.Context, includeInitial *
 					}
 
 					gqlEvent := &model.BeanChangeEvent{
-						BeanID: event.BeanID,
-						Bean:   event.Bean,
+						BeanID: event.ItemID,
+						Bean:   event.Item,
 					}
 
 					// Convert event type
 					switch event.Type {
-					case beancore.EventCreated:
+					case itemcore.EventCreated:
 						gqlEvent.Type = model.ChangeTypeCreated
-					case beancore.EventUpdated:
+					case itemcore.EventUpdated:
 						gqlEvent.Type = model.ChangeTypeUpdated
-					case beancore.EventDeleted:
+					case itemcore.EventDeleted:
 						gqlEvent.Type = model.ChangeTypeDeleted
 					}
 

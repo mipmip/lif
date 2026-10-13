@@ -9,7 +9,7 @@ import (
 	"github.com/spf13/pflag"
 )
 
-// beans-u93j: `beans create ` + TAB used to answer with no candidates and
+// beans-u93j: `lif create ` + TAB used to answer with no candidates and
 // no explanation (completionNoFileComp, beans-12cb). These tests cover
 // create's own ValidArgsFunction, which now surfaces a cobra ActiveHelp
 // hint in that zero-args case instead of staying silent.
@@ -43,7 +43,7 @@ func TestCreateValidArgsHintsOnEmptyArgs(t *testing.T) {
 // TestCreateValidArgsSilentOnceTitleStarted: once the user has typed the
 // first word of the title, create has nothing further to suggest --
 // completionNoFileComp's rationale (create's positional is free-form text,
-// never a bean-ID or file path) still applies, and repeating the hint on
+// never an item-ID or file path) still applies, and repeating the hint on
 // every subsequent word would be noise, not help.
 func TestCreateValidArgsSilentOnceTitleStarted(t *testing.T) {
 	candidates, directive := createValidArgs(createCmd, []string{"Fix"}, "")
@@ -104,7 +104,7 @@ func TestCreateHintMentionsTitle(t *testing.T) {
 }
 
 // TestCreateCompleteRawOutputNeverInsertsText exercises the real compiled
-// binary's `__complete create ""` -- the exact request the PO's `beans
+// binary's `__complete create ""` -- the exact request the PO's `items
 // create ` + TAB triggers -- and inspects cobra's raw wire format: one
 // line per candidate, then a trailing ":<directive>" line. AC-02 requires
 // that pressing TAB never inserts text into the command line; the only
@@ -121,7 +121,7 @@ func TestCreateCompleteRawOutputNeverInsertsText(t *testing.T) {
 	cwd := t.TempDir()
 	writeFixtureStore(t, filepath.Join(cwd, ".beans"), "rawout")
 
-	out, err := runBeansCompletion(t, cwd, nil, []string{"__complete", "create", ""})
+	out, err := runItemsCompletion(t, cwd, nil, []string{"__complete", "create", ""})
 	if err != nil {
 		t.Fatalf("__complete create \"\" failed: %v\nstdout: %s", err, out)
 	}

@@ -14,7 +14,7 @@ import (
 	"testing"
 )
 
-// wantCountFlag ist die erwartete Zeichenfolge, wie sie beans-mkfb/AC-04 als Literal-Konstante
+// wantCountFlag ist die erwartete Zeichenfolge, wie sie items-mkfb/AC-04 als Literal-Konstante
 // verlangt. Sie wird NICHT aus dem justfile-Inhalt abgeleitet oder zurueckverglichen.
 const wantCountFlag = "-count=1"
 
@@ -65,7 +65,7 @@ func recipeBody(t *testing.T, justfile, name string) string {
 
 // requireCountBeforeArgs prueft, dass wantCountFlag unmittelbar (durch Whitespace getrennt) vor
 // {{ ARGS }} bzw. {{ARGS}} im Rezeptkoerper steht (AC-02/AC-03), unabhaengig von der konkreten
-// Leerzeichen-Schreibweise innerhalb der doppelten geschweiften Klammern (Risk-Eintrag im bean).
+// Leerzeichen-Schreibweise innerhalb der doppelten geschweiften Klammern (Risk-Eintrag im item).
 func requireCountBeforeArgs(t *testing.T, body string) {
 	t.Helper()
 	pattern := regexp.MustCompile(regexp.QuoteMeta(wantCountFlag) + `\s+\{\{\s*ARGS\s*\}\}`)

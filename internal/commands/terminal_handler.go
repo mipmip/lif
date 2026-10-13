@@ -161,7 +161,7 @@ func handleTerminalWS(c *gin.Context, termMgr *terminal.Manager, wtMgr *worktree
 }
 
 // resolveTerminalWorkDir maps a session ID to a filesystem path.
-// "__central__" maps to the project root; other IDs are looked up as worktree bean IDs.
+// "__central__" maps to the project root; other IDs are looked up as worktree item IDs.
 // The "__run" suffix is stripped before lookup, so run sessions resolve to the same
 // directory as their parent workspace.
 func resolveTerminalWorkDir(sessionID string, wtMgr *worktree.Manager, projectRoot string) (string, error) {

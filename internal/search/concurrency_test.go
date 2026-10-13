@@ -12,7 +12,7 @@ import (
 
 // TestOpen_FallsBackWhenLockContended forces the AC-07 contention case
 // instead of hoping a goroutine race reproduces it: the lock file is
-// acquired directly, exactly as a second beans process holding it would,
+// acquired directly, exactly as a second lif process holding it would,
 // before Open is ever called. Open must not block, error, or hang -- it
 // must return a working, private in-memory index for the caller that
 // couldn't acquire the persisted one.
@@ -45,7 +45,7 @@ func TestOpen_FallsBackWhenLockContended(t *testing.T) {
 	}
 
 	// The fallback index must still work end to end.
-	if err := idx.IndexBean(beanWith("aaa1", "Fallback Works", "x")); err != nil {
+	if err := idx.IndexItem(itemWith("aaa1", "Fallback Works", "x")); err != nil {
 		t.Fatalf("IndexBean() on fallback index error = %v", err)
 	}
 	results, err := idx.Search("Fallback", 0)

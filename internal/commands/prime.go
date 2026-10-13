@@ -28,17 +28,17 @@ type promptData struct {
 	Statuses   []config.StatusConfig
 	Priorities []config.PriorityConfig
 
-	// RequiredFields lists this project's beans.require_fields_on policy,
+	// RequiredFields lists this project's items.require_fields_on policy,
 	// sorted by status; empty when no policy is configured.
 	RequiredFields []requiredFieldsEntry
-	// CommitField is the configured beans.commit_field (or its default).
+	// CommitField is the configured items.commit_field (or its default).
 	CommitField string
 	// CommitFieldGated is true when CommitField is among some status's
 	// required fields, i.e. `--commit` resolution applies somewhere in
 	// this project (used by the generic policy section).
 	CommitFieldGated bool
 	// CompletionCommitGated is true specifically when CommitField is
-	// required on the "completed" status, i.e. `beans complete` itself
+	// required on the "completed" status, i.e. `lif complete` itself
 	// needs `--commit`. A project can gate CommitField on another status
 	// (e.g. "accepted") without gating completion at all.
 	CompletionCommitGated bool
@@ -70,7 +70,7 @@ var primeCmd = &cobra.Command{
 		// Load the project's actual config so the required-fields policy
 		// section reflects what's really configured here, not static prose.
 		// If no explicit path is given and no project can be found, stay
-		// silent (agents outside a beans project get no prompt).
+		// silent (agents outside an items project get no prompt).
 		var loadedCfg *config.Config
 		switch {
 		case configPath != "":
@@ -114,15 +114,15 @@ var primeCmd = &cobra.Command{
 		commitField := loadedCfg.GetCommitField()
 		commitFieldGated := false
 
-		statuses := make([]string, 0, len(loadedCfg.Beans.RequireFieldsOn))
-		for status := range loadedCfg.Beans.RequireFieldsOn {
+		statuses := make([]string, 0, len(loadedCfg.Items.RequireFieldsOn))
+		for status := range loadedCfg.Items.RequireFieldsOn {
 			statuses = append(statuses, status)
 		}
 		sort.Strings(statuses)
 
 		requiredFields := make([]requiredFieldsEntry, 0, len(statuses))
 		for _, status := range statuses {
-			fields := loadedCfg.Beans.RequireFieldsOn[status]
+			fields := loadedCfg.Items.RequireFieldsOn[status]
 			requiredFields = append(requiredFields, requiredFieldsEntry{Status: status, Fields: fields})
 			for _, f := range fields {
 				if f == commitField {

@@ -3,7 +3,7 @@ package commands
 import (
 	"testing"
 
-	"github.com/xRiErOS/lif/pkg/bean"
+	"github.com/xRiErOS/lif/pkg/item"
 )
 
 func TestApplyTags(t *testing.T) {
@@ -54,7 +54,7 @@ func TestApplyTags(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			b := &bean.Bean{Tags: tt.initial}
+			b := &item.Item{Tags: tt.initial}
 			err := applyTags(b, tt.toAdd)
 
 			if tt.wantErr {
@@ -367,7 +367,7 @@ func TestValidateExtraKeys(t *testing.T) {
 
 func TestApplyExtraOps(t *testing.T) {
 	t.Run("sets keys", func(t *testing.T) {
-		b := &bean.Bean{}
+		b := &item.Item{}
 		if err := applyExtraOps(b, []string{"release=0-4-1", "klasse=bugfix"}, nil); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -377,7 +377,7 @@ func TestApplyExtraOps(t *testing.T) {
 	})
 
 	t.Run("unsets keys", func(t *testing.T) {
-		b := &bean.Bean{Extra: map[string]any{"release": "0-4-1"}}
+		b := &item.Item{Extra: map[string]any{"release": "0-4-1"}}
 		if err := applyExtraOps(b, nil, []string{"release"}); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -387,7 +387,7 @@ func TestApplyExtraOps(t *testing.T) {
 	})
 
 	t.Run("unset of absent key is a no-op", func(t *testing.T) {
-		b := &bean.Bean{}
+		b := &item.Item{}
 		if err := applyExtraOps(b, nil, []string{"nope"}); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -397,7 +397,7 @@ func TestApplyExtraOps(t *testing.T) {
 	})
 
 	t.Run("same key set and unset: unset wins", func(t *testing.T) {
-		b := &bean.Bean{}
+		b := &item.Item{}
 		if err := applyExtraOps(b, []string{"release=0-4-1"}, []string{"release"}); err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}

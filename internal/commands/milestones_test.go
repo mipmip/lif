@@ -11,9 +11,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/xRiErOS/lif/pkg/bean"
-	"github.com/xRiErOS/lif/pkg/beancore"
 	"github.com/xRiErOS/lif/pkg/config"
+	"github.com/xRiErOS/lif/pkg/item"
+	"github.com/xRiErOS/lif/pkg/itemcore"
 )
 
 // TestMilestonesListsEveryVisibleRank1Type verifies that collectMilestones
@@ -29,13 +29,13 @@ func TestMilestonesListsEveryVisibleRank1Type(t *testing.T) {
 	}}
 	defer func() { cfg = prev }()
 
-	beans := []*bean.Bean{
+	items := []*item.Item{
 		{ID: "r1", Type: "release", Status: "todo", Title: "v1"},
 		{ID: "b1", Type: "bucket", Status: "todo", Title: "Parking lot"},
 		{ID: "t1", Type: "task", Status: "todo", Title: "Work"},
 	}
 
-	got := collectMilestones(beans, false)
+	got := collectMilestones(items, false)
 
 	if len(got) != 1 {
 		t.Fatalf("got %d entries, want 1 — release counts, bucket and task do not", len(got))
@@ -50,13 +50,13 @@ func TestMilestonesListsEveryVisibleRank1Type(t *testing.T) {
 func setupMilestonesTest(t *testing.T) {
 	t.Helper()
 	tmpDir := t.TempDir()
-	beansDir := filepath.Join(tmpDir, ".beans")
-	if err := os.MkdirAll(beansDir, 0755); err != nil {
+	itemsDir := filepath.Join(tmpDir, ".beans")
+	if err := os.MkdirAll(itemsDir, 0755); err != nil {
 		t.Fatalf("failed to create test .beans dir: %v", err)
 	}
 
 	testCfg := config.Default()
-	testCore := beancore.New(beansDir, testCfg)
+	testCore := itemcore.New(itemsDir, testCfg)
 	if err := testCore.Load(); err != nil {
 		t.Fatalf("failed to load core: %v", err)
 	}
@@ -104,10 +104,10 @@ func runMilestonesInTestStore(t *testing.T, args []string) string {
 	setupMilestonesTest(t)
 	resetMilestonesFlags(t)
 
-	active := &bean.Bean{ID: "beans-mile1", Slug: bean.Slugify("Active milestone"), Title: "Active milestone", Status: "todo", Type: "milestone"}
-	task := &bean.Bean{ID: "beans-task1", Slug: bean.Slugify("Task"), Title: "Task", Status: "completed", Type: "task", Parent: "beans-mile1"}
-	archived := &bean.Bean{ID: "beans-mile2", Slug: bean.Slugify("an archived milestone"), Title: "an archived milestone", Status: "completed", Type: "milestone"}
-	for _, b := range []*bean.Bean{active, task, archived} {
+	active := &item.Item{ID: "beans-mile1", Slug: item.Slugify("Active milestone"), Title: "Active milestone", Status: "todo", Type: "milestone"}
+	task := &item.Item{ID: "beans-task1", Slug: item.Slugify("Task"), Title: "Task", Status: "completed", Type: "task", Parent: "beans-mile1"}
+	archived := &item.Item{ID: "beans-mile2", Slug: item.Slugify("an archived milestone"), Title: "an archived milestone", Status: "completed", Type: "milestone"}
+	for _, b := range []*item.Item{active, task, archived} {
 		if err := core.Create(b); err != nil {
 			t.Fatalf("core.Create(%s) error = %v", b.ID, err)
 		}
@@ -126,7 +126,7 @@ func runMilestonesInTestStore(t *testing.T, args []string) string {
 }
 
 // runMilestonesWithProgress seeds a single milestone with total direct-child
-// task beans, done of which are completed, and returns the default (table)
+// task items, done of which are completed, and returns the default (table)
 // rendering. It exists to prove the progress counter's column width is
 // measured from the actual data, not a hardcoded constant.
 func runMilestonesWithProgress(t *testing.T, done, total int) string {
@@ -134,7 +134,7 @@ func runMilestonesWithProgress(t *testing.T, done, total int) string {
 	setupMilestonesTest(t)
 	resetMilestonesFlags(t)
 
-	milestone := &bean.Bean{ID: "beans-milew", Slug: bean.Slugify("Wide milestone"), Title: "Wide milestone", Status: "todo", Type: "milestone"}
+	milestone := &item.Item{ID: "beans-milew", Slug: item.Slugify("Wide milestone"), Title: "Wide milestone", Status: "todo", Type: "milestone"}
 	if err := core.Create(milestone); err != nil {
 		t.Fatalf("core.Create(milestone) error = %v", err)
 	}
@@ -143,9 +143,9 @@ func runMilestonesWithProgress(t *testing.T, done, total int) string {
 		if i < done {
 			status = "completed"
 		}
-		task := &bean.Bean{
+		task := &item.Item{
 			ID:     fmt.Sprintf("beans-wt%d", i),
-			Slug:   bean.Slugify(fmt.Sprintf("wide task %d", i)),
+			Slug:   item.Slugify(fmt.Sprintf("wide task %d", i)),
 			Title:  fmt.Sprintf("wide task %d", i),
 			Status: status,
 			Type:   "task",
@@ -189,14 +189,14 @@ func captureMilestonesStdout(t *testing.T, fn func()) []byte {
 	return data
 }
 
-// TestMilestonesListsByType verifies that only Type == "milestone" beans
+// TestMilestonesListsByType verifies that only Type == "milestone" items
 // appear in the output, not epics/tasks/features.
 func TestMilestonesListsByType(t *testing.T) {
 	setupMilestonesTest(t)
 	resetMilestonesFlags(t)
 
-	milestone := &bean.Bean{ID: "beans-mile1", Slug: bean.Slugify("A milestone"), Title: "A milestone", Status: "todo", Type: "milestone"}
-	epic := &bean.Bean{ID: "beans-epic1", Slug: bean.Slugify("An epic"), Title: "An epic", Status: "todo", Type: "epic"}
+	milestone := &item.Item{ID: "beans-mile1", Slug: item.Slugify("A milestone"), Title: "A milestone", Status: "todo", Type: "milestone"}
+	epic := &item.Item{ID: "beans-epic1", Slug: item.Slugify("An epic"), Title: "An epic", Status: "todo", Type: "epic"}
 	if err := core.Create(milestone); err != nil {
 		t.Fatalf("core.Create(milestone) error = %v", err)
 	}
@@ -226,11 +226,11 @@ func TestMilestonesShowsProgress(t *testing.T) {
 	setupMilestonesTest(t)
 	resetMilestonesFlags(t)
 
-	milestone := &bean.Bean{ID: "beans-mile1", Slug: bean.Slugify("Milestone"), Title: "Milestone", Status: "todo", Type: "milestone"}
-	epic := &bean.Bean{ID: "beans-epic1", Slug: bean.Slugify("Epic"), Title: "Epic", Status: "todo", Type: "epic", Parent: "beans-mile1"}
-	doneTask := &bean.Bean{ID: "beans-task1", Slug: bean.Slugify("Done task"), Title: "Done task", Status: "completed", Type: "task", Parent: "beans-epic1"}
-	todoTask := &bean.Bean{ID: "beans-task2", Slug: bean.Slugify("Todo task"), Title: "Todo task", Status: "todo", Type: "task", Parent: "beans-epic1"}
-	for _, b := range []*bean.Bean{milestone, epic, doneTask, todoTask} {
+	milestone := &item.Item{ID: "beans-mile1", Slug: item.Slugify("Milestone"), Title: "Milestone", Status: "todo", Type: "milestone"}
+	epic := &item.Item{ID: "beans-epic1", Slug: item.Slugify("Epic"), Title: "Epic", Status: "todo", Type: "epic", Parent: "beans-mile1"}
+	doneTask := &item.Item{ID: "beans-task1", Slug: item.Slugify("Done task"), Title: "Done task", Status: "completed", Type: "task", Parent: "beans-epic1"}
+	todoTask := &item.Item{ID: "beans-task2", Slug: item.Slugify("Todo task"), Title: "Todo task", Status: "todo", Type: "task", Parent: "beans-epic1"}
+	for _, b := range []*item.Item{milestone, epic, doneTask, todoTask} {
 		if err := core.Create(b); err != nil {
 			t.Fatalf("core.Create(%s) error = %v", b.ID, err)
 		}
@@ -255,10 +255,10 @@ func TestMilestonesExcludesCompletedScrappedByDefault(t *testing.T) {
 	setupMilestonesTest(t)
 	resetMilestonesFlags(t)
 
-	active := &bean.Bean{ID: "beans-mile1", Slug: bean.Slugify("Active milestone"), Title: "Active milestone", Status: "todo", Type: "milestone"}
-	done := &bean.Bean{ID: "beans-mile2", Slug: bean.Slugify("Done milestone"), Title: "Done milestone", Status: "completed", Type: "milestone"}
-	scrapped := &bean.Bean{ID: "beans-mile3", Slug: bean.Slugify("Scrapped milestone"), Title: "Scrapped milestone", Status: "scrapped", Type: "milestone"}
-	for _, b := range []*bean.Bean{active, done, scrapped} {
+	active := &item.Item{ID: "beans-mile1", Slug: item.Slugify("Active milestone"), Title: "Active milestone", Status: "todo", Type: "milestone"}
+	done := &item.Item{ID: "beans-mile2", Slug: item.Slugify("Done milestone"), Title: "Done milestone", Status: "completed", Type: "milestone"}
+	scrapped := &item.Item{ID: "beans-mile3", Slug: item.Slugify("Scrapped milestone"), Title: "Scrapped milestone", Status: "scrapped", Type: "milestone"}
+	for _, b := range []*item.Item{active, done, scrapped} {
 		if err := core.Create(b); err != nil {
 			t.Fatalf("core.Create(%s) error = %v", b.ID, err)
 		}
@@ -289,10 +289,10 @@ func TestMilestonesAllFlagIncludesThem(t *testing.T) {
 	resetMilestonesFlags(t)
 	milestonesAll = true
 
-	active := &bean.Bean{ID: "beans-mile1", Slug: bean.Slugify("Active milestone"), Title: "Active milestone", Status: "todo", Type: "milestone"}
-	done := &bean.Bean{ID: "beans-mile2", Slug: bean.Slugify("Done milestone"), Title: "Done milestone", Status: "completed", Type: "milestone"}
-	scrapped := &bean.Bean{ID: "beans-mile3", Slug: bean.Slugify("Scrapped milestone"), Title: "Scrapped milestone", Status: "scrapped", Type: "milestone"}
-	for _, b := range []*bean.Bean{active, done, scrapped} {
+	active := &item.Item{ID: "beans-mile1", Slug: item.Slugify("Active milestone"), Title: "Active milestone", Status: "todo", Type: "milestone"}
+	done := &item.Item{ID: "beans-mile2", Slug: item.Slugify("Done milestone"), Title: "Done milestone", Status: "completed", Type: "milestone"}
+	scrapped := &item.Item{ID: "beans-mile3", Slug: item.Slugify("Scrapped milestone"), Title: "Scrapped milestone", Status: "scrapped", Type: "milestone"}
+	for _, b := range []*item.Item{active, done, scrapped} {
 		if err := core.Create(b); err != nil {
 			t.Fatalf("core.Create(%s) error = %v", b.ID, err)
 		}
@@ -324,11 +324,11 @@ func TestMilestonesProgressExcludesHiddenSubtree(t *testing.T) {
 	hidden := false
 	cfg.Types = append(cfg.Types, config.TypeOverride{Name: "silo", Rank: &hiddenRank, Roadmap: &hidden})
 
-	milestone := &bean.Bean{ID: "beans-mile1", Slug: bean.Slugify("Milestone"), Title: "Milestone", Status: "todo", Type: "milestone"}
-	silo := &bean.Bean{ID: "beans-silo1", Slug: bean.Slugify("Silo"), Title: "Silo", Status: "todo", Type: "silo", Parent: "beans-mile1"}
-	hiddenTask := &bean.Bean{ID: "beans-task1", Slug: bean.Slugify("Hidden task"), Title: "Hidden task", Status: "completed", Type: "task", Parent: "beans-silo1"}
-	visibleTask := &bean.Bean{ID: "beans-task2", Slug: bean.Slugify("Visible task"), Title: "Visible task", Status: "todo", Type: "task", Parent: "beans-mile1"}
-	for _, b := range []*bean.Bean{milestone, silo, hiddenTask, visibleTask} {
+	milestone := &item.Item{ID: "beans-mile1", Slug: item.Slugify("Milestone"), Title: "Milestone", Status: "todo", Type: "milestone"}
+	silo := &item.Item{ID: "beans-silo1", Slug: item.Slugify("Silo"), Title: "Silo", Status: "todo", Type: "silo", Parent: "beans-mile1"}
+	hiddenTask := &item.Item{ID: "beans-task1", Slug: item.Slugify("Hidden task"), Title: "Hidden task", Status: "completed", Type: "task", Parent: "beans-silo1"}
+	visibleTask := &item.Item{ID: "beans-task2", Slug: item.Slugify("Visible task"), Title: "Visible task", Status: "todo", Type: "task", Parent: "beans-mile1"}
+	for _, b := range []*item.Item{milestone, silo, hiddenTask, visibleTask} {
 		if err := core.Create(b); err != nil {
 			t.Fatalf("core.Create(%s) error = %v", b.ID, err)
 		}
@@ -341,7 +341,7 @@ func TestMilestonesProgressExcludesHiddenSubtree(t *testing.T) {
 	})
 
 	var entries []struct {
-		Bean      *bean.Bean `json:"bean"`
+		Item      *item.Item `json:"bean"`
 		Completed int        `json:"completed"`
 		Total     int        `json:"total"`
 	}
@@ -359,15 +359,15 @@ func TestMilestonesProgressExcludesHiddenSubtree(t *testing.T) {
 }
 
 // TestMilestonesJSONOutput verifies that --json emits a JSON array of
-// {bean, completed, total} entries, decodable via real stdout capture.
+// {item, completed, total} entries, decodable via real stdout capture.
 func TestMilestonesJSONOutput(t *testing.T) {
 	setupMilestonesTest(t)
 	resetMilestonesFlags(t)
 	milestonesJSON = true
 
-	milestone := &bean.Bean{ID: "beans-mile1", Slug: bean.Slugify("Milestone"), Title: "Milestone", Status: "todo", Type: "milestone"}
-	task := &bean.Bean{ID: "beans-task1", Slug: bean.Slugify("Task"), Title: "Task", Status: "completed", Type: "task", Parent: "beans-mile1"}
-	for _, b := range []*bean.Bean{milestone, task} {
+	milestone := &item.Item{ID: "beans-mile1", Slug: item.Slugify("Milestone"), Title: "Milestone", Status: "todo", Type: "milestone"}
+	task := &item.Item{ID: "beans-task1", Slug: item.Slugify("Task"), Title: "Task", Status: "completed", Type: "task", Parent: "beans-mile1"}
+	for _, b := range []*item.Item{milestone, task} {
 		if err := core.Create(b); err != nil {
 			t.Fatalf("core.Create(%s) error = %v", b.ID, err)
 		}
@@ -380,7 +380,7 @@ func TestMilestonesJSONOutput(t *testing.T) {
 	})
 
 	var entries []struct {
-		Bean      *bean.Bean `json:"bean"`
+		Item      *item.Item `json:"bean"`
 		Completed int        `json:"completed"`
 		Total     int        `json:"total"`
 	}
@@ -390,8 +390,8 @@ func TestMilestonesJSONOutput(t *testing.T) {
 	if len(entries) != 1 {
 		t.Fatalf("expected 1 milestone entry, got %d: %s", len(entries), out)
 	}
-	if entries[0].Bean == nil || entries[0].Bean.ID != milestone.ID {
-		t.Errorf("expected bean %q in JSON entry, got %+v", milestone.ID, entries[0].Bean)
+	if entries[0].Item == nil || entries[0].Item.ID != milestone.ID {
+		t.Errorf("expected bean %q in JSON entry, got %+v", milestone.ID, entries[0].Item)
 	}
 	if entries[0].Completed != 1 || entries[0].Total != 1 {
 		t.Errorf("expected completed=1 total=1, got completed=%d total=%d", entries[0].Completed, entries[0].Total)

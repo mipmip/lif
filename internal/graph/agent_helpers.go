@@ -4,8 +4,8 @@ import (
 	"fmt"
 
 	"github.com/xRiErOS/lif/internal/agent"
-	"github.com/xRiErOS/lif/pkg/beangraph/model"
 	"github.com/xRiErOS/lif/pkg/forge"
+	"github.com/xRiErOS/lif/pkg/itemgraph/model"
 )
 
 // agentSessionToModel converts an agent.Session to the GraphQL model type.
@@ -152,7 +152,7 @@ func activeAgentsToModel(agents []agent.ActiveAgent) []*model.ActiveAgentStatus 
 			status = model.AgentSessionStatusError
 		}
 		result[i] = &model.ActiveAgentStatus{
-			BeanID: a.BeanID,
+			BeanID: a.ItemID,
 			Status: status,
 		}
 	}
@@ -414,8 +414,8 @@ func findAgentAction(id string) *agentActionDef {
 	return nil
 }
 
-// findWorktreePath looks up the worktree filesystem path for a bean.
-func (r *Resolver) findWorktreePath(beanID string) (string, error) {
+// findWorktreePath looks up the worktree filesystem path for an item.
+func (r *Resolver) findWorktreePath(itemID string) (string, error) {
 	if r.WorktreeMgr == nil {
 		return "", fmt.Errorf("worktree manager not available")
 	}
@@ -424,9 +424,9 @@ func (r *Resolver) findWorktreePath(beanID string) (string, error) {
 		return "", fmt.Errorf("list worktrees: %w", err)
 	}
 	for _, wt := range wts {
-		if wt.ID == beanID {
+		if wt.ID == itemID {
 			return wt.Path, nil
 		}
 	}
-	return "", fmt.Errorf("no worktree found for bean %s", beanID)
+	return "", fmt.Errorf("no worktree found for bean %s", itemID)
 }

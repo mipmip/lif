@@ -9,22 +9,22 @@ import (
 	"time"
 )
 
-func newStreamTestManager(beanID string) (*Manager, *Session, *runningProcess) {
+func newStreamTestManager(itemID string) (*Manager, *Session, *runningProcess) {
 	m := &Manager{
 		sessions:    make(map[string]*Session),
 		processes:   make(map[string]*runningProcess),
 		subscribers: make(map[string][]chan struct{}),
 	}
 	session := &Session{
-		ID:           beanID,
+		ID:           itemID,
 		AgentType:    "claude",
 		Status:       StatusRunning,
 		Messages:     []Message{{Role: RoleUser, Content: "hello"}},
 		streamingIdx: -1,
 	}
-	m.sessions[beanID] = session
+	m.sessions[itemID] = session
 	proc := &runningProcess{done: make(chan struct{})}
-	m.processes[beanID] = proc
+	m.processes[itemID] = proc
 	return m, session, proc
 }
 
@@ -89,7 +89,7 @@ func TestReadOutputCleanEndLeavesStatus(t *testing.T) {
 
 // TestReadOutputErrorDoesNotClobberSuccessor pins the guard spawnAndRun already
 // has: a torn-down predecessor stream must not write its failure onto whatever
-// session sits under the bean now. Stop-then-resend swaps the process while the
+// session sits under the item now. Stop-then-resend swaps the process while the
 // old readOutput is still draining; without the guard the freshly spawned,
 // healthy session flips to ERROR with a message from the dead one.
 func TestReadOutputErrorDoesNotClobberSuccessor(t *testing.T) {
@@ -117,7 +117,7 @@ func TestReadOutputErrorDoesNotClobberSuccessor(t *testing.T) {
 // TestReadOutputStreamErrorTerminatesChild covers the leak behind the error
 // status: readOutput returned on a scanner error while the child was still
 // writing, so spawnAndRun's cmd.Wait() blocked forever on a full pipe and
-// m.processes[beanID] was never cleaned up. readOutput has to signal the child
+// m.processes[itemID] was never cleaned up. readOutput has to signal the child
 // itself — signal(), not kill(), because proc.done is only closed after
 // readOutput returns.
 func TestReadOutputStreamErrorTerminatesChild(t *testing.T) {
@@ -215,7 +215,7 @@ func TestReadOutputErrorGuardIsAtomicAgainstRespawn(t *testing.T) {
 
 // TestSetErrorIfCurrentOnlyWritesForTheCurrentProcess pins the guard's
 // semantics as a contract of its own: the write happens for the process that
-// still owns the bean and for no other, and both the decision and the write
+// still owns the item and for no other, and both the decision and the write
 // belong to a single critical section.
 func TestSetErrorIfCurrentOnlyWritesForTheCurrentProcess(t *testing.T) {
 	t.Run("current process writes the error", func(t *testing.T) {

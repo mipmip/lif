@@ -7,7 +7,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// RenderMarkdown lays out a bean body for the terminal: headings, bullets,
+// RenderMarkdown lays out an item body for the terminal: headings, bullets,
 // fenced code, everything else as wrapped prose.
 //
 // It replaces glamour, whose padding leaks into the output as coloured spaces

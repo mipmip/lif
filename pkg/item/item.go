@@ -1,0 +1,485 @@
+package item
+
+import (
+	"bytes"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
+	"hash/fnv"
+	"io"
+	"regexp"
+	"sort"
+	"strings"
+	"time"
+
+	"github.com/adrg/frontmatter"
+	"gopkg.in/yaml.v3"
+)
+
+// tagPattern matches valid tags: lowercase letters, numbers, and hyphens.
+// Must start with a letter, can contain hyphens but not consecutively or at the end.
+var tagPattern = regexp.MustCompile(`^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$`)
+
+// ValidateTag checks if a tag is valid (lowercase, URL-safe, single word).
+func ValidateTag(tag string) error {
+	if tag == "" {
+		return fmt.Errorf("tag cannot be empty")
+	}
+	if !tagPattern.MatchString(tag) {
+		return fmt.Errorf("invalid tag %q: must be lowercase, start with a letter, and contain only letters, numbers, and hyphens", tag)
+	}
+	return nil
+}
+
+// NormalizeTag converts a tag to its canonical form (lowercase).
+func NormalizeTag(tag string) string {
+	return strings.ToLower(strings.TrimSpace(tag))
+}
+
+// HasTag returns true if the item has the specified tag.
+func (b *Item) HasTag(tag string) bool {
+	normalized := NormalizeTag(tag)
+	for _, t := range b.Tags {
+		if t == normalized {
+			return true
+		}
+	}
+	return false
+}
+
+// AddTag adds a tag to the item if it doesn't already exist.
+// Returns an error if the tag is invalid.
+func (b *Item) AddTag(tag string) error {
+	normalized := NormalizeTag(tag)
+	if err := ValidateTag(normalized); err != nil {
+		return err
+	}
+	if !b.HasTag(normalized) {
+		b.Tags = append(b.Tags, normalized)
+	}
+	return nil
+}
+
+// RemoveTag removes a tag from the item.
+func (b *Item) RemoveTag(tag string) {
+	normalized := NormalizeTag(tag)
+	result := make([]string, 0, len(b.Tags))
+	for _, t := range b.Tags {
+		if t != normalized {
+			result = append(result, t)
+		}
+	}
+	b.Tags = result
+}
+
+// HasParent returns true if the item has a parent.
+func (b *Item) HasParent() bool {
+	return b.Parent != ""
+}
+
+// IsBlocking returns true if this item is blocking the given item ID.
+func (b *Item) IsBlocking(id string) bool {
+	for _, target := range b.Blocking {
+		if target == id {
+			return true
+		}
+	}
+	return false
+}
+
+// AddBlocking adds an item ID to the blocking list if not already present.
+func (b *Item) AddBlocking(id string) {
+	if !b.IsBlocking(id) {
+		b.Blocking = append(b.Blocking, id)
+	}
+}
+
+// RemoveBlocking removes an item ID from the blocking list.
+func (b *Item) RemoveBlocking(id string) {
+	result := make([]string, 0, len(b.Blocking))
+	for _, target := range b.Blocking {
+		if target != id {
+			result = append(result, target)
+		}
+	}
+	b.Blocking = result
+}
+
+// IsBlockedBy returns true if this item is blocked by the given item ID.
+func (b *Item) IsBlockedBy(id string) bool {
+	for _, blocker := range b.BlockedBy {
+		if blocker == id {
+			return true
+		}
+	}
+	return false
+}
+
+// AddBlockedBy adds an item ID to the blocked-by list if not already present.
+func (b *Item) AddBlockedBy(id string) {
+	if !b.IsBlockedBy(id) {
+		b.BlockedBy = append(b.BlockedBy, id)
+	}
+}
+
+// RemoveBlockedBy removes an item ID from the blocked-by list.
+func (b *Item) RemoveBlockedBy(id string) {
+	result := make([]string, 0, len(b.BlockedBy))
+	for _, blocker := range b.BlockedBy {
+		if blocker != id {
+			result = append(result, blocker)
+		}
+	}
+	b.BlockedBy = result
+}
+
+// Item represents an issue stored as a markdown file with front matter.
+type Item struct {
+	// ID is the unique NanoID identifier (from filename).
+	ID string `yaml:"-" json:"id"`
+	// Slug is the optional human-readable part of the filename.
+	Slug string `yaml:"-" json:"slug,omitempty"`
+	// Path is the relative path from .beans/ root (e.g., "epic-auth/abc123-login.md").
+	Path string `yaml:"-" json:"path"`
+
+	// Front matter fields
+	Title     string     `yaml:"title" json:"title"`
+	Status    string     `yaml:"status" json:"status"`
+	Type      string     `yaml:"type,omitempty" json:"type,omitempty"`
+	Priority  string     `yaml:"priority,omitempty" json:"priority,omitempty"`
+	Tags      []string   `yaml:"tags,omitempty" json:"tags,omitempty"`
+	CreatedAt *time.Time `yaml:"created_at,omitempty" json:"created_at,omitempty"`
+	UpdatedAt *time.Time `yaml:"updated_at,omitempty" json:"updated_at,omitempty"`
+
+	// Order is a fractional index string for manual sorting.
+	Order string `yaml:"order,omitempty" json:"order,omitempty"`
+
+	// Body is the markdown content after the front matter.
+	Body string `yaml:"-" json:"body,omitempty"`
+
+	// Parent is the optional parent item ID (milestone, epic, or feature).
+	Parent string `yaml:"parent,omitempty" json:"parent,omitempty"`
+
+	// Blocking is a list of item IDs that this item is blocking.
+	Blocking []string `yaml:"blocking,omitempty" json:"blocking,omitempty"`
+
+	// BlockedBy is a list of item IDs that are blocking this item.
+	BlockedBy []string `yaml:"blocked_by,omitempty" json:"blocked_by,omitempty"`
+
+	// Extra holds front matter keys not covered by any typed field above.
+	Extra map[string]any `yaml:"-" json:"extra,omitempty"`
+
+	// contentETag is the hash of the bytes this item was parsed from, or of
+	// the bytes last written for it. It is the single source of the etag:
+	// see ETag. Unexported so neither YAML nor JSON ever carries it.
+	contentETag string
+}
+
+// frontMatter is the subset of Item that gets serialized to YAML front matter.
+type frontMatter struct {
+	Title     string     `yaml:"title"`
+	Status    string     `yaml:"status"`
+	Type      string     `yaml:"type,omitempty"`
+	Priority  string     `yaml:"priority,omitempty"`
+	Tags      []string   `yaml:"tags,omitempty"`
+	CreatedAt *time.Time `yaml:"created_at,omitempty"`
+	UpdatedAt *time.Time `yaml:"updated_at,omitempty"`
+	Order     string     `yaml:"order,omitempty"`
+	Parent    string     `yaml:"parent,omitempty"`
+	Blocking  []string   `yaml:"blocking,omitempty"`
+	BlockedBy []string   `yaml:"blocked_by,omitempty"`
+}
+
+// knownFrontMatterKeys are the YAML keys owned by a typed field on frontMatter.
+var knownFrontMatterKeys = map[string]bool{
+	"title":      true,
+	"status":     true,
+	"type":       true,
+	"priority":   true,
+	"tags":       true,
+	"created_at": true,
+	"updated_at": true,
+	"order":      true,
+	"parent":     true,
+	"blocking":   true,
+	"blocked_by": true,
+}
+
+// reservedKeyFlags maps a known front matter key to the native CLI flag that
+// writes it. Keys with no direct write flag (created_at, updated_at, order)
+// map to "" and get a generic "managed field" error instead of a flag name.
+var reservedKeyFlags = map[string]string{
+	"title":      "--title",
+	"status":     "--status",
+	"type":       "--type",
+	"priority":   "--priority",
+	"tags":       "--tag",
+	"created_at": "",
+	"updated_at": "",
+	"order":      "",
+	"parent":     "--parent",
+	"blocking":   "--blocking",
+	"blocked_by": "--blocked-by",
+}
+
+// ReservedKeyFlag reports whether key is a known front matter field and, if
+// so, the native CLI flag that writes it. A known key with no direct write
+// flag (e.g. "order") returns known=true and flag="" -- callers should fall
+// back to a "managed field" message rather than inventing a flag name.
+func ReservedKeyFlag(key string) (flag string, known bool) {
+	flag, known = reservedKeyFlags[key]
+	return flag, known
+}
+
+// normalizeYAMLValue converts the map[interface{}]interface{} produced by the
+// yaml.v2 decoder (used internally by the frontmatter library) into
+// map[string]any, recursively, so Extra stays JSON-marshalable.
+func normalizeYAMLValue(v any) any {
+	switch typed := v.(type) {
+	case map[interface{}]interface{}:
+		result := make(map[string]any, len(typed))
+		for k, val := range typed {
+			result[fmt.Sprintf("%v", k)] = normalizeYAMLValue(val)
+		}
+		return result
+	case []interface{}:
+		result := make([]interface{}, len(typed))
+		for i, val := range typed {
+			result[i] = normalizeYAMLValue(val)
+		}
+		return result
+	default:
+		return v
+	}
+}
+
+// Parse reads an item from a reader (markdown with YAML front matter).
+func Parse(r io.Reader) (*Item, error) {
+	data, err := io.ReadAll(r)
+	if err != nil {
+		return nil, fmt.Errorf("reading bean: %w", err)
+	}
+
+	var fm frontMatter
+	body, err := frontmatter.Parse(bytes.NewReader(data), &fm)
+	if err != nil {
+		return nil, fmt.Errorf("parsing front matter: %w", err)
+	}
+
+	raw := map[string]any{}
+	if _, err := frontmatter.Parse(bytes.NewReader(data), &raw); err != nil {
+		return nil, fmt.Errorf("parsing front matter: %w", err)
+	}
+	var extra map[string]any
+	for key, value := range raw {
+		if knownFrontMatterKeys[key] {
+			continue
+		}
+		if extra == nil {
+			extra = make(map[string]any, len(raw))
+		}
+		extra[key] = normalizeYAMLValue(value)
+	}
+
+	// Trim trailing newline from body (POSIX files end with newline, but it's not part of content)
+	bodyStr := strings.TrimSuffix(string(body), "\n")
+
+	return &Item{
+		Title:       fm.Title,
+		Status:      fm.Status,
+		Type:        fm.Type,
+		Priority:    fm.Priority,
+		Tags:        fm.Tags,
+		CreatedAt:   fm.CreatedAt,
+		UpdatedAt:   fm.UpdatedAt,
+		Order:       fm.Order,
+		Body:        bodyStr,
+		Parent:      fm.Parent,
+		Blocking:    fm.Blocking,
+		BlockedBy:   fm.BlockedBy,
+		Extra:       extra,
+		contentETag: ETagOf(data),
+	}, nil
+}
+
+// renderFrontMatter is used for YAML output with yaml.v3 (supports custom marshalers).
+type renderFrontMatter struct {
+	Title     string     `yaml:"title"`
+	Status    string     `yaml:"status"`
+	Type      string     `yaml:"type,omitempty"`
+	Priority  string     `yaml:"priority,omitempty"`
+	Tags      []string   `yaml:"tags,omitempty"`
+	CreatedAt *time.Time `yaml:"created_at,omitempty"`
+	UpdatedAt *time.Time `yaml:"updated_at,omitempty"`
+	Order     string     `yaml:"order,omitempty"`
+	Parent    string     `yaml:"parent,omitempty"`
+	Blocking  []string   `yaml:"blocking,omitempty"`
+	BlockedBy []string   `yaml:"blocked_by,omitempty"`
+}
+
+// Render serializes the item back to markdown with YAML front matter.
+func (b *Item) Render() ([]byte, error) {
+	fm := renderFrontMatter{
+		Title:     b.Title,
+		Status:    b.Status,
+		Type:      b.Type,
+		Priority:  b.Priority,
+		Tags:      b.Tags,
+		CreatedAt: b.CreatedAt,
+		UpdatedAt: b.UpdatedAt,
+		Order:     b.Order,
+		Parent:    b.Parent,
+		Blocking:  b.Blocking,
+		BlockedBy: b.BlockedBy,
+	}
+
+	var node yaml.Node
+	if err := node.Encode(&fm); err != nil {
+		return nil, fmt.Errorf("encoding front matter: %w", err)
+	}
+
+	if len(b.Extra) > 0 {
+		keys := make([]string, 0, len(b.Extra))
+		for k := range b.Extra {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			var keyNode, valueNode yaml.Node
+			if err := keyNode.Encode(k); err != nil {
+				return nil, fmt.Errorf("encoding extra key %q: %w", k, err)
+			}
+			if err := valueNode.Encode(b.Extra[k]); err != nil {
+				return nil, fmt.Errorf("encoding extra value for key %q: %w", k, err)
+			}
+			node.Content = append(node.Content, &keyNode, &valueNode)
+		}
+	}
+
+	fmBytes, err := yaml.Marshal(&node)
+	if err != nil {
+		return nil, fmt.Errorf("marshaling front matter: %w", err)
+	}
+
+	var buf bytes.Buffer
+	buf.WriteString("---\n")
+	if b.ID != "" {
+		buf.WriteString("# ")
+		buf.WriteString(b.ID)
+		buf.WriteString("\n")
+	}
+	buf.Write(fmBytes)
+	buf.WriteString("---\n")
+	if b.Body != "" {
+		// Only add newline separator if body doesn't already start with one
+		if !strings.HasPrefix(b.Body, "\n") {
+			buf.WriteString("\n")
+		}
+		buf.WriteString(b.Body)
+		// Ensure trailing newline if body doesn't end with one
+		if !strings.HasSuffix(b.Body, "\n") {
+			buf.WriteString("\n")
+		}
+	} else {
+		// Even without body, add trailing newline for POSIX compliance
+		buf.WriteString("\n")
+	}
+
+	return buf.Bytes(), nil
+}
+
+// ETag returns the item's etag for optimistic concurrency control: the FNV-1a
+// 64-bit hash of its serialized bytes, as a 16-character hex string.
+//
+// The bytes are the ones the item was parsed from, or the ones last written
+// for it -- never a fresh Render() of the in-memory struct, which diverges
+// from the file in two ways that made this token useless: a loader default
+// applied in memory (an absent priority becoming "normal") adds a key the
+// file never had, and any in-memory mutation before the write would report
+// the etag of the new state instead of the one being replaced.
+//
+// An item that has never touched a file -- freshly constructed in memory or in
+// a test -- has no such bytes; for it the render is the only definition
+// available and is used as the fallback.
+func (b *Item) ETag() string {
+	if b.contentETag != "" {
+		return b.contentETag
+	}
+	content, err := b.Render()
+	if err != nil {
+		// Return a sentinel value that will never match a real ETag,
+		// ensuring validation will fail rather than silently passing.
+		return "0000000000000000"
+	}
+	return ETagOf(content)
+}
+
+// ETagOf hashes raw content the way ETag does.
+func ETagOf(content []byte) string {
+	h := fnv.New64a()
+	h.Write(content)
+	return hex.EncodeToString(h.Sum(nil))
+}
+
+// MarshalJSON implements json.Marshaler to include computed etag field.
+func (b *Item) MarshalJSON() ([]byte, error) {
+	type ItemAlias Item // Avoid infinite recursion
+	return json.Marshal(&struct {
+		*ItemAlias
+		ETag string `json:"etag"`
+	}{
+		ItemAlias: (*ItemAlias)(b),
+		ETag:      b.ETag(),
+	})
+}
+
+// SetContentETag records the bytes now backing this item, so that ETag keeps
+// reporting the token the write path validates against. Callers that persist a
+// item MUST call this with the exact bytes they wrote.
+func (b *Item) SetContentETag(content []byte) {
+	b.contentETag = ETagOf(content)
+}
+
+// Clone returns an independent copy of the item, safe to hand to a reader
+// that outlives the lock the original is protected by. The struct copy
+// carries every scalar field including the unexported content etag; the
+// slices and the Extra map are rebuilt so a caller cannot write through
+// them into the original.
+//
+// Values nested inside Extra are copied by reference: front matter parses
+// into scalars, slices and maps, and a caller that reaches into a nested
+// container still shares it with the original. Callers that mutate Extra
+// replace whole keys, which the rebuilt map already isolates.
+func (b *Item) Clone() *Item {
+	if b == nil {
+		return nil
+	}
+
+	clone := *b
+
+	if b.Tags != nil {
+		clone.Tags = append([]string(nil), b.Tags...)
+	}
+	if b.Blocking != nil {
+		clone.Blocking = append([]string(nil), b.Blocking...)
+	}
+	if b.BlockedBy != nil {
+		clone.BlockedBy = append([]string(nil), b.BlockedBy...)
+	}
+	if b.Extra != nil {
+		clone.Extra = make(map[string]any, len(b.Extra))
+		for k, v := range b.Extra {
+			clone.Extra[k] = v
+		}
+	}
+	if b.CreatedAt != nil {
+		createdAt := *b.CreatedAt
+		clone.CreatedAt = &createdAt
+	}
+	if b.UpdatedAt != nil {
+		updatedAt := *b.UpdatedAt
+		clone.UpdatedAt = &updatedAt
+	}
+
+	return &clone
+}

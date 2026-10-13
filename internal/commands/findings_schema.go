@@ -6,7 +6,7 @@ import _ "embed"
 // findings-artifact shape (`{ "findings": [ <record>, ... ] }`) and the
 // finding-record shape shared by every reviewer and consumer:
 //
-//   - `beans promote` (WP2, internal/commands/promote.go) loads this document
+//   - `lif promote` (WP2, internal/commands/promote.go) loads this document
 //     and validates each selected record against it before writing anything.
 //   - `skill:review-spec` / `specs-reviewer` (WP3) write records that conform
 //     to it.

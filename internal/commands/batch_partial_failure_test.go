@@ -11,8 +11,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// denyWrite makes the on-disk file for a bean unwritable (0o444) so that the
-// next write against it (pkg/beancore/core.go:952, saveToDisk's
+// denyWrite makes the on-disk file for an item unwritable (0o444) so that the
+// next write against it (pkg/itemcore/core.go:952, saveToDisk's
 // os.WriteFile) fails with a permission error. That failure is the only way
 // to reach emitBatchFailure's partial-failure branch (batch.go:94-116): the
 // preflight rules out unknown IDs, repeated IDs and policy violations before
@@ -80,7 +80,7 @@ func TestTagBatchPartialFailure(t *testing.T) {
 	t.Run("json/second target fails, first already written", func(t *testing.T) {
 		first := setupTagTest(t)
 		resetTagFlags(t)
-		second := mkTagBean(t, "beans-tgt2", "Second bean", nil)
+		second := mkTagItem(t, "beans-tgt2", "Second bean", nil)
 		denyWrite(t, filepath.Join(core.Root(), second.Path))
 
 		tagAdd = []string{"seamtest"}
@@ -102,11 +102,11 @@ func TestTagBatchPartialFailure(t *testing.T) {
 		if success, _ := doc["success"].(bool); success {
 			t.Errorf("success = %v, want false", doc["success"])
 		}
-		beans, ok := doc["beans"].([]any)
-		if !ok || len(beans) != 1 {
+		items, ok := doc["beans"].([]any)
+		if !ok || len(items) != 1 {
 			t.Fatalf("beans = %v, want a one-element array naming %s", doc["beans"], first.ID)
 		}
-		gotID, _ := beans[0].(map[string]any)["id"].(string)
+		gotID, _ := items[0].(map[string]any)["id"].(string)
 		if gotID != first.ID {
 			t.Errorf("beans[0].id = %q, want %q (the target written before the failure)", gotID, first.ID)
 		}
@@ -125,7 +125,7 @@ func TestTagBatchPartialFailure(t *testing.T) {
 	t.Run("json/first target fails, nothing written yet", func(t *testing.T) {
 		first := setupTagTest(t)
 		resetTagFlags(t)
-		second := mkTagBean(t, "beans-tgt3", "Second bean", nil)
+		second := mkTagItem(t, "beans-tgt3", "Second bean", nil)
 		denyWrite(t, filepath.Join(core.Root(), first.Path))
 
 		tagAdd = []string{"seamtest"}
@@ -147,7 +147,7 @@ func TestTagBatchPartialFailure(t *testing.T) {
 		if success, _ := doc["success"].(bool); success {
 			t.Errorf("success = %v, want false", doc["success"])
 		}
-		// output.Response tags Beans and Count with `omitempty` (output.go:26-27):
+		// output.Response tags Items and Count with `omitempty` (output.go:26-27):
 		// an empty slice and a zero int both drop their key entirely, so "nothing
 		// written yet" is observable as key absence, not as an empty array or 0.
 		if v, ok := doc["beans"]; ok {
@@ -167,7 +167,7 @@ func TestTagBatchPartialFailure(t *testing.T) {
 	t.Run("plain/second target fails, first already written", func(t *testing.T) {
 		first := setupTagTest(t)
 		resetTagFlags(t)
-		second := mkTagBean(t, "beans-tgt5", "Second bean", nil)
+		second := mkTagItem(t, "beans-tgt5", "Second bean", nil)
 		denyWrite(t, filepath.Join(core.Root(), second.Path))
 
 		tagAdd = []string{"seamtest"}
@@ -193,7 +193,7 @@ func TestTagBatchPartialFailure(t *testing.T) {
 // runRootInDir mirrors runRootWithArgs (error_shape_test.go) for a scenario
 // that needs the same on-disk store across more than one command: a setup
 // step writes state through the package's core/cfg globals (setupTagTest,
-// mkTagBean), then the command under test is reached through the real
+// mkTagItem), then the command under test is reached through the real
 // ExecuteC + reportExecutionError path so its stderr is observable.
 // Duplicated here rather than folded into runRootWithArgs itself, because a
 // parallel container (beans-iw5j) writes promote.go/promote_test.go/
@@ -204,7 +204,7 @@ func TestTagBatchPartialFailure(t *testing.T) {
 // PartialFailure through it) writes straight to os.Stdout rather than
 // through the command's own out stream, the same reason tag_test.go's
 // captureTagStdout exists instead of reading cmd.OutOrStdout().
-func runRootInDir(t *testing.T, beansDir string, args ...string) (stdout, stderr string, err error) {
+func runRootInDir(t *testing.T, itemsDir string, args ...string) (stdout, stderr string, err error) {
 	t.Helper()
 
 	root := sharedTestRoot(t)
@@ -212,7 +212,7 @@ func runRootInDir(t *testing.T, beansDir string, args ...string) (stdout, stderr
 
 	var errBuf bytes.Buffer
 	root.SetErr(&errBuf)
-	root.SetArgs(append([]string{"--beans-path", beansDir}, args...))
+	root.SetArgs(append([]string{"--beans-path", itemsDir}, args...))
 
 	out := captureTagStdout(t, func() {
 		var cmd *cobra.Command
@@ -243,11 +243,11 @@ func runRootInDir(t *testing.T, beansDir string, args ...string) (stdout, stderr
 func TestTagBatchPartialFailureJSONSuppressesStderr(t *testing.T) {
 	first := setupTagTest(t)
 	resetTagFlags(t)
-	beansDir := core.Root()
-	second := mkTagBean(t, "beans-tgt9", "Second bean", nil)
-	denyWrite(t, filepath.Join(beansDir, second.Path))
+	itemsDir := core.Root()
+	second := mkTagItem(t, "beans-tgt9", "Second bean", nil)
+	denyWrite(t, filepath.Join(itemsDir, second.Path))
 
-	stdout, stderr, _ := runRootInDir(t, beansDir, "tag", "--json", "--tag", "seamtest", first.ID, second.ID)
+	stdout, stderr, _ := runRootInDir(t, itemsDir, "tag", "--json", "--tag", "seamtest", first.ID, second.ID)
 
 	if stderr != "" {
 		t.Errorf("stderr = %q, want empty — the json document on stdout already reported the failure", stderr)
@@ -260,11 +260,11 @@ func TestTagBatchPartialFailureJSONSuppressesStderr(t *testing.T) {
 	if success, _ := doc["success"].(bool); success {
 		t.Errorf("success = %v, want false", success)
 	}
-	beans, ok := doc["beans"].([]any)
-	if !ok || len(beans) != 1 {
+	items, ok := doc["beans"].([]any)
+	if !ok || len(items) != 1 {
 		t.Fatalf("beans = %v, want a one-element array naming %s", doc["beans"], first.ID)
 	}
-	gotID, _ := beans[0].(map[string]any)["id"].(string)
+	gotID, _ := items[0].(map[string]any)["id"].(string)
 	if gotID != first.ID {
 		t.Errorf("beans[0].id = %q, want %q (the target written before the failure)", gotID, first.ID)
 	}
@@ -280,11 +280,11 @@ func TestTagBatchPartialFailureJSONSuppressesStderr(t *testing.T) {
 func TestTagBatchPartialFailurePlainKeepsStderr(t *testing.T) {
 	first := setupTagTest(t)
 	resetTagFlags(t)
-	beansDir := core.Root()
-	second := mkTagBean(t, "beans-tgt11", "Second bean", nil)
-	denyWrite(t, filepath.Join(beansDir, second.Path))
+	itemsDir := core.Root()
+	second := mkTagItem(t, "beans-tgt11", "Second bean", nil)
+	denyWrite(t, filepath.Join(itemsDir, second.Path))
 
-	stdout, stderr, err := runRootInDir(t, beansDir, "tag", "--tag", "seamtest", first.ID, second.ID)
+	stdout, stderr, err := runRootInDir(t, itemsDir, "tag", "--tag", "seamtest", first.ID, second.ID)
 
 	if err == nil {
 		t.Fatal("root.ExecuteC() error = nil, want the second write's permission failure")

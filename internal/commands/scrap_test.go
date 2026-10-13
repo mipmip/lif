@@ -8,24 +8,24 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/xRiErOS/lif/pkg/bean"
-	"github.com/xRiErOS/lif/pkg/beancore"
 	"github.com/xRiErOS/lif/pkg/config"
+	"github.com/xRiErOS/lif/pkg/item"
+	"github.com/xRiErOS/lif/pkg/itemcore"
 )
 
 // setupScrapTest installs a throwaway core and default config into the
-// package globals scrapCmd.RunE reads, and returns a bean already persisted
+// package globals scrapCmd.RunE reads, and returns an item already persisted
 // in that core.
-func setupScrapTest(t *testing.T) *bean.Bean {
+func setupScrapTest(t *testing.T) *item.Item {
 	t.Helper()
 	tmpDir := t.TempDir()
-	beansDir := filepath.Join(tmpDir, ".beans")
-	if err := os.MkdirAll(beansDir, 0755); err != nil {
+	itemsDir := filepath.Join(tmpDir, ".beans")
+	if err := os.MkdirAll(itemsDir, 0755); err != nil {
 		t.Fatalf("failed to create test .beans dir: %v", err)
 	}
 
 	testCfg := config.Default()
-	testCore := beancore.New(beansDir, testCfg)
+	testCore := itemcore.New(itemsDir, testCfg)
 	if err := testCore.Load(); err != nil {
 		t.Fatalf("failed to load core: %v", err)
 	}
@@ -34,9 +34,9 @@ func setupScrapTest(t *testing.T) *bean.Bean {
 	core, cfg = testCore, testCfg
 	t.Cleanup(func() { core, cfg = oldCore, oldCfg })
 
-	b := &bean.Bean{
+	b := &item.Item{
 		ID:     "beans-test1",
-		Slug:   bean.Slugify("A test bean"),
+		Slug:   item.Slugify("A test bean"),
 		Title:  "A test bean",
 		Status: "todo",
 		Type:   "task",
@@ -59,7 +59,7 @@ func resetScrapFlags(t *testing.T) {
 	})
 }
 
-// TestScrapRequiresMissingReason verifies that omitting --reason errors without mutating the bean.
+// TestScrapRequiresMissingReason verifies that omitting --reason errors without mutating the item.
 func TestScrapRequiresMissingReason(t *testing.T) {
 	b := setupScrapTest(t)
 	resetScrapFlags(t)
@@ -68,7 +68,7 @@ func TestScrapRequiresMissingReason(t *testing.T) {
 		t.Errorf("scrapCmd.RunE() expected error for missing reason, got nil")
 	}
 
-	// Verify bean was not mutated
+	// Verify item was not mutated
 	got, err := core.Get(b.ID)
 	if err != nil {
 		t.Fatalf("core.Get() error = %v", err)
@@ -78,7 +78,7 @@ func TestScrapRequiresMissingReason(t *testing.T) {
 	}
 }
 
-// TestScrapRequiresEmptyReason verifies that --reason "" errors without mutating the bean.
+// TestScrapRequiresEmptyReason verifies that --reason "" errors without mutating the item.
 func TestScrapRequiresEmptyReason(t *testing.T) {
 	b := setupScrapTest(t)
 	resetScrapFlags(t)
@@ -88,7 +88,7 @@ func TestScrapRequiresEmptyReason(t *testing.T) {
 		t.Errorf("scrapCmd.RunE() expected error for empty reason, got nil")
 	}
 
-	// Verify bean was not mutated
+	// Verify item was not mutated
 	got, err := core.Get(b.ID)
 	if err != nil {
 		t.Fatalf("core.Get() error = %v", err)
@@ -123,7 +123,7 @@ func TestScrapSetsStatusAndAppendsReason(t *testing.T) {
 	}
 }
 
-// TestScrapRejectsUnknownID verifies that unknown bean ID returns an error.
+// TestScrapRejectsUnknownID verifies that unknown item ID returns an error.
 func TestScrapRejectsUnknownID(t *testing.T) {
 	setupScrapTest(t)
 	resetScrapFlags(t)
@@ -134,8 +134,8 @@ func TestScrapRejectsUnknownID(t *testing.T) {
 	}
 }
 
-// TestScrapJSONOutput verifies D05/D12: --json returns the bare bean
-// document directly, with no {success,bean,message} envelope.
+// TestScrapJSONOutput verifies D05/D12: --json returns the bare item
+// document directly, with no {success,item,message} envelope.
 func TestScrapJSONOutput(t *testing.T) {
 	b := setupScrapTest(t)
 	resetScrapFlags(t)
@@ -162,7 +162,7 @@ func TestScrapJSONOutput(t *testing.T) {
 		t.Errorf("bare bean status = %q, want %q", got.Status, "scrapped")
 	}
 
-	// Also verify the bean was actually persisted with correct status
+	// Also verify the item was actually persisted with correct status
 	persisted, err := core.Get(b.ID)
 	if err != nil {
 		t.Fatalf("core.Get() error = %v", err)
@@ -194,12 +194,12 @@ func captureScrapStdout(t *testing.T, fn func()) []byte {
 	return data
 }
 
-// mkScrapBean adds another bean to the store set up by setupScrapTest.
-func mkScrapBean(t *testing.T, id, title string) *bean.Bean {
+// mkScrapItem adds another item to the store set up by setupScrapTest.
+func mkScrapItem(t *testing.T, id, title string) *item.Item {
 	t.Helper()
-	b := &bean.Bean{
+	b := &item.Item{
 		ID:     id,
-		Slug:   bean.Slugify(title),
+		Slug:   item.Slugify(title),
 		Title:  title,
 		Status: "todo",
 		Type:   "task",
@@ -211,11 +211,11 @@ func mkScrapBean(t *testing.T, id, title string) *bean.Bean {
 }
 
 // TestScrapTakesMultipleIDs verifies the batch signature scraps every named
-// bean and gives each the shared reason section.
+// item and gives each the shared reason section.
 func TestScrapTakesMultipleIDs(t *testing.T) {
 	first := setupScrapTest(t)
 	resetScrapFlags(t)
-	second := mkScrapBean(t, "beans-bts2", "Second bean")
+	second := mkScrapItem(t, "beans-bts2", "Second bean")
 
 	scrapReason = "Superseded by the new approach"
 	if err := scrapCmd.RunE(scrapCmd, []string{first.ID, second.ID}); err != nil {
@@ -241,7 +241,7 @@ func TestScrapTakesMultipleIDs(t *testing.T) {
 func TestScrapPreflightRejectsUnknownID(t *testing.T) {
 	first := setupScrapTest(t)
 	resetScrapFlags(t)
-	second := mkScrapBean(t, "beans-brs2", "Second bean")
+	second := mkScrapItem(t, "beans-brs2", "Second bean")
 
 	scrapReason = "Not going to happen"
 	if err := scrapCmd.RunE(scrapCmd, []string{first.ID, "beans-nope", second.ID}); err == nil {

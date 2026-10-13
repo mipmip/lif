@@ -7,10 +7,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/xRiErOS/lif/pkg/bean"
-	"github.com/xRiErOS/lif/pkg/beancore"
-	"github.com/xRiErOS/lif/pkg/config"
 	"github.com/spf13/cobra"
+	"github.com/xRiErOS/lif/pkg/config"
+	"github.com/xRiErOS/lif/pkg/item"
+	"github.com/xRiErOS/lif/pkg/itemcore"
 )
 
 // createCmdWithOrderFlag returns a throwaway *cobra.Command carrying only an
@@ -31,13 +31,13 @@ func createCmdWithOrderFlag() *cobra.Command {
 func setupCreateTest(t *testing.T) {
 	t.Helper()
 	tmpDir := t.TempDir()
-	beansDir := filepath.Join(tmpDir, ".beans")
-	if err := os.MkdirAll(beansDir, 0755); err != nil {
+	itemsDir := filepath.Join(tmpDir, ".beans")
+	if err := os.MkdirAll(itemsDir, 0755); err != nil {
 		t.Fatalf("failed to create test .beans dir: %v", err)
 	}
 
 	testCfg := config.Default()
-	testCore := beancore.New(beansDir, testCfg)
+	testCore := itemcore.New(itemsDir, testCfg)
 	if err := testCore.Load(); err != nil {
 		t.Fatalf("failed to load core: %v", err)
 	}
@@ -59,9 +59,9 @@ func resetCreateFlags(t *testing.T) {
 	})
 }
 
-// D05/D12: `create --json` returns the bare bean document directly, not a
-// {success,bean,message} envelope -- same shape as `show`/`update`/`tag`.
-func TestCreateCmdJSONReturnsBareBean(t *testing.T) {
+// D05/D12: `create --json` returns the bare item document directly, not a
+// {success,item,message} envelope -- same shape as `show`/`update`/`tag`.
+func TestCreateCmdJSONReturnsBareItem(t *testing.T) {
 	setupCreateTest(t)
 	resetCreateFlags(t)
 	createJSON = true
@@ -111,7 +111,7 @@ func captureCreateStdout(t *testing.T, fn func()) []byte {
 	return data
 }
 
-// AC1: --order writes the given value to the new bean's order field.
+// AC1: --order writes the given value to the new item's order field.
 func TestCreateCmdOrderWritesValue(t *testing.T) {
 	setupCreateTest(t)
 	resetCreateFlags(t)
@@ -135,7 +135,7 @@ func TestCreateCmdOrderWritesValue(t *testing.T) {
 	}
 }
 
-// AC2: without --order, the new bean's order field is left empty.
+// AC2: without --order, the new item's order field is left empty.
 func TestCreateCmdWithoutOrderLeavesEmpty(t *testing.T) {
 	setupCreateTest(t)
 	resetCreateFlags(t)
@@ -156,7 +156,7 @@ func TestCreateCmdWithoutOrderLeavesEmpty(t *testing.T) {
 }
 
 // AC3: an invalid fractional index passed via --order exits non-zero and
-// creates no bean.
+// creates no item.
 func TestCreateCmdOrderInvalidValueFails(t *testing.T) {
 	setupCreateTest(t)
 	resetCreateFlags(t)
@@ -178,7 +178,7 @@ func TestCreateCmdOrderInvalidValueFails(t *testing.T) {
 	}
 }
 
-// SC-01: five beans created with ascending explicit order values come back
+// SC-01: five items created with ascending explicit order values come back
 // from a sort-by-order in exactly that sequence.
 func TestCreateCmdOrderAscendingSortOrder(t *testing.T) {
 	setupCreateTest(t)
@@ -201,7 +201,7 @@ func TestCreateCmdOrderAscendingSortOrder(t *testing.T) {
 		t.Fatalf("expected %d beans, got %d", len(orders), len(list))
 	}
 
-	bean.SortByOrder(list)
+	item.SortByOrder(list)
 
 	for i, b := range list {
 		if b.Order != orders[i] {
@@ -236,7 +236,7 @@ func TestCreateCmdSetWritesExtraKeys(t *testing.T) {
 }
 
 // AC4/SC-01: --set on a reserved key fails naming the native flag, and no
-// bean is created.
+// item is created.
 func TestCreateCmdSetReservedKeyFails(t *testing.T) {
 	setupCreateTest(t)
 	resetCreateFlags(t)
@@ -296,19 +296,19 @@ func TestCreateCmdSetAndUnsetSameKey(t *testing.T) {
 
 // B01 regression: the second write that persists --set/--unset used to pass
 // ifMatch=nil to core.Update, which under require_if_match:true makes the
-// write fail outright -- leaving the bean created on disk WITHOUT the extra
+// write fail outright -- leaving the item created on disk WITHOUT the extra
 // keys the caller just asked for (a half-written state, not just an error).
-// Passing the bean's own freshly-computed etag instead satisfies
+// Passing the item's own freshly-computed etag instead satisfies
 // require_if_match and lets the write through.
 func TestCreateCmdSetSucceedsUnderRequireIfMatch(t *testing.T) {
 	tmpDir := t.TempDir()
-	beansDir := tmpDir + "/.beans"
-	if err := os.MkdirAll(beansDir, 0755); err != nil {
+	itemsDir := tmpDir + "/.beans"
+	if err := os.MkdirAll(itemsDir, 0755); err != nil {
 		t.Fatalf("failed to create test .beans dir: %v", err)
 	}
 	testCfg := config.Default()
-	testCfg.Beans.RequireIfMatch = true
-	testCore := beancore.New(beansDir, testCfg)
+	testCfg.Items.RequireIfMatch = true
+	testCore := itemcore.New(itemsDir, testCfg)
 	if err := testCore.Load(); err != nil {
 		t.Fatalf("failed to load core: %v", err)
 	}

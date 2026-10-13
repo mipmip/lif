@@ -62,7 +62,7 @@ func TestSendMessageFirstUserMessageCallback(t *testing.T) {
 		sessions:    make(map[string]*Session),
 		processes:   make(map[string]*runningProcess),
 		subscribers: make(map[string][]chan struct{}),
-		onFirstUserMessage: func(beanID string, message string) {
+		onFirstUserMessage: func(itemID string, message string) {
 			callbackCalled <- message
 		},
 	}
@@ -89,7 +89,7 @@ func TestSendMessageNoCallbackOnExistingSession(t *testing.T) {
 		sessions:    make(map[string]*Session),
 		processes:   make(map[string]*runningProcess),
 		subscribers: make(map[string][]chan struct{}),
-		onFirstUserMessage: func(beanID string, message string) {
+		onFirstUserMessage: func(itemID string, message string) {
 			callbackCalled = true
 		},
 	}
@@ -124,7 +124,7 @@ func TestSendMessageCallbackFiresWithInfoOnlySession(t *testing.T) {
 		sessions:    make(map[string]*Session),
 		processes:   make(map[string]*runningProcess),
 		subscribers: make(map[string][]chan struct{}),
-		onFirstUserMessage: func(beanID string, message string) {
+		onFirstUserMessage: func(itemID string, message string) {
 			callbackCalled <- message
 		},
 	}

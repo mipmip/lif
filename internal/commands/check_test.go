@@ -11,16 +11,16 @@ import (
 	"github.com/muesli/termenv"
 
 	"github.com/xRiErOS/lif/internal/ui"
-	"github.com/xRiErOS/lif/pkg/bean"
-	"github.com/xRiErOS/lif/pkg/beancore"
 	"github.com/xRiErOS/lif/pkg/config"
+	"github.com/xRiErOS/lif/pkg/item"
+	"github.com/xRiErOS/lif/pkg/itemcore"
 )
 
 // TestCheckHelperProcess is not a real test: it is the in-process side of
 // the subprocess trick runCheckInTestStore uses to exercise checkCmd safely.
 //
 // checkCmd.RunE ends with `if totalIssues > 0 { os.Exit(1) }`, and a config
-// or bean-content issue in the store under test can legitimately trigger
+// or item-content issue in the store under test can legitimately trigger
 // that exit. Calling checkCmd.RunE in-process would os.Exit the whole
 // `go test` binary -- taking every other test in this package down with
 // it. Running it as a subprocess keeps the os.Exit call harmless: only the
@@ -33,7 +33,7 @@ func TestCheckHelperProcess(t *testing.T) {
 	lipgloss.SetColorProfile(termenv.TrueColor)
 	ui.SetTheme(os.Getenv("BEANS_CHECK_THEME"))
 
-	beansDir := os.Getenv("BEANS_CHECK_DIR")
+	itemsDir := os.Getenv("BEANS_CHECK_DIR")
 	testCfg := config.Default()
 	// Lets a test put a USER override into the subprocess's config, which is
 	// the only way to exercise the merged-list colour validation across the
@@ -47,7 +47,7 @@ func TestCheckHelperProcess(t *testing.T) {
 	if th := os.Getenv("BEANS_CHECK_BAD_THEME"); th != "" {
 		testCfg.Display.Theme = th
 	}
-	testCore := beancore.New(beansDir, testCfg)
+	testCore := itemcore.New(itemsDir, testCfg)
 	if err := testCore.Load(); err != nil {
 		os.Stderr.WriteString("loading core: " + err.Error() + "\n")
 		os.Exit(2)
@@ -57,7 +57,7 @@ func TestCheckHelperProcess(t *testing.T) {
 	_ = checkCmd.RunE(checkCmd, nil) // may os.Exit(1); that's fine, we're a subprocess
 }
 
-// runCheckInTestStore runs `beans check` against a small empty store, with
+// runCheckInTestStore runs `lif check` against a small empty store, with
 // the theme currently active in the calling (parent) test process, in a
 // subprocess -- see TestCheckHelperProcess for why. It returns whatever the
 // subprocess wrote to stdout and stderr.
@@ -65,15 +65,15 @@ func runCheckInTestStore(t *testing.T) string {
 	t.Helper()
 
 	dir := t.TempDir()
-	beansDir := filepath.Join(dir, ".beans")
-	if err := os.MkdirAll(beansDir, 0755); err != nil {
+	itemsDir := filepath.Join(dir, ".beans")
+	if err := os.MkdirAll(itemsDir, 0755); err != nil {
 		t.Fatalf("creating test .beans dir: %v", err)
 	}
 
 	cmd := exec.Command(os.Args[0], "-test.run=^TestCheckHelperProcess$")
 	cmd.Env = append(os.Environ(),
 		"BEANS_CHECK_HELPER=1",
-		"BEANS_CHECK_DIR="+beansDir,
+		"BEANS_CHECK_DIR="+itemsDir,
 		"BEANS_CHECK_THEME="+ui.ActiveTheme().Name,
 		"BEANS_CHECK_BAD_STATUS_COLOR="+os.Getenv("BEANS_CHECK_BAD_STATUS_COLOR"),
 		"BEANS_CHECK_BAD_TYPE_COLOR="+os.Getenv("BEANS_CHECK_BAD_TYPE_COLOR"),
@@ -109,7 +109,7 @@ func TestCheckInheritsTheThemePalette(t *testing.T) {
 }
 
 // TestCheckStaysAReportNotATable guards the report shape: check prints tick
-// lines, not a bean listing with a TITLE column header.
+// lines, not an item listing with a TITLE column header.
 func TestCheckStaysAReportNotATable(t *testing.T) {
 	out := stripANSITest(runCheckInTestStore(t))
 	if strings.Contains(out, "TITLE") {
@@ -126,7 +126,7 @@ func TestCheckStaysAReportNotATable(t *testing.T) {
 // means "no explicit colour, fall back to the muted default" -- the same
 // thing it means to ui.ResolveColor and to a StatusOverride's merge. Before
 // this fix, check.go's colour-validation loops ran ui.IsValidColor("") and
-// got false, so `beans check` reported "invalid color ” for type 'task'"
+// got false, so `lif check` reported "invalid color ” for type 'task'"
 // and exited 1 on every repository, including a freshly created empty one.
 func TestCheckReportsNoConfigIssueForDefaultTables(t *testing.T) {
 	out := stripANSITest(runCheckInTestStore(t))
@@ -137,19 +137,19 @@ func TestCheckReportsNoConfigIssueForDefaultTables(t *testing.T) {
 		t.Errorf("expected a clean check for a fresh store, got:\n%s", out)
 	}
 }
-func TestUnknownTypeBeansFindsBeansTheConfigDoesNotCover(t *testing.T) {
+func TestUnknownTypeItemsFindsItemsTheConfigDoesNotCover(t *testing.T) {
 	prev := cfg
 	cfg = &config.Config{}
 	defer func() { cfg = prev }()
 
-	beans := []*bean.Bean{
+	items := []*item.Item{
 		{ID: "a1", Type: "task"},
 		{ID: "a2", Type: "chore"},
 		{ID: "a3", Type: "bug"},
 		{ID: "a4", Type: ""},
 	}
 
-	got := unknownTypeBeans(beans)
+	got := unknownTypeItems(items)
 
 	if len(got) != 1 {
 		t.Fatalf("got %d beans, want 1", len(got))
@@ -159,12 +159,12 @@ func TestUnknownTypeBeansFindsBeansTheConfigDoesNotCover(t *testing.T) {
 	}
 }
 
-func TestUnknownTypeBeansAcceptsAConfiguredType(t *testing.T) {
+func TestUnknownTypeItemsAcceptsAConfiguredType(t *testing.T) {
 	prev := cfg
 	cfg = &config.Config{Types: []config.TypeOverride{{Name: "chore"}}}
 	defer func() { cfg = prev }()
 
-	if got := unknownTypeBeans([]*bean.Bean{{ID: "a2", Type: "chore"}}); len(got) != 0 {
+	if got := unknownTypeItems([]*item.Item{{ID: "a2", Type: "chore"}}); len(got) != 0 {
 		t.Errorf("got %d beans, want 0 — chore is configured", len(got))
 	}
 }

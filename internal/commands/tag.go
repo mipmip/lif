@@ -5,9 +5,9 @@ import (
 
 	"github.com/xRiErOS/lif/internal/output"
 	"github.com/xRiErOS/lif/internal/ui"
-	"github.com/xRiErOS/lif/pkg/bean"
-	"github.com/xRiErOS/lif/pkg/beangraph"
-	"github.com/xRiErOS/lif/pkg/beangraph/model"
+	"github.com/xRiErOS/lif/pkg/item"
+	"github.com/xRiErOS/lif/pkg/itemgraph"
+	"github.com/xRiErOS/lif/pkg/itemgraph/model"
 	"github.com/spf13/cobra"
 )
 
@@ -28,7 +28,7 @@ resolved before the first bean is written.`,
 	Args: cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
-		resolver := &beangraph.CoreResolver{Core: core}
+		resolver := &itemgraph.CoreResolver{Core: core}
 
 		if len(tagAdd) == 0 && len(tagRemove) == 0 {
 			return cmdError(tagJSON, output.ErrValidation, "no tags given (use --tag or --remove-tag)")
@@ -47,9 +47,9 @@ resolved before the first bean is written.`,
 			RemoveTags: tagRemove,
 		}
 
-		done := make([]*bean.Bean, 0, len(targets))
+		done := make([]*item.Item, 0, len(targets))
 		for _, target := range targets {
-			b, err := resolver.UpdateBean(ctx, target.ID, input)
+			b, err := resolver.UpdateItem(ctx, target.ID, input)
 			if err != nil {
 				return emitBatchFailure(tagJSON, done, err)
 			}
@@ -58,7 +58,7 @@ resolved before the first bean is written.`,
 
 		return emitBatchSuccess(tagJSON, done,
 			output.SuccessSingle,
-			func(b *bean.Bean) string {
+			func(b *item.Item) string {
 				return ui.Success.Render("Tagged ") + ui.ID.Render(b.ID) + " " + b.Title
 			})
 	},

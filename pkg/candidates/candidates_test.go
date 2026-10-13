@@ -6,13 +6,13 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/xRiErOS/lif/pkg/bean"
-	"github.com/xRiErOS/lif/pkg/beancore"
-	"github.com/xRiErOS/lif/pkg/beangraph"
 	"github.com/xRiErOS/lif/pkg/config"
+	"github.com/xRiErOS/lif/pkg/item"
+	"github.com/xRiErOS/lif/pkg/itemcore"
+	"github.com/xRiErOS/lif/pkg/itemgraph"
 )
 
-// fixture builds a small bean tree:
+// fixture builds a small item tree:
 //
 //	beans-m1 "Milestone A" (milestone)                                tags: echo, delta
 //	beans-m2 "Milestone B" (milestone)                                tags: echo, delta
@@ -31,40 +31,40 @@ import (
 // pairwise-distinct counts, so the expected tag order [echo, delta,
 // bravo, alpha, charlie] can only be produced by a comparator that
 // actually orders by count; see the rationale on TestTagCandidates.
-func fixture(t *testing.T) (*beangraph.CoreResolver, *config.Config) {
+func fixture(t *testing.T) (*itemgraph.CoreResolver, *config.Config) {
 	t.Helper()
-	beansDir := filepath.Join(t.TempDir(), ".beans")
-	if err := os.MkdirAll(beansDir, 0755); err != nil {
+	itemsDir := filepath.Join(t.TempDir(), ".beans")
+	if err := os.MkdirAll(itemsDir, 0755); err != nil {
 		t.Fatalf("creating test .beans dir: %v", err)
 	}
 	cfg := config.Default()
-	core := beancore.New(beansDir, cfg)
+	core := itemcore.New(itemsDir, cfg)
 	if err := core.Load(); err != nil {
 		t.Fatalf("loading core: %v", err)
 	}
 
-	beans := []*bean.Bean{
-		{ID: "beans-m1", Slug: bean.Slugify("Milestone A"), Title: "Milestone A", Status: "todo", Type: "milestone", Tags: []string{"echo", "delta"}},
-		{ID: "beans-m2", Slug: bean.Slugify("Milestone B"), Title: "Milestone B", Status: "todo", Type: "milestone", Tags: []string{"echo", "delta"}},
-		{ID: "beans-e1", Slug: bean.Slugify("Epic A"), Title: "Epic A", Status: "todo", Type: "epic", Parent: "beans-m1", Tags: []string{"echo", "delta"}},
-		{ID: "beans-e2", Slug: bean.Slugify("Epic B"), Title: "Epic B", Status: "todo", Type: "epic", Tags: []string{"echo", "delta"}},
-		{ID: "beans-f1", Slug: bean.Slugify("Feature A"), Title: "Feature A", Status: "todo", Type: "feature", Parent: "beans-e1", Tags: []string{"alpha", "bravo", "echo"}},
-		{ID: "beans-f2", Slug: bean.Slugify("Feature B"), Title: "Feature B", Status: "todo", Type: "feature", Parent: "beans-e2", Tags: []string{"alpha"}},
-		{ID: "beans-t1", Slug: bean.Slugify("Task A"), Title: "Task A", Status: "todo", Type: "task", Parent: "beans-f1", Tags: []string{"bravo", "charlie"}},
-		{ID: "beans-m3", Slug: bean.Slugify("Milestone C"), Title: "Milestone C", Status: "todo", Type: "milestone", Parent: "beans-t1", Tags: []string{"bravo"}},
+	items := []*item.Item{
+		{ID: "beans-m1", Slug: item.Slugify("Milestone A"), Title: "Milestone A", Status: "todo", Type: "milestone", Tags: []string{"echo", "delta"}},
+		{ID: "beans-m2", Slug: item.Slugify("Milestone B"), Title: "Milestone B", Status: "todo", Type: "milestone", Tags: []string{"echo", "delta"}},
+		{ID: "beans-e1", Slug: item.Slugify("Epic A"), Title: "Epic A", Status: "todo", Type: "epic", Parent: "beans-m1", Tags: []string{"echo", "delta"}},
+		{ID: "beans-e2", Slug: item.Slugify("Epic B"), Title: "Epic B", Status: "todo", Type: "epic", Tags: []string{"echo", "delta"}},
+		{ID: "beans-f1", Slug: item.Slugify("Feature A"), Title: "Feature A", Status: "todo", Type: "feature", Parent: "beans-e1", Tags: []string{"alpha", "bravo", "echo"}},
+		{ID: "beans-f2", Slug: item.Slugify("Feature B"), Title: "Feature B", Status: "todo", Type: "feature", Parent: "beans-e2", Tags: []string{"alpha"}},
+		{ID: "beans-t1", Slug: item.Slugify("Task A"), Title: "Task A", Status: "todo", Type: "task", Parent: "beans-f1", Tags: []string{"bravo", "charlie"}},
+		{ID: "beans-m3", Slug: item.Slugify("Milestone C"), Title: "Milestone C", Status: "todo", Type: "milestone", Parent: "beans-t1", Tags: []string{"bravo"}},
 	}
-	for _, b := range beans {
+	for _, b := range items {
 		if err := core.Create(b); err != nil {
 			t.Fatalf("core.Create(%s): %v", b.ID, err)
 		}
 	}
 
-	return &beangraph.CoreResolver{Core: core}, cfg
+	return &itemgraph.CoreResolver{Core: core}, cfg
 }
 
-func ids(beans []*bean.Bean) []string {
-	out := make([]string, len(beans))
-	for i, b := range beans {
+func ids(items []*item.Item) []string {
+	out := make([]string, len(items))
+	for i, b := range items {
 		out[i] = b.ID
 	}
 	return out
@@ -84,11 +84,11 @@ func mustEqual(t *testing.T, got, want []string) {
 
 // TestParentCandidates_ExcludesDescendants pins ParentCandidates'
 // content, order and exclusions: only valid parent types, sorted by type
-// rank then title, excluding the edited bean's descendants.
+// rank then title, excluding the edited item's descendants.
 //
 // Self-exclusion is not independently observable here: under the strict
-// type-rank hierarchy a bean's own type is never a valid parent type for
-// itself, so the selected-bean skip never changes the result and cannot
+// type-rank hierarchy an item's own type is never a valid parent type for
+// itself, so the selected-item skip never changes the result and cannot
 // be pinned by a passing/failing assertion.
 func TestParentCandidates_ExcludesDescendants(t *testing.T) {
 	resolver, cfg := fixture(t)
@@ -193,7 +193,7 @@ func TestPriorityCandidates_ReflectsConfigOverride(t *testing.T) {
 }
 
 // TestTagCandidates pins TagCandidates' content and order: every tag in
-// use across all beans with an accurate usage count, sorted by count
+// use across all items with an accurate usage count, sorted by count
 // descending then tag ascending. The fixture gives five tags five
 // pairwise-distinct counts (echo=5, delta=4, bravo=3, alpha=2,
 // charlie=1), so the expected order [echo, delta, bravo, alpha,
@@ -235,36 +235,36 @@ func TestTagCandidates(t *testing.T) {
 	}
 }
 
-// TestParentCandidates_IntersectsValidTypesAcrossMultipleSelectedBeans
+// TestParentCandidates_IntersectsValidTypesAcrossMultipleSelectedItems
 // pins intersectStrings' role in a multi-select ParentCandidates call:
 // with beans-e1 (epic) and beans-f1 (feature) selected together, the
-// valid parent types must be the intersection of each bean's own valid
+// valid parent types must be the intersection of each item's own valid
 // parent types (epic -> {milestone}, feature -> {milestone, epic}),
-// leaving only milestone. Without the intersection, epic-typed beans
+// leaving only milestone. Without the intersection, epic-typed items
 // (e.g. beans-e2) would leak in as candidates too. Checked in both
 // argument orders since intersection is commutative.
-func TestParentCandidates_IntersectsValidTypesAcrossMultipleSelectedBeans(t *testing.T) {
+func TestParentCandidates_IntersectsValidTypesAcrossMultipleSelectedItems(t *testing.T) {
 	resolver, cfg := fixture(t)
 
-	for _, beanIDs := range [][]string{
+	for _, itemIDs := range [][]string{
 		{"beans-e1", "beans-f1"},
 		{"beans-f1", "beans-e1"},
 	} {
-		beanTypes := []string{"epic", "feature"}
-		if beanIDs[0] == "beans-f1" {
-			beanTypes = []string{"feature", "epic"}
+		itemTypes := []string{"epic", "feature"}
+		if itemIDs[0] == "beans-f1" {
+			itemTypes = []string{"feature", "epic"}
 		}
 
-		got, err := ParentCandidates(context.Background(), resolver, cfg, beanIDs, beanTypes)
+		got, err := ParentCandidates(context.Background(), resolver, cfg, itemIDs, itemTypes)
 		if err != nil {
-			t.Fatalf("ParentCandidates(%v, %v): %v", beanIDs, beanTypes, err)
+			t.Fatalf("ParentCandidates(%v, %v): %v", itemIDs, itemTypes, err)
 		}
 
 		mustEqual(t, ids(got), []string{"beans-m1", "beans-m2"})
 
 		for _, id := range ids(got) {
 			if id == "beans-e2" {
-				t.Fatalf("beanIDs=%v: expected beans-e2 (epic, outside the type intersection) to be excluded, got %v", beanIDs, ids(got))
+				t.Fatalf("beanIDs=%v: expected beans-e2 (epic, outside the type intersection) to be excluded, got %v", itemIDs, ids(got))
 			}
 		}
 	}

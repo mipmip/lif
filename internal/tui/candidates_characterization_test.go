@@ -5,13 +5,13 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/xRiErOS/lif/pkg/bean"
-	"github.com/xRiErOS/lif/pkg/beancore"
-	"github.com/xRiErOS/lif/pkg/beangraph"
 	"github.com/xRiErOS/lif/pkg/config"
+	"github.com/xRiErOS/lif/pkg/item"
+	"github.com/xRiErOS/lif/pkg/itemcore"
+	"github.com/xRiErOS/lif/pkg/itemgraph"
 )
 
-// candidateFixture builds a small bean tree used to characterise the six
+// candidateFixture builds a small item tree used to characterise the six
 // candidate producers before (and, unchanged, after) they move into a
 // shared package:
 //
@@ -32,54 +32,54 @@ import (
 // pairwise-distinct counts, so the expected tag order [echo, delta,
 // bravo, alpha, charlie] can only be produced by a comparator that
 // actually orders by count; see the rationale on TestCollectTagsWithCounts.
-func candidateFixture(t *testing.T) (*beangraph.CoreResolver, *config.Config) {
+func candidateFixture(t *testing.T) (*itemgraph.CoreResolver, *config.Config) {
 	t.Helper()
-	beansDir := filepath.Join(t.TempDir(), ".beans")
-	if err := os.MkdirAll(beansDir, 0755); err != nil {
+	itemsDir := filepath.Join(t.TempDir(), ".beans")
+	if err := os.MkdirAll(itemsDir, 0755); err != nil {
 		t.Fatalf("creating test .beans dir: %v", err)
 	}
 	cfg := config.Default()
-	core := beancore.New(beansDir, cfg)
+	core := itemcore.New(itemsDir, cfg)
 	if err := core.Load(); err != nil {
 		t.Fatalf("loading core: %v", err)
 	}
 
-	beans := []*bean.Bean{
-		{ID: "beans-m1", Slug: bean.Slugify("Milestone A"), Title: "Milestone A", Status: "todo", Type: "milestone", Tags: []string{"echo", "delta"}},
-		{ID: "beans-m2", Slug: bean.Slugify("Milestone B"), Title: "Milestone B", Status: "todo", Type: "milestone", Tags: []string{"echo", "delta"}},
-		{ID: "beans-e1", Slug: bean.Slugify("Epic A"), Title: "Epic A", Status: "todo", Type: "epic", Parent: "beans-m1", Tags: []string{"echo", "delta"}},
-		{ID: "beans-e2", Slug: bean.Slugify("Epic B"), Title: "Epic B", Status: "todo", Type: "epic", Tags: []string{"echo", "delta"}},
-		{ID: "beans-f1", Slug: bean.Slugify("Feature A"), Title: "Feature A", Status: "todo", Type: "feature", Parent: "beans-e1", Tags: []string{"alpha", "bravo", "echo"}},
-		{ID: "beans-f2", Slug: bean.Slugify("Feature B"), Title: "Feature B", Status: "todo", Type: "feature", Parent: "beans-e2", Tags: []string{"alpha"}},
-		{ID: "beans-t1", Slug: bean.Slugify("Task A"), Title: "Task A", Status: "todo", Type: "task", Parent: "beans-f1", Tags: []string{"bravo", "charlie"}},
-		{ID: "beans-m3", Slug: bean.Slugify("Milestone C"), Title: "Milestone C", Status: "todo", Type: "milestone", Parent: "beans-t1", Tags: []string{"bravo"}},
+	items := []*item.Item{
+		{ID: "beans-m1", Slug: item.Slugify("Milestone A"), Title: "Milestone A", Status: "todo", Type: "milestone", Tags: []string{"echo", "delta"}},
+		{ID: "beans-m2", Slug: item.Slugify("Milestone B"), Title: "Milestone B", Status: "todo", Type: "milestone", Tags: []string{"echo", "delta"}},
+		{ID: "beans-e1", Slug: item.Slugify("Epic A"), Title: "Epic A", Status: "todo", Type: "epic", Parent: "beans-m1", Tags: []string{"echo", "delta"}},
+		{ID: "beans-e2", Slug: item.Slugify("Epic B"), Title: "Epic B", Status: "todo", Type: "epic", Tags: []string{"echo", "delta"}},
+		{ID: "beans-f1", Slug: item.Slugify("Feature A"), Title: "Feature A", Status: "todo", Type: "feature", Parent: "beans-e1", Tags: []string{"alpha", "bravo", "echo"}},
+		{ID: "beans-f2", Slug: item.Slugify("Feature B"), Title: "Feature B", Status: "todo", Type: "feature", Parent: "beans-e2", Tags: []string{"alpha"}},
+		{ID: "beans-t1", Slug: item.Slugify("Task A"), Title: "Task A", Status: "todo", Type: "task", Parent: "beans-f1", Tags: []string{"bravo", "charlie"}},
+		{ID: "beans-m3", Slug: item.Slugify("Milestone C"), Title: "Milestone C", Status: "todo", Type: "milestone", Parent: "beans-t1", Tags: []string{"bravo"}},
 	}
-	for _, b := range beans {
+	for _, b := range items {
 		if err := core.Create(b); err != nil {
 			t.Fatalf("core.Create(%s): %v", b.ID, err)
 		}
 	}
 
-	return &beangraph.CoreResolver{Core: core}, cfg
+	return &itemgraph.CoreResolver{Core: core}, cfg
 }
 
-func parentPickerBeanIDs(t *testing.T, m parentPickerModel) []string {
+func parentPickerItemIDs(t *testing.T, m parentPickerModel) []string {
 	t.Helper()
 	var ids []string
 	for _, it := range m.list.Items() {
 		if pi, ok := it.(parentItem); ok {
-			ids = append(ids, pi.bean.ID)
+			ids = append(ids, pi.item.ID)
 		}
 	}
 	return ids
 }
 
-func blockingPickerBeanIDs(t *testing.T, m blockingPickerModel) []string {
+func blockingPickerItemIDs(t *testing.T, m blockingPickerModel) []string {
 	t.Helper()
 	var ids []string
 	for _, it := range m.list.Items() {
 		if bi, ok := it.(blockingItem); ok {
-			ids = append(ids, bi.bean.ID)
+			ids = append(ids, bi.item.ID)
 		}
 	}
 	return ids
@@ -100,16 +100,16 @@ func mustEqual(t *testing.T, got, want []string) {
 // TestParentPickerCandidates_ExcludesDescendants pins the parent
 // producer's content, order and exclusions: it must offer only valid
 // parent types, sorted by type rank then title, excluding the edited
-// bean's descendants. (Self-exclusion is not independently observable
-// here: under the strict type-rank hierarchy a bean's own type is never a
-// valid parent type for itself, so the selected-bean skip never changes
+// item's descendants. (Self-exclusion is not independently observable
+// here: under the strict type-rank hierarchy an item's own type is never a
+// valid parent type for itself, so the selected-item skip never changes
 // the result and cannot be pinned by a passing/failing assertion.)
 func TestParentPickerCandidates_ExcludesDescendants(t *testing.T) {
 	resolver, cfg := candidateFixture(t)
 
 	m := newParentPickerModel([]string{"beans-f1"}, "Feature A", []string{"feature"}, "", resolver, cfg, 100, 40)
 
-	got := parentPickerBeanIDs(t, m)
+	got := parentPickerItemIDs(t, m)
 	want := []string{"beans-m1", "beans-m2", "beans-e1", "beans-e2"}
 	mustEqual(t, got, want)
 
@@ -123,14 +123,14 @@ func TestParentPickerCandidates_ExcludesDescendants(t *testing.T) {
 }
 
 // TestBlockingPickerCandidates_ExcludesDescendants pins the blocking
-// producer's parity with the parent producer: it excludes both the bean
+// producer's parity with the parent producer: it excludes both the item
 // itself and its descendants.
 func TestBlockingPickerCandidates_ExcludesDescendants(t *testing.T) {
 	resolver, cfg := candidateFixture(t)
 
 	m := newBlockingPickerModel("beans-f1", "Feature A", nil, resolver, cfg, 100, 40)
 
-	got := blockingPickerBeanIDs(t, m)
+	got := blockingPickerItemIDs(t, m)
 	want := []string{"beans-m1", "beans-m2", "beans-e1", "beans-e2", "beans-f2"}
 	mustEqual(t, got, want)
 
@@ -219,7 +219,7 @@ func TestPriorityPickerCandidates(t *testing.T) {
 }
 
 // TestCollectTagsWithCounts pins the tag producer's content and order:
-// every tag in use across all beans, with an accurate usage count,
+// every tag in use across all items, with an accurate usage count,
 // rendered in the count-desc/tag-asc order the tag picker relies on
 // (internal/tui no longer sorts locally; the order comes straight from
 // pkg/candidates.TagCandidates). The fixture gives five tags five

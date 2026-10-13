@@ -7,21 +7,21 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/xRiErOS/lif/pkg/bean"
-	"github.com/xRiErOS/lif/pkg/beancore"
 	"github.com/xRiErOS/lif/pkg/config"
+	"github.com/xRiErOS/lif/pkg/item"
+	"github.com/xRiErOS/lif/pkg/itemcore"
 )
 
-func setupQueryTestCore(t *testing.T) (*beancore.Core, func()) {
+func setupQueryTestCore(t *testing.T) (*itemcore.Core, func()) {
 	t.Helper()
 	tmpDir := t.TempDir()
-	beansDir := filepath.Join(tmpDir, ".beans")
-	if err := os.MkdirAll(beansDir, 0755); err != nil {
+	itemsDir := filepath.Join(tmpDir, ".beans")
+	if err := os.MkdirAll(itemsDir, 0755); err != nil {
 		t.Fatalf("failed to create test .beans dir: %v", err)
 	}
 
 	cfg := config.Default()
-	testCore := beancore.New(beansDir, cfg)
+	testCore := itemcore.New(itemsDir, cfg)
 	if err := testCore.Load(); err != nil {
 		t.Fatalf("failed to load core: %v", err)
 	}
@@ -37,11 +37,11 @@ func setupQueryTestCore(t *testing.T) (*beancore.Core, func()) {
 	return testCore, cleanup
 }
 
-func createQueryTestBean(t *testing.T, c *beancore.Core, id, title, status string) *bean.Bean {
+func createQueryTestItem(t *testing.T, c *itemcore.Core, id, title, status string) *item.Item {
 	t.Helper()
-	b := &bean.Bean{
+	b := &item.Item{
 		ID:     id,
-		Slug:   bean.Slugify(title),
+		Slug:   item.Slugify(title),
 		Title:  title,
 		Status: status,
 	}
@@ -55,10 +55,10 @@ func TestExecuteQuery(t *testing.T) {
 	testCore, cleanup := setupQueryTestCore(t)
 	defer cleanup()
 
-	// Create test beans
-	createQueryTestBean(t, testCore, "test-1", "First Bean", "todo")
-	createQueryTestBean(t, testCore, "test-2", "Second Bean", "in-progress")
-	createQueryTestBean(t, testCore, "test-3", "Third Bean", "completed")
+	// Create test items
+	createQueryTestItem(t, testCore, "test-1", "First Bean", "todo")
+	createQueryTestItem(t, testCore, "test-2", "Second Bean", "in-progress")
+	createQueryTestItem(t, testCore, "test-3", "Third Bean", "completed")
 
 	t.Run("basic query all beans", func(t *testing.T) {
 		query := `{ beans { id title status } }`
@@ -68,7 +68,7 @@ func TestExecuteQuery(t *testing.T) {
 		}
 
 		var data struct {
-			Beans []struct {
+			Items []struct {
 				ID     string `json:"id"`
 				Title  string `json:"title"`
 				Status string `json:"status"`
@@ -79,8 +79,8 @@ func TestExecuteQuery(t *testing.T) {
 			t.Fatalf("failed to parse response: %v", err)
 		}
 
-		if len(data.Beans) != 3 {
-			t.Errorf("expected 3 beans, got %d", len(data.Beans))
+		if len(data.Items) != 3 {
+			t.Errorf("expected 3 beans, got %d", len(data.Items))
 		}
 	})
 
@@ -92,7 +92,7 @@ func TestExecuteQuery(t *testing.T) {
 		}
 
 		var data struct {
-			Bean struct {
+			Item struct {
 				ID    string `json:"id"`
 				Title string `json:"title"`
 			} `json:"bean"`
@@ -102,11 +102,11 @@ func TestExecuteQuery(t *testing.T) {
 			t.Fatalf("failed to parse response: %v", err)
 		}
 
-		if data.Bean.ID != "test-1" {
-			t.Errorf("expected id 'test-1', got %q", data.Bean.ID)
+		if data.Item.ID != "test-1" {
+			t.Errorf("expected id 'test-1', got %q", data.Item.ID)
 		}
-		if data.Bean.Title != "First Bean" {
-			t.Errorf("expected title 'First Bean', got %q", data.Bean.Title)
+		if data.Item.Title != "First Bean" {
+			t.Errorf("expected title 'First Bean', got %q", data.Item.Title)
 		}
 	})
 
@@ -118,7 +118,7 @@ func TestExecuteQuery(t *testing.T) {
 		}
 
 		var data struct {
-			Beans []struct {
+			Items []struct {
 				ID string `json:"id"`
 			} `json:"beans"`
 		}
@@ -127,11 +127,11 @@ func TestExecuteQuery(t *testing.T) {
 			t.Fatalf("failed to parse response: %v", err)
 		}
 
-		if len(data.Beans) != 1 {
-			t.Errorf("expected 1 bean with status 'todo', got %d", len(data.Beans))
+		if len(data.Items) != 1 {
+			t.Errorf("expected 1 bean with status 'todo', got %d", len(data.Items))
 		}
-		if len(data.Beans) > 0 && data.Beans[0].ID != "test-1" {
-			t.Errorf("expected bean id 'test-1', got %q", data.Beans[0].ID)
+		if len(data.Items) > 0 && data.Items[0].ID != "test-1" {
+			t.Errorf("expected bean id 'test-1', got %q", data.Items[0].ID)
 		}
 	})
 
@@ -146,7 +146,7 @@ func TestExecuteQuery(t *testing.T) {
 		}
 
 		var data struct {
-			Bean struct {
+			Item struct {
 				ID    string `json:"id"`
 				Title string `json:"title"`
 			} `json:"bean"`
@@ -156,8 +156,8 @@ func TestExecuteQuery(t *testing.T) {
 			t.Fatalf("failed to parse response: %v", err)
 		}
 
-		if data.Bean.ID != "test-2" {
-			t.Errorf("expected id 'test-2', got %q", data.Bean.ID)
+		if data.Item.ID != "test-2" {
+			t.Errorf("expected id 'test-2', got %q", data.Item.ID)
 		}
 	})
 
@@ -169,7 +169,7 @@ func TestExecuteQuery(t *testing.T) {
 		}
 
 		var data struct {
-			Bean *struct {
+			Item *struct {
 				ID string `json:"id"`
 			} `json:"bean"`
 		}
@@ -178,8 +178,8 @@ func TestExecuteQuery(t *testing.T) {
 			t.Fatalf("failed to parse response: %v", err)
 		}
 
-		if data.Bean != nil {
-			t.Errorf("expected null bean, got %+v", data.Bean)
+		if data.Item != nil {
+			t.Errorf("expected null bean, got %+v", data.Item)
 		}
 	})
 
@@ -199,8 +199,8 @@ func TestExecuteQueryWithRelationships(t *testing.T) {
 	testCore, cleanup := setupQueryTestCore(t)
 	defer cleanup()
 
-	// Create parent bean
-	parent := &bean.Bean{
+	// Create parent item
+	parent := &item.Item{
 		ID:     "parent-1",
 		Slug:   "parent-bean",
 		Title:  "Parent Bean",
@@ -210,8 +210,8 @@ func TestExecuteQueryWithRelationships(t *testing.T) {
 		t.Fatalf("failed to create parent bean: %v", err)
 	}
 
-	// Create child bean with parent link
-	child := &bean.Bean{
+	// Create child item with parent link
+	child := &item.Item{
 		ID:     "child-1",
 		Slug:   "child-bean",
 		Title:  "Child Bean",
@@ -222,8 +222,8 @@ func TestExecuteQueryWithRelationships(t *testing.T) {
 		t.Fatalf("failed to create child bean: %v", err)
 	}
 
-	// Create blocker bean
-	blocker := &bean.Bean{
+	// Create blocker item
+	blocker := &item.Item{
 		ID:     "blocker-1",
 		Slug:   "blocker-bean",
 		Title:  "Blocker Bean",
@@ -242,7 +242,7 @@ func TestExecuteQueryWithRelationships(t *testing.T) {
 		}
 
 		var data struct {
-			Bean struct {
+			Item struct {
 				ID     string `json:"id"`
 				Parent *struct {
 					ID    string `json:"id"`
@@ -255,11 +255,11 @@ func TestExecuteQueryWithRelationships(t *testing.T) {
 			t.Fatalf("failed to parse response: %v", err)
 		}
 
-		if data.Bean.Parent == nil {
+		if data.Item.Parent == nil {
 			t.Fatal("expected parent to be set")
 		}
-		if data.Bean.Parent.ID != "parent-1" {
-			t.Errorf("expected parent id 'parent-1', got %q", data.Bean.Parent.ID)
+		if data.Item.Parent.ID != "parent-1" {
+			t.Errorf("expected parent id 'parent-1', got %q", data.Item.Parent.ID)
 		}
 	})
 
@@ -271,7 +271,7 @@ func TestExecuteQueryWithRelationships(t *testing.T) {
 		}
 
 		var data struct {
-			Bean struct {
+			Item struct {
 				ID       string `json:"id"`
 				Children []struct {
 					ID    string `json:"id"`
@@ -284,11 +284,11 @@ func TestExecuteQueryWithRelationships(t *testing.T) {
 			t.Fatalf("failed to parse response: %v", err)
 		}
 
-		if len(data.Bean.Children) != 1 {
-			t.Errorf("expected 1 child, got %d", len(data.Bean.Children))
+		if len(data.Item.Children) != 1 {
+			t.Errorf("expected 1 child, got %d", len(data.Item.Children))
 		}
-		if len(data.Bean.Children) > 0 && data.Bean.Children[0].ID != "child-1" {
-			t.Errorf("expected child id 'child-1', got %q", data.Bean.Children[0].ID)
+		if len(data.Item.Children) > 0 && data.Item.Children[0].ID != "child-1" {
+			t.Errorf("expected child id 'child-1', got %q", data.Item.Children[0].ID)
 		}
 	})
 
@@ -300,7 +300,7 @@ func TestExecuteQueryWithRelationships(t *testing.T) {
 		}
 
 		var data struct {
-			Bean struct {
+			Item struct {
 				ID        string `json:"id"`
 				BlockedBy []struct {
 					ID    string `json:"id"`
@@ -313,11 +313,11 @@ func TestExecuteQueryWithRelationships(t *testing.T) {
 			t.Fatalf("failed to parse response: %v", err)
 		}
 
-		if len(data.Bean.BlockedBy) != 1 {
-			t.Errorf("expected 1 blocker, got %d", len(data.Bean.BlockedBy))
+		if len(data.Item.BlockedBy) != 1 {
+			t.Errorf("expected 1 blocker, got %d", len(data.Item.BlockedBy))
 		}
-		if len(data.Bean.BlockedBy) > 0 && data.Bean.BlockedBy[0].ID != "blocker-1" {
-			t.Errorf("expected blocker id 'blocker-1', got %q", data.Bean.BlockedBy[0].ID)
+		if len(data.Item.BlockedBy) > 0 && data.Item.BlockedBy[0].ID != "blocker-1" {
+			t.Errorf("expected blocker id 'blocker-1', got %q", data.Item.BlockedBy[0].ID)
 		}
 	})
 
@@ -329,7 +329,7 @@ func TestExecuteQueryWithRelationships(t *testing.T) {
 		}
 
 		var data struct {
-			Bean struct {
+			Item struct {
 				ID       string `json:"id"`
 				Blocking []struct {
 					ID    string `json:"id"`
@@ -342,11 +342,11 @@ func TestExecuteQueryWithRelationships(t *testing.T) {
 			t.Fatalf("failed to parse response: %v", err)
 		}
 
-		if len(data.Bean.Blocking) != 1 {
-			t.Errorf("expected 1 blocked bean, got %d", len(data.Bean.Blocking))
+		if len(data.Item.Blocking) != 1 {
+			t.Errorf("expected 1 blocked bean, got %d", len(data.Item.Blocking))
 		}
-		if len(data.Bean.Blocking) > 0 && data.Bean.Blocking[0].ID != "child-1" {
-			t.Errorf("expected blocked id 'child-1', got %q", data.Bean.Blocking[0].ID)
+		if len(data.Item.Blocking) > 0 && data.Item.Blocking[0].ID != "child-1" {
+			t.Errorf("expected blocked id 'child-1', got %q", data.Item.Blocking[0].ID)
 		}
 	})
 }
@@ -355,8 +355,8 @@ func TestExecuteQueryWithFilters(t *testing.T) {
 	testCore, cleanup := setupQueryTestCore(t)
 	defer cleanup()
 
-	// Create beans with different types and priorities
-	b1 := &bean.Bean{
+	// Create items with different types and priorities
+	b1 := &item.Item{
 		ID:       "bug-1",
 		Slug:     "bug-one",
 		Title:    "Bug One",
@@ -365,7 +365,7 @@ func TestExecuteQueryWithFilters(t *testing.T) {
 		Priority: "critical",
 		Tags:     []string{"frontend"},
 	}
-	b2 := &bean.Bean{
+	b2 := &item.Item{
 		ID:       "feat-1",
 		Slug:     "feature-one",
 		Title:    "Feature One",
@@ -374,7 +374,7 @@ func TestExecuteQueryWithFilters(t *testing.T) {
 		Priority: "high",
 		Tags:     []string{"backend"},
 	}
-	b3 := &bean.Bean{
+	b3 := &item.Item{
 		ID:       "task-1",
 		Slug:     "task-one",
 		Title:    "Task One",
@@ -396,7 +396,7 @@ func TestExecuteQueryWithFilters(t *testing.T) {
 		}
 
 		var data struct {
-			Beans []struct {
+			Items []struct {
 				ID   string `json:"id"`
 				Type string `json:"type"`
 			} `json:"beans"`
@@ -406,8 +406,8 @@ func TestExecuteQueryWithFilters(t *testing.T) {
 			t.Fatalf("failed to parse response: %v", err)
 		}
 
-		if len(data.Beans) != 1 {
-			t.Errorf("expected 1 bean with type 'bug', got %d", len(data.Beans))
+		if len(data.Items) != 1 {
+			t.Errorf("expected 1 bean with type 'bug', got %d", len(data.Items))
 		}
 	})
 
@@ -419,7 +419,7 @@ func TestExecuteQueryWithFilters(t *testing.T) {
 		}
 
 		var data struct {
-			Beans []struct {
+			Items []struct {
 				ID       string `json:"id"`
 				Priority string `json:"priority"`
 			} `json:"beans"`
@@ -429,8 +429,8 @@ func TestExecuteQueryWithFilters(t *testing.T) {
 			t.Fatalf("failed to parse response: %v", err)
 		}
 
-		if len(data.Beans) != 2 {
-			t.Errorf("expected 2 beans with priority 'critical' or 'high', got %d", len(data.Beans))
+		if len(data.Items) != 2 {
+			t.Errorf("expected 2 beans with priority 'critical' or 'high', got %d", len(data.Items))
 		}
 	})
 
@@ -442,7 +442,7 @@ func TestExecuteQueryWithFilters(t *testing.T) {
 		}
 
 		var data struct {
-			Beans []struct {
+			Items []struct {
 				ID   string   `json:"id"`
 				Tags []string `json:"tags"`
 			} `json:"beans"`
@@ -452,8 +452,8 @@ func TestExecuteQueryWithFilters(t *testing.T) {
 			t.Fatalf("failed to parse response: %v", err)
 		}
 
-		if len(data.Beans) != 2 {
-			t.Errorf("expected 2 beans with tag 'frontend', got %d", len(data.Beans))
+		if len(data.Items) != 2 {
+			t.Errorf("expected 2 beans with tag 'frontend', got %d", len(data.Items))
 		}
 	})
 
@@ -465,7 +465,7 @@ func TestExecuteQueryWithFilters(t *testing.T) {
 		}
 
 		var data struct {
-			Beans []struct {
+			Items []struct {
 				ID     string `json:"id"`
 				Status string `json:"status"`
 			} `json:"beans"`
@@ -475,10 +475,10 @@ func TestExecuteQueryWithFilters(t *testing.T) {
 			t.Fatalf("failed to parse response: %v", err)
 		}
 
-		if len(data.Beans) != 2 {
-			t.Errorf("expected 2 beans (excluding completed), got %d", len(data.Beans))
+		if len(data.Items) != 2 {
+			t.Errorf("expected 2 beans (excluding completed), got %d", len(data.Items))
 		}
-		for _, b := range data.Beans {
+		for _, b := range data.Items {
 			if b.Status == "completed" {
 				t.Errorf("should not include completed beans, got bean with status %q", b.Status)
 			}
@@ -493,7 +493,7 @@ func TestExecuteQueryWithFilters(t *testing.T) {
 		}
 
 		var data struct {
-			Beans []struct {
+			Items []struct {
 				ID string `json:"id"`
 			} `json:"beans"`
 		}
@@ -502,8 +502,8 @@ func TestExecuteQueryWithFilters(t *testing.T) {
 			t.Fatalf("failed to parse response: %v", err)
 		}
 
-		if len(data.Beans) != 2 {
-			t.Errorf("expected 2 beans matching combined filters, got %d", len(data.Beans))
+		if len(data.Items) != 2 {
+			t.Errorf("expected 2 beans matching combined filters, got %d", len(data.Items))
 		}
 	})
 }

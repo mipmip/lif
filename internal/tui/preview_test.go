@@ -4,11 +4,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/xRiErOS/lif/pkg/bean"
+	"github.com/xRiErOS/lif/pkg/item"
 )
 
 func TestPreviewView(t *testing.T) {
-	b := &bean.Bean{
+	b := &item.Item{
 		ID:       "beans-test",
 		Title:    "Test Bean",
 		Status:   "todo",
@@ -57,7 +57,7 @@ func TestPreviewViewEmpty(t *testing.T) {
 }
 
 func TestPreviewViewWithTags(t *testing.T) {
-	b := &bean.Bean{
+	b := &item.Item{
 		ID:     "beans-test",
 		Title:  "Bean with Tags",
 		Status: "in-progress",
@@ -76,7 +76,7 @@ func TestPreviewViewWithTags(t *testing.T) {
 }
 
 func TestPreviewViewWithPriority(t *testing.T) {
-	b := &bean.Bean{
+	b := &item.Item{
 		ID:       "beans-test",
 		Title:    "High Priority Bean",
 		Status:   "todo",
@@ -95,7 +95,7 @@ func TestPreviewViewWithPriority(t *testing.T) {
 }
 
 func TestPreviewViewEmptyBody(t *testing.T) {
-	b := &bean.Bean{
+	b := &item.Item{
 		ID:     "beans-test",
 		Title:  "Bean without body",
 		Status: "todo",

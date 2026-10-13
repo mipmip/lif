@@ -67,10 +67,10 @@ func GenerateQuickReplies(message string, workspaceContext string) []string {
 // generateQuickReplies extracts the last assistant message from the session
 // and asynchronously generates quick reply suggestions. Updates the session
 // and notifies subscribers when done.
-func (m *Manager) generateQuickReplies(beanID string) {
+func (m *Manager) generateQuickReplies(itemID string) {
 	// Extract the last assistant message
 	m.mu.RLock()
-	s, ok := m.sessions[beanID]
+	s, ok := m.sessions[itemID]
 	if !ok {
 		m.mu.RUnlock()
 		return
@@ -90,7 +90,7 @@ func (m *Manager) generateQuickReplies(beanID string) {
 
 	var wsContext string
 	if m.quickReplyContext != nil {
-		wsContext = m.quickReplyContext(beanID)
+		wsContext = m.quickReplyContext(itemID)
 	}
 
 	replies := GenerateQuickReplies(lastAssistant, wsContext)
@@ -99,7 +99,7 @@ func (m *Manager) generateQuickReplies(beanID string) {
 	}
 
 	m.mu.Lock()
-	s, ok = m.sessions[beanID]
+	s, ok = m.sessions[itemID]
 	if ok {
 		// Only set if the session is still idle (user hasn't started a new turn)
 		if s.Status == StatusIdle {
@@ -109,7 +109,7 @@ func (m *Manager) generateQuickReplies(beanID string) {
 	m.mu.Unlock()
 
 	if ok {
-		m.notify(beanID)
+		m.notify(itemID)
 	}
 }
 

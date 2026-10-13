@@ -12,35 +12,35 @@ import (
 	"time"
 
 	"github.com/xRiErOS/lif/internal/agent"
-	"github.com/xRiErOS/lif/pkg/beangraph"
-	"github.com/xRiErOS/lif/pkg/beangraph/model"
-	"github.com/xRiErOS/lif/pkg/bean"
-	"github.com/xRiErOS/lif/pkg/beancore"
 	"github.com/xRiErOS/lif/pkg/config"
+	"github.com/xRiErOS/lif/pkg/item"
+	"github.com/xRiErOS/lif/pkg/itemcore"
+	"github.com/xRiErOS/lif/pkg/itemgraph"
+	"github.com/xRiErOS/lif/pkg/itemgraph/model"
 )
 
-func setupTestResolver(t *testing.T) (*Resolver, *beancore.Core) {
+func setupTestResolver(t *testing.T) (*Resolver, *itemcore.Core) {
 	t.Helper()
 	tmpDir := t.TempDir()
-	beansDir := filepath.Join(tmpDir, ".beans")
-	if err := os.MkdirAll(beansDir, 0755); err != nil {
+	itemsDir := filepath.Join(tmpDir, ".beans")
+	if err := os.MkdirAll(itemsDir, 0755); err != nil {
 		t.Fatalf("failed to create test .beans dir: %v", err)
 	}
 
 	cfg := config.Default()
-	core := beancore.New(beansDir, cfg)
+	core := itemcore.New(itemsDir, cfg)
 	if err := core.Load(); err != nil {
 		t.Fatalf("failed to load core: %v", err)
 	}
 
-	return &Resolver{CoreResolver: &beangraph.CoreResolver{Core: core}}, core
+	return &Resolver{CoreResolver: &itemgraph.CoreResolver{Core: core}}, core
 }
 
-func createTestBean(t *testing.T, core *beancore.Core, id, title, status string) *bean.Bean {
+func createTestItem(t *testing.T, core *itemcore.Core, id, title, status string) *item.Item {
 	t.Helper()
-	b := &bean.Bean{
+	b := &item.Item{
 		ID:     id,
-		Slug:   bean.Slugify(title),
+		Slug:   item.Slugify(title),
 		Title:  title,
 		Status: status,
 	}
@@ -50,12 +50,12 @@ func createTestBean(t *testing.T, core *beancore.Core, id, title, status string)
 	return b
 }
 
-func TestQueryBean(t *testing.T) {
+func TestQueryItem(t *testing.T) {
 	resolver, core := setupTestResolver(t)
 	ctx := context.Background()
 
-	// Create test bean
-	createTestBean(t, core, "test-1", "Test Bean", "todo")
+	// Create test item
+	createTestItem(t, core, "test-1", "Test Bean", "todo")
 
 	// Test exact match
 	t.Run("exact match", func(t *testing.T) {
@@ -97,14 +97,14 @@ func TestQueryBean(t *testing.T) {
 	})
 }
 
-func TestQueryBeans(t *testing.T) {
+func TestQueryItems(t *testing.T) {
 	resolver, core := setupTestResolver(t)
 	ctx := context.Background()
 
-	// Create test beans
-	createTestBean(t, core, "bean-1", "First Bean", "todo")
-	createTestBean(t, core, "bean-2", "Second Bean", "in-progress")
-	createTestBean(t, core, "bean-3", "Third Bean", "completed")
+	// Create test items
+	createTestItem(t, core, "bean-1", "First Bean", "todo")
+	createTestItem(t, core, "bean-2", "Second Bean", "in-progress")
+	createTestItem(t, core, "bean-3", "Third Bean", "completed")
 
 	t.Run("no filter", func(t *testing.T) {
 		qr := resolver.Query()
@@ -163,14 +163,14 @@ func TestQueryBeans(t *testing.T) {
 	})
 }
 
-func TestQueryBeansWithTags(t *testing.T) {
+func TestQueryItemsWithTags(t *testing.T) {
 	resolver, core := setupTestResolver(t)
 	ctx := context.Background()
 
-	// Create test beans with tags
-	b1 := &bean.Bean{ID: "tag-1", Title: "Tagged 1", Status: "todo", Tags: []string{"frontend", "urgent"}}
-	b2 := &bean.Bean{ID: "tag-2", Title: "Tagged 2", Status: "todo", Tags: []string{"backend"}}
-	b3 := &bean.Bean{ID: "tag-3", Title: "No Tags", Status: "todo"}
+	// Create test items with tags
+	b1 := &item.Item{ID: "tag-1", Title: "Tagged 1", Status: "todo", Tags: []string{"frontend", "urgent"}}
+	b2 := &item.Item{ID: "tag-2", Title: "Tagged 2", Status: "todo", Tags: []string{"backend"}}
+	b3 := &item.Item{ID: "tag-3", Title: "No Tags", Status: "todo"}
 	core.Create(b1)
 	core.Create(b2)
 	core.Create(b3)
@@ -218,17 +218,17 @@ func TestQueryBeansWithTags(t *testing.T) {
 	})
 }
 
-func TestQueryBeansWithPriority(t *testing.T) {
+func TestQueryItemsWithPriority(t *testing.T) {
 	resolver, core := setupTestResolver(t)
 	ctx := context.Background()
 
-	// Create test beans with various priorities
+	// Create test items with various priorities
 	// Empty priority should be treated as "normal"
-	b1 := &bean.Bean{ID: "pri-1", Title: "Critical", Status: "todo", Priority: "critical"}
-	b2 := &bean.Bean{ID: "pri-2", Title: "High", Status: "todo", Priority: "high"}
-	b3 := &bean.Bean{ID: "pri-3", Title: "Normal Explicit", Status: "todo", Priority: "normal"}
-	b4 := &bean.Bean{ID: "pri-4", Title: "Normal Implicit", Status: "todo", Priority: ""} // empty = normal
-	b5 := &bean.Bean{ID: "pri-5", Title: "Low", Status: "todo", Priority: "low"}
+	b1 := &item.Item{ID: "pri-1", Title: "Critical", Status: "todo", Priority: "critical"}
+	b2 := &item.Item{ID: "pri-2", Title: "High", Status: "todo", Priority: "high"}
+	b3 := &item.Item{ID: "pri-3", Title: "Normal Explicit", Status: "todo", Priority: "normal"}
+	b4 := &item.Item{ID: "pri-4", Title: "Normal Implicit", Status: "todo", Priority: ""} // empty = normal
+	b5 := &item.Item{ID: "pri-5", Title: "Low", Status: "todo", Priority: "low"}
 	core.Create(b1)
 	core.Create(b2)
 	core.Create(b3)
@@ -309,25 +309,25 @@ func TestQueryBeansWithPriority(t *testing.T) {
 	})
 }
 
-func TestBeanRelationships(t *testing.T) {
+func TestItemRelationships(t *testing.T) {
 	resolver, core := setupTestResolver(t)
 	ctx := context.Background()
 
-	// Create beans with relationships
-	parent := &bean.Bean{ID: "parent-1", Title: "Parent", Status: "todo"}
-	child1 := &bean.Bean{
+	// Create items with relationships
+	parent := &item.Item{ID: "parent-1", Title: "Parent", Status: "todo"}
+	child1 := &item.Item{
 		ID:     "child-1",
 		Title:  "Child 1",
 		Status: "todo",
 		Parent: "parent-1",
 	}
-	child2 := &bean.Bean{
+	child2 := &item.Item{
 		ID:     "child-2",
 		Title:  "Child 2",
 		Status: "todo",
 		Parent: "parent-1",
 	}
-	blocker := &bean.Bean{
+	blocker := &item.Item{
 		ID:       "blocker-1",
 		Title:    "Blocker",
 		Status:   "todo",
@@ -397,8 +397,8 @@ func TestBrokenLinksFiltered(t *testing.T) {
 	resolver, core := setupTestResolver(t)
 	ctx := context.Background()
 
-	// Create bean with broken link
-	b := &bean.Bean{
+	// Create item with broken link
+	b := &item.Item{
 		ID:     "orphan-1",
 		Title:  "Orphan",
 		Status: "todo",
@@ -418,19 +418,19 @@ func TestBrokenLinksFiltered(t *testing.T) {
 	})
 }
 
-func TestQueryBeansWithParentAndBlocks(t *testing.T) {
+func TestQueryItemsWithParentAndBlocks(t *testing.T) {
 	resolver, core := setupTestResolver(t)
 	ctx := context.Background()
 
-	// Create beans with various relationship configurations
-	noRels := &bean.Bean{ID: "no-rels", Title: "No Relationships", Status: "todo"}
-	hasParent := &bean.Bean{
+	// Create items with various relationship configurations
+	noRels := &item.Item{ID: "no-rels", Title: "No Relationships", Status: "todo"}
+	hasParent := &item.Item{
 		ID:     "has-parent",
 		Title:  "Has Parent",
 		Status: "todo",
 		Parent: "no-rels",
 	}
-	hasBlocks := &bean.Bean{
+	hasBlocks := &item.Item{
 		ID:       "has-blocks",
 		Title:    "Has Blocks",
 		Status:   "todo",
@@ -520,7 +520,7 @@ func TestQueryBeansWithParentAndBlocks(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Beans() error = %v", err)
 		}
-		// Should return all beans except "has-parent" (which is blocked by "has-blocks")
+		// Should return all items except "has-parent" (which is blocked by "has-blocks")
 		if len(got) != 2 {
 			t.Errorf("Beans() count = %d, want 2", len(got))
 		}
@@ -555,70 +555,70 @@ func TestIsBlockedFilterWithResolvedBlockers(t *testing.T) {
 	resolver, core := setupTestResolver(t)
 	ctx := context.Background()
 
-	// Create beans to test blocking with various blocker statuses
-	activeBlocker := &bean.Bean{
+	// Create items to test blocking with various blocker statuses
+	activeBlocker := &item.Item{
 		ID:       "active-blocker",
 		Title:    "Active Blocker",
 		Status:   "todo",
 		Blocking: []string{"blocked-by-active"},
 	}
-	completedBlocker := &bean.Bean{
+	completedBlocker := &item.Item{
 		ID:       "completed-blocker",
 		Title:    "Completed Blocker",
 		Status:   "completed",
 		Blocking: []string{"blocked-by-completed"},
 	}
-	scrappedBlocker := &bean.Bean{
+	scrappedBlocker := &item.Item{
 		ID:       "scrapped-blocker",
 		Title:    "Scrapped Blocker",
 		Status:   "scrapped",
 		Blocking: []string{"blocked-by-scrapped"},
 	}
-	blockedByActive := &bean.Bean{
+	blockedByActive := &item.Item{
 		ID:     "blocked-by-active",
 		Title:  "Blocked by Active",
 		Status: "todo",
 	}
-	blockedByCompleted := &bean.Bean{
+	blockedByCompleted := &item.Item{
 		ID:     "blocked-by-completed",
 		Title:  "Blocked by Completed",
 		Status: "todo",
 	}
-	blockedByScrapped := &bean.Bean{
+	blockedByScrapped := &item.Item{
 		ID:     "blocked-by-scrapped",
 		Title:  "Blocked by Scrapped",
 		Status: "todo",
 	}
-	notBlocked := &bean.Bean{
+	notBlocked := &item.Item{
 		ID:     "not-blocked",
 		Title:  "Not Blocked",
 		Status: "todo",
 	}
-	// Bean with mixed blockers (one active, one completed)
-	mixedBlocker := &bean.Bean{
+	// Item with mixed blockers (one active, one completed)
+	mixedBlocker := &item.Item{
 		ID:       "mixed-blocker",
 		Title:    "Mixed Blocker (active)",
 		Status:   "in-progress",
 		Blocking: []string{"mixed-blocked"},
 	}
-	mixedBlockerCompleted := &bean.Bean{
+	mixedBlockerCompleted := &item.Item{
 		ID:       "mixed-blocker-completed",
 		Title:    "Mixed Blocker (completed)",
 		Status:   "completed",
 		Blocking: []string{"mixed-blocked"},
 	}
-	mixedBlocked := &bean.Bean{
+	mixedBlocked := &item.Item{
 		ID:     "mixed-blocked",
 		Title:  "Mixed Blocked",
 		Status: "todo",
 	}
 
-	beans := []*bean.Bean{
+	items := []*item.Item{
 		activeBlocker, completedBlocker, scrappedBlocker,
 		blockedByActive, blockedByCompleted, blockedByScrapped,
 		notBlocked, mixedBlocker, mixedBlockerCompleted, mixedBlocked,
 	}
-	for _, b := range beans {
+	for _, b := range items {
 		if err := core.Create(b); err != nil {
 			t.Fatalf("Create error: %v", err)
 		}
@@ -635,7 +635,7 @@ func TestIsBlockedFilterWithResolvedBlockers(t *testing.T) {
 			t.Fatalf("Beans() error = %v", err)
 		}
 
-		// Should only return beans blocked by active blockers
+		// Should only return items blocked by active blockers
 		ids := make(map[string]bool)
 		for _, b := range got {
 			ids[b.ID] = true
@@ -674,7 +674,7 @@ func TestIsBlockedFilterWithResolvedBlockers(t *testing.T) {
 			ids[b.ID] = true
 		}
 
-		// Should include beans with no active blockers
+		// Should include items with no active blockers
 		if !ids["blocked-by-completed"] {
 			t.Error("expected blocked-by-completed in results (blocker is completed)")
 		}
@@ -684,7 +684,7 @@ func TestIsBlockedFilterWithResolvedBlockers(t *testing.T) {
 		if !ids["not-blocked"] {
 			t.Error("expected not-blocked in results (no blockers)")
 		}
-		// Should exclude beans with active blockers
+		// Should exclude items with active blockers
 		if ids["blocked-by-active"] {
 			t.Error("blocked-by-active should NOT be in results (has active blocker)")
 		}
@@ -694,7 +694,7 @@ func TestIsBlockedFilterWithResolvedBlockers(t *testing.T) {
 	})
 }
 
-func TestMutationCreateBean(t *testing.T) {
+func TestMutationCreateItem(t *testing.T) {
 	resolver, core := setupTestResolver(t)
 	ctx := context.Background()
 
@@ -723,31 +723,31 @@ func TestMutationCreateBean(t *testing.T) {
 	})
 
 	t.Run("create with all fields", func(t *testing.T) {
-		// Create parent and target beans first
-		parentBean := &bean.Bean{
+		// Create parent and target items first
+		parentItem := &item.Item{
 			ID:     "some-parent",
 			Title:  "Parent Bean",
 			Status: "todo",
 			Type:   "epic",
 		}
-		targetBean := &bean.Bean{
+		targetItem := &item.Item{
 			ID:     "some-target",
 			Title:  "Target Bean",
 			Status: "todo",
 			Type:   "task",
 		}
-		core.Create(parentBean)
-		core.Create(targetBean)
+		core.Create(parentItem)
+		core.Create(targetItem)
 
 		mr := resolver.Mutation()
-		beanType := "feature"
+		itemType := "feature"
 		status := "in-progress"
 		priority := "high"
 		body := "Test body content"
 		parent := "some-parent"
 		input := model.CreateBeanInput{
 			Title:    "Full Bean",
-			Type:     &beanType,
+			Type:     &itemType,
 			Status:   &status,
 			Priority: &priority,
 			Body:     &body,
@@ -783,7 +783,7 @@ func TestMutationCreateBean(t *testing.T) {
 	})
 }
 
-func TestMutationCreateBeanWithCustomPrefix(t *testing.T) {
+func TestMutationCreateItemWithCustomPrefix(t *testing.T) {
 	resolver, _ := setupTestResolver(t)
 	ctx := context.Background()
 
@@ -845,12 +845,12 @@ func TestMutationCreateBeanWithCustomPrefix(t *testing.T) {
 	})
 }
 
-func TestMutationUpdateBean(t *testing.T) {
+func TestMutationUpdateItem(t *testing.T) {
 	resolver, core := setupTestResolver(t)
 	ctx := context.Background()
 
-	// Create a test bean
-	b := &bean.Bean{
+	// Create a test item
+	b := &item.Item{
 		ID:       "update-test",
 		Title:    "Original Title",
 		Status:   "todo",
@@ -936,9 +936,9 @@ func TestMutationSetParent(t *testing.T) {
 	resolver, core := setupTestResolver(t)
 	ctx := context.Background()
 
-	// Create test beans
-	parent := &bean.Bean{ID: "parent-1", Title: "Parent", Status: "todo", Type: "epic"}
-	child := &bean.Bean{ID: "child-1", Title: "Child", Status: "todo", Type: "task"}
+	// Create test items
+	parent := &item.Item{ID: "parent-1", Title: "Parent", Status: "todo", Type: "epic"}
+	child := &item.Item{ID: "child-1", Title: "Child", Status: "todo", Type: "task"}
 	core.Create(parent)
 	core.Create(child)
 
@@ -979,9 +979,9 @@ func TestMutationAddRemoveBlocking(t *testing.T) {
 	resolver, core := setupTestResolver(t)
 	ctx := context.Background()
 
-	// Create test beans
-	blocker := &bean.Bean{ID: "blocker-1", Title: "Blocker", Status: "todo", Type: "task"}
-	target := &bean.Bean{ID: "target-1", Title: "Target", Status: "todo", Type: "task"}
+	// Create test items
+	blocker := &item.Item{ID: "blocker-1", Title: "Blocker", Status: "todo", Type: "task"}
+	target := &item.Item{ID: "target-1", Title: "Target", Status: "todo", Type: "task"}
 	core.Create(blocker)
 	core.Create(target)
 
@@ -1019,13 +1019,13 @@ func TestMutationAddRemoveBlocking(t *testing.T) {
 	})
 }
 
-func TestMutationDeleteBean(t *testing.T) {
+func TestMutationDeleteItem(t *testing.T) {
 	resolver, core := setupTestResolver(t)
 	ctx := context.Background()
 
 	t.Run("delete existing bean", func(t *testing.T) {
-		// Create a bean to delete
-		b := &bean.Bean{ID: "delete-me", Title: "Delete Me", Status: "todo", Type: "task"}
+		// Create an item to delete
+		b := &item.Item{ID: "delete-me", Title: "Delete Me", Status: "todo", Type: "task"}
 		core.Create(b)
 
 		mr := resolver.Mutation()
@@ -1039,19 +1039,19 @@ func TestMutationDeleteBean(t *testing.T) {
 
 		// Verify it's gone
 		qr := resolver.Query()
-		bean, _ := qr.Bean(ctx, "delete-me")
-		if bean != nil {
+		item, _ := qr.Bean(ctx, "delete-me")
+		if item != nil {
 			t.Error("Bean still exists after delete")
 		}
 	})
 
 	t.Run("delete removes incoming links", func(t *testing.T) {
-		// Create target bean
-		target := &bean.Bean{ID: "target-bean", Title: "Target", Status: "todo", Type: "task"}
+		// Create target item
+		target := &item.Item{ID: "target-bean", Title: "Target", Status: "todo", Type: "task"}
 		core.Create(target)
 
-		// Create bean that links to target
-		linker := &bean.Bean{
+		// Create item that links to target
+		linker := &item.Item{
 			ID:       "linker-bean",
 			Title:    "Linker",
 			Status:   "todo",
@@ -1087,7 +1087,7 @@ func TestMutationDeleteBean(t *testing.T) {
 	})
 }
 
-func TestSubscriptionBeanChanged(t *testing.T) {
+func TestSubscriptionItemChanged(t *testing.T) {
 	resolver, core := setupTestResolver(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -1098,9 +1098,9 @@ func TestSubscriptionBeanChanged(t *testing.T) {
 	}
 	defer core.Unwatch()
 
-	// Create some test beans before subscribing
-	createTestBean(t, core, "existing-1", "Existing Bean 1", "todo")
-	createTestBean(t, core, "existing-2", "Existing Bean 2", "in-progress")
+	// Create some test items before subscribing
+	createTestItem(t, core, "existing-1", "Existing Bean 1", "todo")
+	createTestItem(t, core, "existing-2", "Existing Bean 2", "in-progress")
 
 	t.Run("includeInitial=true sends INITIAL_SNAPSHOT with all beans", func(t *testing.T) {
 		sr := resolver.Subscription()
@@ -1110,7 +1110,7 @@ func TestSubscriptionBeanChanged(t *testing.T) {
 			t.Fatalf("BeanChanged() error = %v", err)
 		}
 
-		// Should receive a single INITIAL_SNAPSHOT event with all beans
+		// Should receive a single INITIAL_SNAPSHOT event with all items
 		select {
 		case event := <-ch:
 			if event.Type != model.ChangeTypeInitialSnapshot {
@@ -1154,14 +1154,14 @@ func TestAgentSessionSubscription_DeliversLatestState(t *testing.T) {
 	// eventually receives the latest state (not a stale intermediate).
 	mgr := agent.NewManager("", nil)
 
-	beanID := "test-latest-value"
+	itemID := "test-latest-value"
 	resolver := &Resolver{AgentMgr: mgr}
 	sr := resolver.Subscription()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	ch, err := sr.AgentSessionChanged(ctx, beanID)
+	ch, err := sr.AgentSessionChanged(ctx, itemID)
 	if err != nil {
 		t.Fatalf("AgentSessionChanged() error = %v", err)
 	}
@@ -1169,7 +1169,7 @@ func TestAgentSessionSubscription_DeliversLatestState(t *testing.T) {
 	// No session exists yet, so no initial emission. Fire rapid
 	// notifications by adding multiple info messages without reading.
 	for i := range 10 {
-		mgr.AddInfoMessage(beanID, fmt.Sprintf("msg-%d", i))
+		mgr.AddInfoMessage(itemID, fmt.Sprintf("msg-%d", i))
 	}
 
 	// Drain the channel. Use a short idle timeout: once we stop receiving
@@ -1198,27 +1198,27 @@ func TestRelationshipFieldsWithFilter(t *testing.T) {
 	ctx := context.Background()
 
 	// Create a parent (milestone) with multiple children (tasks) of different statuses
-	parent := &bean.Bean{
+	parent := &item.Item{
 		ID:     "parent-filter-test",
 		Title:  "Parent Milestone",
 		Type:   "milestone",
 		Status: "in-progress",
 	}
-	child1 := &bean.Bean{
+	child1 := &item.Item{
 		ID:     "child-todo",
 		Title:  "Todo Task",
 		Type:   "task",
 		Status: "todo",
 		Parent: "parent-filter-test",
 	}
-	child2 := &bean.Bean{
+	child2 := &item.Item{
 		ID:     "child-completed",
 		Title:  "Completed Task",
 		Type:   "task",
 		Status: "completed",
 		Parent: "parent-filter-test",
 	}
-	child3 := &bean.Bean{
+	child3 := &item.Item{
 		ID:       "child-inprogress",
 		Title:    "In Progress Task",
 		Type:     "task",
@@ -1228,14 +1228,14 @@ func TestRelationshipFieldsWithFilter(t *testing.T) {
 	}
 
 	// Create blocking relationships with different types
-	blocker1 := &bean.Bean{
+	blocker1 := &item.Item{
 		ID:       "blocker-bug",
 		Title:    "Blocking Bug",
 		Type:     "bug",
 		Status:   "todo",
 		Blocking: []string{"child-todo"},
 	}
-	blocker2 := &bean.Bean{
+	blocker2 := &item.Item{
 		ID:       "blocker-task",
 		Title:    "Blocking Task",
 		Type:     "task",
@@ -1243,7 +1243,7 @@ func TestRelationshipFieldsWithFilter(t *testing.T) {
 		Blocking: []string{"child-todo"},
 	}
 
-	for _, b := range []*bean.Bean{parent, child1, child2, child3, blocker1, blocker2} {
+	for _, b := range []*item.Item{parent, child1, child2, child3, blocker1, blocker2} {
 		if err := core.Create(b); err != nil {
 			t.Fatalf("Failed to create bean %s: %v", b.ID, err)
 		}
@@ -1366,40 +1366,40 @@ func TestRelationshipFieldsWithFilter(t *testing.T) {
 }
 
 // setupTestResolverWithPrefix creates a test resolver with a configured prefix.
-func setupTestResolverWithPrefix(t *testing.T, prefix string) (*Resolver, *beancore.Core) {
+func setupTestResolverWithPrefix(t *testing.T, prefix string) (*Resolver, *itemcore.Core) {
 	t.Helper()
 	tmpDir := t.TempDir()
-	beansDir := filepath.Join(tmpDir, ".beans")
-	if err := os.MkdirAll(beansDir, 0755); err != nil {
+	itemsDir := filepath.Join(tmpDir, ".beans")
+	if err := os.MkdirAll(itemsDir, 0755); err != nil {
 		t.Fatalf("failed to create test .beans dir: %v", err)
 	}
 
 	cfg := config.DefaultWithPrefix(prefix)
-	core := beancore.New(beansDir, cfg)
+	core := itemcore.New(itemsDir, cfg)
 	if err := core.Load(); err != nil {
 		t.Fatalf("failed to load core: %v", err)
 	}
 
-	return &Resolver{CoreResolver: &beangraph.CoreResolver{Core: core}}, core
+	return &Resolver{CoreResolver: &itemgraph.CoreResolver{Core: core}}, core
 }
 
 // setupTestResolverWithRequireIfMatch creates a test resolver with require_if_match enabled.
-func setupTestResolverWithRequireIfMatch(t *testing.T) (*Resolver, *beancore.Core) {
+func setupTestResolverWithRequireIfMatch(t *testing.T) (*Resolver, *itemcore.Core) {
 	t.Helper()
 	tmpDir := t.TempDir()
-	beansDir := filepath.Join(tmpDir, ".beans")
-	if err := os.MkdirAll(beansDir, 0755); err != nil {
+	itemsDir := filepath.Join(tmpDir, ".beans")
+	if err := os.MkdirAll(itemsDir, 0755); err != nil {
 		t.Fatalf("failed to create test .beans dir: %v", err)
 	}
 
 	cfg := config.Default()
-	cfg.Beans.RequireIfMatch = true
-	core := beancore.New(beansDir, cfg)
+	cfg.Items.RequireIfMatch = true
+	core := itemcore.New(itemsDir, cfg)
 	if err := core.Load(); err != nil {
 		t.Fatalf("failed to load core: %v", err)
 	}
 
-	return &Resolver{CoreResolver: &beangraph.CoreResolver{Core: core}}, core
+	return &Resolver{CoreResolver: &itemgraph.CoreResolver{Core: core}}, core
 }
 
 func TestETagValidation(t *testing.T) {
@@ -1407,7 +1407,7 @@ func TestETagValidation(t *testing.T) {
 		resolver, core := setupTestResolver(t)
 		ctx := context.Background()
 
-		b := &bean.Bean{ID: "etag-test-1", Title: "Test", Status: "todo"}
+		b := &item.Item{ID: "etag-test-1", Title: "Test", Status: "todo"}
 		core.Create(b)
 
 		// Get current etag
@@ -1432,7 +1432,7 @@ func TestETagValidation(t *testing.T) {
 		resolver, core := setupTestResolver(t)
 		ctx := context.Background()
 
-		b := &bean.Bean{ID: "etag-test-2", Title: "Test", Status: "todo"}
+		b := &item.Item{ID: "etag-test-2", Title: "Test", Status: "todo"}
 		core.Create(b)
 
 		mr := resolver.Mutation()
@@ -1455,7 +1455,7 @@ func TestETagValidation(t *testing.T) {
 		resolver, core := setupTestResolver(t)
 		ctx := context.Background()
 
-		b := &bean.Bean{ID: "etag-test-3", Title: "Test", Status: "todo"}
+		b := &item.Item{ID: "etag-test-3", Title: "Test", Status: "todo"}
 		core.Create(b)
 
 		mr := resolver.Mutation()
@@ -1478,7 +1478,7 @@ func TestRequireIfMatchConfig(t *testing.T) {
 		resolver, core := setupTestResolverWithRequireIfMatch(t)
 		ctx := context.Background()
 
-		b := &bean.Bean{ID: "require-etag-1", Title: "Test", Status: "todo"}
+		b := &item.Item{ID: "require-etag-1", Title: "Test", Status: "todo"}
 		core.Create(b)
 
 		mr := resolver.Mutation()
@@ -1499,7 +1499,7 @@ func TestRequireIfMatchConfig(t *testing.T) {
 		resolver, core := setupTestResolverWithRequireIfMatch(t)
 		ctx := context.Background()
 
-		b := &bean.Bean{ID: "require-etag-2", Title: "Test", Status: "todo"}
+		b := &item.Item{ID: "require-etag-2", Title: "Test", Status: "todo"}
 		core.Create(b)
 
 		currentETag := b.ETag()
@@ -1523,8 +1523,8 @@ func TestRequireIfMatchConfig(t *testing.T) {
 		resolver, core := setupTestResolverWithRequireIfMatch(t)
 		ctx := context.Background()
 
-		parent := &bean.Bean{ID: "req-parent", Title: "Parent", Status: "todo", Type: "epic"}
-		child := &bean.Bean{ID: "req-child", Title: "Child", Status: "todo", Type: "task"}
+		parent := &item.Item{ID: "req-parent", Title: "Parent", Status: "todo", Type: "epic"}
+		child := &item.Item{ID: "req-child", Title: "Child", Status: "todo", Type: "task"}
 		core.Create(parent)
 		core.Create(child)
 
@@ -1540,8 +1540,8 @@ func TestRequireIfMatchConfig(t *testing.T) {
 		resolver, core := setupTestResolverWithRequireIfMatch(t)
 		ctx := context.Background()
 
-		b1 := &bean.Bean{ID: "req-blocker", Title: "Blocker", Status: "todo"}
-		b2 := &bean.Bean{ID: "req-target", Title: "Target", Status: "todo"}
+		b1 := &item.Item{ID: "req-blocker", Title: "Blocker", Status: "todo"}
+		b2 := &item.Item{ID: "req-target", Title: "Target", Status: "todo"}
 		core.Create(b1)
 		core.Create(b2)
 
@@ -1556,8 +1556,8 @@ func TestRequireIfMatchConfig(t *testing.T) {
 		resolver, core := setupTestResolverWithRequireIfMatch(t)
 		ctx := context.Background()
 
-		b1 := &bean.Bean{ID: "req-blocker2", Title: "Blocker", Status: "todo", Blocking: []string{"req-target2"}}
-		b2 := &bean.Bean{ID: "req-target2", Title: "Target", Status: "todo"}
+		b1 := &item.Item{ID: "req-blocker2", Title: "Blocker", Status: "todo", Blocking: []string{"req-target2"}}
+		b2 := &item.Item{ID: "req-target2", Title: "Target", Status: "todo"}
 		core.Create(b1)
 		core.Create(b2)
 
@@ -1574,10 +1574,10 @@ func TestShortIDNormalization(t *testing.T) {
 	resolver, core := setupTestResolverWithPrefix(t, "beans-")
 	ctx := context.Background()
 
-	// Create test beans with full IDs (prefix + short ID)
-	parent := &bean.Bean{ID: "beans-parent1", Title: "Parent", Status: "todo", Type: "epic"}
-	child := &bean.Bean{ID: "beans-child1", Title: "Child", Status: "todo", Type: "task"}
-	target := &bean.Bean{ID: "beans-target1", Title: "Target", Status: "todo", Type: "task"}
+	// Create test items with full IDs (prefix + short ID)
+	parent := &item.Item{ID: "beans-parent1", Title: "Parent", Status: "todo", Type: "epic"}
+	child := &item.Item{ID: "beans-child1", Title: "Child", Status: "todo", Type: "task"}
+	target := &item.Item{ID: "beans-target1", Title: "Target", Status: "todo", Type: "task"}
 	core.Create(parent)
 	core.Create(child)
 	core.Create(target)
@@ -1626,11 +1626,11 @@ func TestShortIDNormalization(t *testing.T) {
 
 	t.Run("CreateBean normalizes parent short ID", func(t *testing.T) {
 		mr := resolver.Mutation()
-		beanType := "task"
+		itemType := "task"
 		shortParentID := "parent1"
 		input := model.CreateBeanInput{
 			Title:  "New Child",
-			Type:   &beanType,
+			Type:   &itemType,
 			Parent: &shortParentID,
 		}
 		got, err := mr.CreateBean(ctx, input)
@@ -1644,10 +1644,10 @@ func TestShortIDNormalization(t *testing.T) {
 
 	t.Run("CreateBean normalizes blocking short IDs", func(t *testing.T) {
 		mr := resolver.Mutation()
-		beanType := "task"
+		itemType := "task"
 		input := model.CreateBeanInput{
 			Title:    "Blocker Bean",
-			Type:     &beanType,
+			Type:     &itemType,
 			Blocking: []string{"target1"},
 		}
 		got, err := mr.CreateBean(ctx, input)
@@ -1663,12 +1663,12 @@ func TestShortIDNormalization(t *testing.T) {
 	})
 }
 
-func TestUpdateBeanWithBodyMod(t *testing.T) {
+func TestUpdateItemWithBodyMod(t *testing.T) {
 	resolver, core := setupTestResolver(t)
 	ctx := context.Background()
 
 	t.Run("bodyMod with single replacement only", func(t *testing.T) {
-		b := &bean.Bean{
+		b := &item.Item{
 			ID:     "bodymod-test-1",
 			Title:  "Test",
 			Status: "todo",
@@ -1695,7 +1695,7 @@ func TestUpdateBeanWithBodyMod(t *testing.T) {
 	})
 
 	t.Run("bodyMod with append only", func(t *testing.T) {
-		b := &bean.Bean{
+		b := &item.Item{
 			ID:     "bodymod-test-2",
 			Title:  "Test",
 			Status: "todo",
@@ -1721,7 +1721,7 @@ func TestUpdateBeanWithBodyMod(t *testing.T) {
 	})
 
 	t.Run("bodyMod with replacement and append combined", func(t *testing.T) {
-		b := &bean.Bean{
+		b := &item.Item{
 			ID:     "bodymod-test-3",
 			Title:  "Test",
 			Status: "todo",
@@ -1750,7 +1750,7 @@ func TestUpdateBeanWithBodyMod(t *testing.T) {
 	})
 
 	t.Run("bodyMod with multiple replacements sequential", func(t *testing.T) {
-		b := &bean.Bean{
+		b := &item.Item{
 			ID:     "bodymod-test-4",
 			Title:  "Test",
 			Status: "todo",
@@ -1779,7 +1779,7 @@ func TestUpdateBeanWithBodyMod(t *testing.T) {
 	})
 
 	t.Run("bodyMod with metadata update", func(t *testing.T) {
-		b := &bean.Bean{
+		b := &item.Item{
 			ID:     "bodymod-test-5",
 			Title:  "Test",
 			Status: "todo",
@@ -1813,7 +1813,7 @@ func TestUpdateBeanWithBodyMod(t *testing.T) {
 	})
 
 	t.Run("error when both body and bodyMod provided", func(t *testing.T) {
-		b := &bean.Bean{
+		b := &item.Item{
 			ID:     "bodymod-test-6",
 			Title:  "Test",
 			Status: "todo",
@@ -1840,7 +1840,7 @@ func TestUpdateBeanWithBodyMod(t *testing.T) {
 	})
 
 	t.Run("error when replacement text not found", func(t *testing.T) {
-		b := &bean.Bean{
+		b := &item.Item{
 			ID:     "bodymod-test-7",
 			Title:  "Test",
 			Status: "todo",
@@ -1866,7 +1866,7 @@ func TestUpdateBeanWithBodyMod(t *testing.T) {
 	})
 
 	t.Run("error when replacement text found multiple times", func(t *testing.T) {
-		b := &bean.Bean{
+		b := &item.Item{
 			ID:     "bodymod-test-8",
 			Title:  "Test",
 			Status: "todo",
@@ -1892,7 +1892,7 @@ func TestUpdateBeanWithBodyMod(t *testing.T) {
 	})
 
 	t.Run("transactional: later replacement fails, nothing saved", func(t *testing.T) {
-		b := &bean.Bean{
+		b := &item.Item{
 			ID:     "bodymod-test-9",
 			Title:  "Test",
 			Status: "todo",
@@ -1915,7 +1915,7 @@ func TestUpdateBeanWithBodyMod(t *testing.T) {
 			t.Error("UpdateBean() expected error")
 		}
 
-		// Verify bean wasn't modified
+		// Verify item wasn't modified
 		updated, _ := core.Get("bodymod-test-9")
 		if updated.Body != originalBody {
 			t.Errorf("Bean body was modified despite error. Got %q, want %q", updated.Body, originalBody)
@@ -1923,7 +1923,7 @@ func TestUpdateBeanWithBodyMod(t *testing.T) {
 	})
 
 	t.Run("empty append is no-op", func(t *testing.T) {
-		b := &bean.Bean{
+		b := &item.Item{
 			ID:     "bodymod-test-10",
 			Title:  "Test",
 			Status: "todo",
@@ -1948,7 +1948,7 @@ func TestUpdateBeanWithBodyMod(t *testing.T) {
 	})
 
 	t.Run("transactional: later replacement fails, nothing saved", func(t *testing.T) {
-		b := &bean.Bean{
+		b := &item.Item{
 			ID:     "bodymod-test-9",
 			Title:  "Test",
 			Status: "todo",
@@ -1971,7 +1971,7 @@ func TestUpdateBeanWithBodyMod(t *testing.T) {
 			t.Error("UpdateBean() expected error")
 		}
 
-		// Verify bean wasn't modified
+		// Verify item wasn't modified
 		updated, _ := core.Get("bodymod-test-9")
 		if updated.Body != originalBody {
 			t.Errorf("Bean body was modified despite error. Got %q, want %q", updated.Body, originalBody)
@@ -1979,14 +1979,14 @@ func TestUpdateBeanWithBodyMod(t *testing.T) {
 	})
 }
 
-func TestUpdateBeanWithRelationships(t *testing.T) {
+func TestUpdateItemWithRelationships(t *testing.T) {
 	resolver, core := setupTestResolver(t)
 	ctx := context.Background()
 
 	t.Run("atomic update with parent and blocking", func(t *testing.T) {
-		epic := &bean.Bean{ID: "epic-1", Title: "Epic", Type: "epic", Status: "todo"}
-		task := &bean.Bean{ID: "task-1", Title: "Task", Type: "task", Status: "todo"}
-		blocker := &bean.Bean{ID: "blocker-1", Title: "Blocker", Type: "task", Status: "todo"}
+		epic := &item.Item{ID: "epic-1", Title: "Epic", Type: "epic", Status: "todo"}
+		task := &item.Item{ID: "task-1", Title: "Task", Type: "task", Status: "todo"}
+		blocker := &item.Item{ID: "blocker-1", Title: "Blocker", Type: "task", Status: "todo"}
 		core.Create(epic)
 		core.Create(task)
 		core.Create(blocker)
@@ -2014,9 +2014,9 @@ func TestUpdateBeanWithRelationships(t *testing.T) {
 	})
 
 	t.Run("atomic update with bodyMod and relationships", func(t *testing.T) {
-		epic := &bean.Bean{ID: "epic-2", Title: "Epic", Type: "epic", Status: "todo"}
-		task := &bean.Bean{ID: "task-2", Title: "Task", Type: "task", Status: "todo", Body: "- [ ] Step 1"}
-		blocker := &bean.Bean{ID: "blocker-2", Title: "Blocker", Type: "task", Status: "todo"}
+		epic := &item.Item{ID: "epic-2", Title: "Epic", Type: "epic", Status: "todo"}
+		task := &item.Item{ID: "task-2", Title: "Task", Type: "task", Status: "todo", Body: "- [ ] Step 1"}
+		blocker := &item.Item{ID: "blocker-2", Title: "Blocker", Type: "task", Status: "todo"}
 		core.Create(epic)
 		core.Create(task)
 		core.Create(blocker)
@@ -2056,8 +2056,8 @@ func TestUpdateBeanWithRelationships(t *testing.T) {
 	})
 
 	t.Run("parent validation fails for invalid type hierarchy", func(t *testing.T) {
-		task1 := &bean.Bean{ID: "task-invalid-1", Title: "Task 1", Type: "task", Status: "todo"}
-		task2 := &bean.Bean{ID: "task-invalid-2", Title: "Task 2", Type: "task", Status: "todo"}
+		task1 := &item.Item{ID: "task-invalid-1", Title: "Task 1", Type: "task", Status: "todo"}
+		task2 := &item.Item{ID: "task-invalid-2", Title: "Task 2", Type: "task", Status: "todo"}
 		core.Create(task1)
 		core.Create(task2)
 
@@ -2072,7 +2072,7 @@ func TestUpdateBeanWithRelationships(t *testing.T) {
 	})
 
 	t.Run("blocking self-reference validation", func(t *testing.T) {
-		task := &bean.Bean{ID: "task-self", Title: "Task", Type: "task", Status: "todo"}
+		task := &item.Item{ID: "task-self", Title: "Task", Type: "task", Status: "todo"}
 		core.Create(task)
 
 		input := model.UpdateBeanInput{
@@ -2089,8 +2089,8 @@ func TestUpdateBeanWithRelationships(t *testing.T) {
 	})
 
 	t.Run("blocking cycle detection", func(t *testing.T) {
-		task1 := &bean.Bean{ID: "task-block-1", Title: "Task 1", Type: "task", Status: "todo"}
-		task2 := &bean.Bean{ID: "task-block-2", Title: "Task 2", Type: "task", Status: "todo", Blocking: []string{"task-block-1"}}
+		task1 := &item.Item{ID: "task-block-1", Title: "Task 1", Type: "task", Status: "todo"}
+		task2 := &item.Item{ID: "task-block-2", Title: "Task 2", Type: "task", Status: "todo", Blocking: []string{"task-block-1"}}
 		core.Create(task1)
 		core.Create(task2)
 
@@ -2109,7 +2109,7 @@ func TestUpdateBeanWithRelationships(t *testing.T) {
 	})
 
 	t.Run("blocking target not found", func(t *testing.T) {
-		task := &bean.Bean{ID: "task-notfound", Title: "Task", Type: "task", Status: "todo"}
+		task := &item.Item{ID: "task-notfound", Title: "Task", Type: "task", Status: "todo"}
 		core.Create(task)
 
 		input := model.UpdateBeanInput{
@@ -2126,9 +2126,9 @@ func TestUpdateBeanWithRelationships(t *testing.T) {
 	})
 
 	t.Run("remove blocking relationships", func(t *testing.T) {
-		task := &bean.Bean{ID: "task-remove-1", Title: "Task", Type: "task", Status: "todo", Blocking: []string{"other-1", "other-2"}}
-		other1 := &bean.Bean{ID: "other-1", Title: "Other 1", Type: "task", Status: "todo"}
-		other2 := &bean.Bean{ID: "other-2", Title: "Other 2", Type: "task", Status: "todo"}
+		task := &item.Item{ID: "task-remove-1", Title: "Task", Type: "task", Status: "todo", Blocking: []string{"other-1", "other-2"}}
+		other1 := &item.Item{ID: "other-1", Title: "Other 1", Type: "task", Status: "todo"}
+		other2 := &item.Item{ID: "other-2", Title: "Other 2", Type: "task", Status: "todo"}
 		core.Create(task)
 		core.Create(other1)
 		core.Create(other2)
@@ -2148,7 +2148,7 @@ func TestUpdateBeanWithRelationships(t *testing.T) {
 	})
 
 	t.Run("blockedBy self-reference validation", func(t *testing.T) {
-		task := &bean.Bean{ID: "task-blockedby-self", Title: "Task", Type: "task", Status: "todo"}
+		task := &item.Item{ID: "task-blockedby-self", Title: "Task", Type: "task", Status: "todo"}
 		core.Create(task)
 
 		input := model.UpdateBeanInput{
@@ -2165,7 +2165,7 @@ func TestUpdateBeanWithRelationships(t *testing.T) {
 	})
 
 	t.Run("blockedBy target not found", func(t *testing.T) {
-		task := &bean.Bean{ID: "task-blockedby-notfound", Title: "Task", Type: "task", Status: "todo"}
+		task := &item.Item{ID: "task-blockedby-notfound", Title: "Task", Type: "task", Status: "todo"}
 		core.Create(task)
 
 		input := model.UpdateBeanInput{
@@ -2182,9 +2182,9 @@ func TestUpdateBeanWithRelationships(t *testing.T) {
 	})
 
 	t.Run("combined add and remove operations", func(t *testing.T) {
-		task := &bean.Bean{ID: "task-combined", Title: "Task", Type: "task", Status: "todo", Blocking: []string{"old-1"}}
-		old1 := &bean.Bean{ID: "old-1", Title: "Old", Type: "task", Status: "todo"}
-		new1 := &bean.Bean{ID: "new-1", Title: "New", Type: "task", Status: "todo"}
+		task := &item.Item{ID: "task-combined", Title: "Task", Type: "task", Status: "todo", Blocking: []string{"old-1"}}
+		old1 := &item.Item{ID: "old-1", Title: "Old", Type: "task", Status: "todo"}
+		new1 := &item.Item{ID: "new-1", Title: "New", Type: "task", Status: "todo"}
 		core.Create(task)
 		core.Create(old1)
 		core.Create(new1)
@@ -2205,8 +2205,8 @@ func TestUpdateBeanWithRelationships(t *testing.T) {
 	})
 
 	t.Run("blockedBy cycle detection", func(t *testing.T) {
-		task1 := &bean.Bean{ID: "task-blockedby-cycle-1", Title: "Task 1", Type: "task", Status: "todo"}
-		task2 := &bean.Bean{ID: "task-blockedby-cycle-2", Title: "Task 2", Type: "task", Status: "todo", BlockedBy: []string{"task-blockedby-cycle-1"}}
+		task1 := &item.Item{ID: "task-blockedby-cycle-1", Title: "Task 1", Type: "task", Status: "todo"}
+		task2 := &item.Item{ID: "task-blockedby-cycle-2", Title: "Task 2", Type: "task", Status: "todo", BlockedBy: []string{"task-blockedby-cycle-1"}}
 		core.Create(task1)
 		core.Create(task2)
 
@@ -2225,8 +2225,8 @@ func TestUpdateBeanWithRelationships(t *testing.T) {
 	})
 
 	t.Run("remove parent", func(t *testing.T) {
-		epic := &bean.Bean{ID: "epic-parent-remove", Title: "Epic", Type: "epic", Status: "todo"}
-		task := &bean.Bean{ID: "task-parent-remove", Title: "Task", Type: "task", Status: "todo", Parent: "epic-parent-remove"}
+		epic := &item.Item{ID: "epic-parent-remove", Title: "Epic", Type: "epic", Status: "todo"}
+		task := &item.Item{ID: "task-parent-remove", Title: "Task", Type: "task", Status: "todo", Parent: "epic-parent-remove"}
 		core.Create(epic)
 		core.Create(task)
 
@@ -2247,9 +2247,9 @@ func TestUpdateBeanWithRelationships(t *testing.T) {
 	})
 
 	t.Run("remove blockedBy relationships", func(t *testing.T) {
-		task := &bean.Bean{ID: "task-remove-blockedby", Title: "Task", Type: "task", Status: "todo", BlockedBy: []string{"blocker-1", "blocker-2"}}
-		blocker1 := &bean.Bean{ID: "blocker-1", Title: "Blocker 1", Type: "task", Status: "todo"}
-		blocker2 := &bean.Bean{ID: "blocker-2", Title: "Blocker 2", Type: "task", Status: "todo"}
+		task := &item.Item{ID: "task-remove-blockedby", Title: "Task", Type: "task", Status: "todo", BlockedBy: []string{"blocker-1", "blocker-2"}}
+		blocker1 := &item.Item{ID: "blocker-1", Title: "Blocker 1", Type: "task", Status: "todo"}
+		blocker2 := &item.Item{ID: "blocker-2", Title: "Blocker 2", Type: "task", Status: "todo"}
 		core.Create(task)
 		core.Create(blocker1)
 		core.Create(blocker2)
@@ -2269,9 +2269,9 @@ func TestUpdateBeanWithRelationships(t *testing.T) {
 	})
 
 	t.Run("multiple blocking additions", func(t *testing.T) {
-		task := &bean.Bean{ID: "task-multi-blocking", Title: "Task", Type: "task", Status: "todo"}
-		target1 := &bean.Bean{ID: "target-1", Title: "Target 1", Type: "task", Status: "todo"}
-		target2 := &bean.Bean{ID: "target-2", Title: "Target 2", Type: "task", Status: "todo"}
+		task := &item.Item{ID: "task-multi-blocking", Title: "Task", Type: "task", Status: "todo"}
+		target1 := &item.Item{ID: "target-1", Title: "Target 1", Type: "task", Status: "todo"}
+		target2 := &item.Item{ID: "target-2", Title: "Target 2", Type: "task", Status: "todo"}
 		core.Create(task)
 		core.Create(target1)
 		core.Create(target2)
@@ -2291,11 +2291,11 @@ func TestUpdateBeanWithRelationships(t *testing.T) {
 	})
 
 	t.Run("all relationship types combined", func(t *testing.T) {
-		epic := &bean.Bean{ID: "epic-all", Title: "Epic", Type: "epic", Status: "todo"}
-		task := &bean.Bean{ID: "task-all", Title: "Task", Type: "task", Status: "todo", Blocking: []string{"old-blocking"}}
-		blocker := &bean.Bean{ID: "new-blocker", Title: "Blocker", Type: "task", Status: "todo"}
-		blocked := &bean.Bean{ID: "new-blocked", Title: "Blocked", Type: "task", Status: "todo"}
-		oldBlocking := &bean.Bean{ID: "old-blocking", Title: "Old Blocking", Type: "task", Status: "todo"}
+		epic := &item.Item{ID: "epic-all", Title: "Epic", Type: "epic", Status: "todo"}
+		task := &item.Item{ID: "task-all", Title: "Task", Type: "task", Status: "todo", Blocking: []string{"old-blocking"}}
+		blocker := &item.Item{ID: "new-blocker", Title: "Blocker", Type: "task", Status: "todo"}
+		blocked := &item.Item{ID: "new-blocked", Title: "Blocked", Type: "task", Status: "todo"}
+		oldBlocking := &item.Item{ID: "old-blocking", Title: "Old Blocking", Type: "task", Status: "todo"}
 		core.Create(epic)
 		core.Create(task)
 		core.Create(blocker)
@@ -2330,7 +2330,7 @@ func TestUpdateBeanWithRelationships(t *testing.T) {
 	})
 
 	t.Run("add tags", func(t *testing.T) {
-		task := &bean.Bean{ID: "task-tags-1", Title: "Task", Type: "task", Status: "todo", Tags: []string{"existing"}}
+		task := &item.Item{ID: "task-tags-1", Title: "Task", Type: "task", Status: "todo", Tags: []string{"existing"}}
 		core.Create(task)
 
 		input := model.UpdateBeanInput{
@@ -2355,7 +2355,7 @@ func TestUpdateBeanWithRelationships(t *testing.T) {
 	})
 
 	t.Run("remove tags", func(t *testing.T) {
-		task := &bean.Bean{ID: "task-tags-2", Title: "Task", Type: "task", Status: "todo", Tags: []string{"tag1", "tag2", "tag3"}}
+		task := &item.Item{ID: "task-tags-2", Title: "Task", Type: "task", Status: "todo", Tags: []string{"tag1", "tag2", "tag3"}}
 		core.Create(task)
 
 		input := model.UpdateBeanInput{
@@ -2378,7 +2378,7 @@ func TestUpdateBeanWithRelationships(t *testing.T) {
 	})
 
 	t.Run("add and remove tags in one operation", func(t *testing.T) {
-		task := &bean.Bean{ID: "task-tags-3", Title: "Task", Type: "task", Status: "todo", Tags: []string{"old1", "old2", "keep"}}
+		task := &item.Item{ID: "task-tags-3", Title: "Task", Type: "task", Status: "todo", Tags: []string{"old1", "old2", "keep"}}
 		core.Create(task)
 
 		input := model.UpdateBeanInput{
@@ -2407,7 +2407,7 @@ func TestUpdateBeanWithRelationships(t *testing.T) {
 	})
 
 	t.Run("tags and addTags are mutually exclusive", func(t *testing.T) {
-		task := &bean.Bean{ID: "task-tags-4", Title: "Task", Type: "task", Status: "todo"}
+		task := &item.Item{ID: "task-tags-4", Title: "Task", Type: "task", Status: "todo"}
 		core.Create(task)
 
 		input := model.UpdateBeanInput{
@@ -2435,7 +2435,7 @@ func TestBlockedByCycleDetection(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("blocked_by self-reference fails", func(t *testing.T) {
-		b := &bean.Bean{ID: "self-ref", Title: "Self Reference", Status: "todo"}
+		b := &item.Item{ID: "self-ref", Title: "Self Reference", Status: "todo"}
 		core.Create(b)
 
 		mr := resolver.Mutation()
@@ -2450,8 +2450,8 @@ func TestBlockedByCycleDetection(t *testing.T) {
 
 	t.Run("blocked_by cycle via blocked_by only is detected", func(t *testing.T) {
 		// This tests the scenario where cycles are created using only blocked_by
-		a := &bean.Bean{ID: "cycle-a", Title: "Bean A", Status: "todo"}
-		b := &bean.Bean{ID: "cycle-b", Title: "Bean B", Status: "todo"}
+		a := &item.Item{ID: "cycle-a", Title: "Bean A", Status: "todo"}
+		b := &item.Item{ID: "cycle-b", Title: "Bean B", Status: "todo"}
 		core.Create(a)
 		core.Create(b)
 
@@ -2475,8 +2475,8 @@ func TestBlockedByCycleDetection(t *testing.T) {
 
 	t.Run("blocked_by cycle via blocking is detected", func(t *testing.T) {
 		// A blocks B, then B is blocked_by A creates a conflict
-		a := &bean.Bean{ID: "cross-a", Title: "Bean A", Status: "todo"}
-		b := &bean.Bean{ID: "cross-b", Title: "Bean B", Status: "todo"}
+		a := &item.Item{ID: "cross-a", Title: "Bean A", Status: "todo"}
+		b := &item.Item{ID: "cross-b", Title: "Bean B", Status: "todo"}
 		core.Create(a)
 		core.Create(b)
 
@@ -2500,8 +2500,8 @@ func TestBlockedByCycleDetection(t *testing.T) {
 
 	t.Run("blocking cycle via blocked_by is detected", func(t *testing.T) {
 		// A is blocked_by B, then A blocking B creates a conflict
-		a := &bean.Bean{ID: "cross2-a", Title: "Bean A", Status: "todo"}
-		b := &bean.Bean{ID: "cross2-b", Title: "Bean B", Status: "todo"}
+		a := &item.Item{ID: "cross2-a", Title: "Bean A", Status: "todo"}
+		b := &item.Item{ID: "cross2-b", Title: "Bean B", Status: "todo"}
 		core.Create(a)
 		core.Create(b)
 
@@ -2524,7 +2524,7 @@ func TestBlockedByCycleDetection(t *testing.T) {
 	})
 
 	t.Run("blocker bean not found fails", func(t *testing.T) {
-		a := &bean.Bean{ID: "exists-a", Title: "Bean A", Status: "todo"}
+		a := &item.Item{ID: "exists-a", Title: "Bean A", Status: "todo"}
 		core.Create(a)
 
 		mr := resolver.Mutation()
@@ -2538,7 +2538,7 @@ func TestBlockedByCycleDetection(t *testing.T) {
 	})
 }
 
-func TestCreateBeanBlockedByValidation(t *testing.T) {
+func TestCreateItemBlockedByValidation(t *testing.T) {
 	resolver, core := setupTestResolver(t)
 	ctx := context.Background()
 
@@ -2573,7 +2573,7 @@ func TestCreateBeanBlockedByValidation(t *testing.T) {
 	})
 
 	t.Run("create with same bean in both blocking and blocked_by fails", func(t *testing.T) {
-		target := &bean.Bean{ID: "target-bean", Title: "Target", Status: "todo"}
+		target := &item.Item{ID: "target-bean", Title: "Target", Status: "todo"}
 		core.Create(target)
 
 		mr := resolver.Mutation()
@@ -2592,7 +2592,7 @@ func TestCreateBeanBlockedByValidation(t *testing.T) {
 	})
 
 	t.Run("create with valid blocked_by succeeds", func(t *testing.T) {
-		blocker := &bean.Bean{ID: "valid-blocker", Title: "Blocker", Status: "todo"}
+		blocker := &item.Item{ID: "valid-blocker", Title: "Blocker", Status: "todo"}
 		core.Create(blocker)
 
 		mr := resolver.Mutation()
@@ -2617,9 +2617,9 @@ func TestMutationAddRemoveBlockedBy(t *testing.T) {
 	resolver, core := setupTestResolver(t)
 	ctx := context.Background()
 
-	// Create test beans
-	blocked := &bean.Bean{ID: "blocked-1", Title: "Blocked", Status: "todo"}
-	blocker := &bean.Bean{ID: "blocker-1", Title: "Blocker", Status: "todo"}
+	// Create test items
+	blocked := &item.Item{ID: "blocked-1", Title: "Blocked", Status: "todo"}
+	blocker := &item.Item{ID: "blocker-1", Title: "Blocker", Status: "todo"}
 	core.Create(blocked)
 	core.Create(blocker)
 
@@ -2662,8 +2662,8 @@ func TestBlockedByResolverCombinesBothDirections(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("blocked_by field is resolved by blockedBy resolver", func(t *testing.T) {
-		blocker := &bean.Bean{ID: "blocker-r1", Title: "Blocker", Status: "todo", Type: "task"}
-		blocked := &bean.Bean{ID: "blocked-r1", Title: "Blocked", Status: "todo", Type: "task", BlockedBy: []string{"blocker-r1"}}
+		blocker := &item.Item{ID: "blocker-r1", Title: "Blocker", Status: "todo", Type: "task"}
+		blocked := &item.Item{ID: "blocked-r1", Title: "Blocked", Status: "todo", Type: "task", BlockedBy: []string{"blocker-r1"}}
 		core.Create(blocker)
 		core.Create(blocked)
 
@@ -2678,8 +2678,8 @@ func TestBlockedByResolverCombinesBothDirections(t *testing.T) {
 	})
 
 	t.Run("incoming blocking links are resolved by blockedBy resolver", func(t *testing.T) {
-		blocker := &bean.Bean{ID: "blocker-r2", Title: "Blocker", Status: "todo", Type: "task", Blocking: []string{"blocked-r2"}}
-		blocked := &bean.Bean{ID: "blocked-r2", Title: "Blocked", Status: "todo", Type: "task"}
+		blocker := &item.Item{ID: "blocker-r2", Title: "Blocker", Status: "todo", Type: "task", Blocking: []string{"blocked-r2"}}
+		blocked := &item.Item{ID: "blocked-r2", Title: "Blocked", Status: "todo", Type: "task"}
 		core.Create(blocker)
 		core.Create(blocked)
 
@@ -2695,8 +2695,8 @@ func TestBlockedByResolverCombinesBothDirections(t *testing.T) {
 
 	t.Run("both directions are combined and deduplicated", func(t *testing.T) {
 		// blocker blocks target via both directions
-		blocker := &bean.Bean{ID: "blocker-r3", Title: "Blocker", Status: "todo", Type: "task", Blocking: []string{"blocked-r3"}}
-		blocked := &bean.Bean{ID: "blocked-r3", Title: "Blocked", Status: "todo", Type: "task", BlockedBy: []string{"blocker-r3"}}
+		blocker := &item.Item{ID: "blocker-r3", Title: "Blocker", Status: "todo", Type: "task", Blocking: []string{"blocked-r3"}}
+		blocked := &item.Item{ID: "blocked-r3", Title: "Blocked", Status: "todo", Type: "task", BlockedBy: []string{"blocker-r3"}}
 		core.Create(blocker)
 		core.Create(blocked)
 
@@ -2711,12 +2711,12 @@ func TestBlockedByResolverCombinesBothDirections(t *testing.T) {
 	})
 }
 
-func TestUpdateBeanWithETag(t *testing.T) {
+func TestUpdateItemWithETag(t *testing.T) {
 	resolver, core := setupTestResolver(t)
 	ctx := context.Background()
 
 	t.Run("update with correct etag succeeds", func(t *testing.T) {
-		b := &bean.Bean{
+		b := &item.Item{
 			ID:     "etag-update-1",
 			Title:  "Test",
 			Status: "todo",
@@ -2740,7 +2740,7 @@ func TestUpdateBeanWithETag(t *testing.T) {
 	})
 
 	t.Run("update with wrong etag fails", func(t *testing.T) {
-		b := &bean.Bean{
+		b := &item.Item{
 			ID:     "etag-update-2",
 			Title:  "Test",
 			Status: "todo",
@@ -2759,7 +2759,7 @@ func TestUpdateBeanWithETag(t *testing.T) {
 			t.Error("UpdateBean() with wrong etag should fail")
 		}
 
-		var mismatchErr *beancore.ETagMismatchError
+		var mismatchErr *itemcore.ETagMismatchError
 		if !errors.As(err, &mismatchErr) {
 			t.Errorf("Expected ETagMismatchError, got %T: %v", err, err)
 		}
@@ -2771,7 +2771,7 @@ func TestSetParentWithETag(t *testing.T) {
 	ctx := context.Background()
 
 	// Create parent
-	parent := &bean.Bean{
+	parent := &item.Item{
 		ID:     "parent-etag",
 		Title:  "Parent",
 		Status: "todo",
@@ -2780,7 +2780,7 @@ func TestSetParentWithETag(t *testing.T) {
 	core.Create(parent)
 
 	t.Run("setParent with correct etag succeeds", func(t *testing.T) {
-		child := &bean.Bean{
+		child := &item.Item{
 			ID:     "child-etag-1",
 			Title:  "Child",
 			Status: "todo",
@@ -2801,7 +2801,7 @@ func TestSetParentWithETag(t *testing.T) {
 	})
 
 	t.Run("setParent with wrong etag fails", func(t *testing.T) {
-		child := &bean.Bean{
+		child := &item.Item{
 			ID:     "child-etag-2",
 			Title:  "Child",
 			Status: "todo",
@@ -2817,7 +2817,7 @@ func TestSetParentWithETag(t *testing.T) {
 			t.Error("SetParent() with wrong etag should fail")
 		}
 
-		var mismatchErr *beancore.ETagMismatchError
+		var mismatchErr *itemcore.ETagMismatchError
 		if !errors.As(err, &mismatchErr) {
 			t.Errorf("Expected ETagMismatchError, got %T: %v", err, err)
 		}
@@ -2828,8 +2828,8 @@ func TestAddBlockingWithETag(t *testing.T) {
 	resolver, core := setupTestResolver(t)
 	ctx := context.Background()
 
-	// Create target bean
-	target := &bean.Bean{
+	// Create target item
+	target := &item.Item{
 		ID:     "target-etag",
 		Title:  "Target",
 		Status: "todo",
@@ -2838,7 +2838,7 @@ func TestAddBlockingWithETag(t *testing.T) {
 	core.Create(target)
 
 	t.Run("addBlocking with correct etag succeeds", func(t *testing.T) {
-		blocker := &bean.Bean{
+		blocker := &item.Item{
 			ID:     "blocker-etag-1",
 			Title:  "Blocker",
 			Status: "todo",
@@ -2858,7 +2858,7 @@ func TestAddBlockingWithETag(t *testing.T) {
 	})
 
 	t.Run("addBlocking with wrong etag fails", func(t *testing.T) {
-		blocker := &bean.Bean{
+		blocker := &item.Item{
 			ID:     "blocker-etag-2",
 			Title:  "Blocker",
 			Status: "todo",
@@ -2873,7 +2873,7 @@ func TestAddBlockingWithETag(t *testing.T) {
 			t.Error("AddBlocking() with wrong etag should fail")
 		}
 
-		var mismatchErr *beancore.ETagMismatchError
+		var mismatchErr *itemcore.ETagMismatchError
 		if !errors.As(err, &mismatchErr) {
 			t.Errorf("Expected ETagMismatchError, got %T: %v", err, err)
 		}
@@ -3084,8 +3084,8 @@ func TestRemoveBlockingWithETag(t *testing.T) {
 	resolver, core := setupTestResolver(t)
 	ctx := context.Background()
 
-	// Create target bean
-	target := &bean.Bean{
+	// Create target item
+	target := &item.Item{
 		ID:     "target-rm-etag",
 		Title:  "Target",
 		Status: "todo",
@@ -3094,7 +3094,7 @@ func TestRemoveBlockingWithETag(t *testing.T) {
 	core.Create(target)
 
 	t.Run("removeBlocking with correct etag succeeds", func(t *testing.T) {
-		blocker := &bean.Bean{
+		blocker := &item.Item{
 			ID:       "blocker-rm-etag-1",
 			Title:    "Blocker",
 			Status:   "todo",
@@ -3115,7 +3115,7 @@ func TestRemoveBlockingWithETag(t *testing.T) {
 	})
 
 	t.Run("removeBlocking with wrong etag fails", func(t *testing.T) {
-		blocker := &bean.Bean{
+		blocker := &item.Item{
 			ID:       "blocker-rm-etag-2",
 			Title:    "Blocker",
 			Status:   "todo",
@@ -3131,7 +3131,7 @@ func TestRemoveBlockingWithETag(t *testing.T) {
 			t.Error("RemoveBlocking() with wrong etag should fail")
 		}
 
-		var mismatchErr *beancore.ETagMismatchError
+		var mismatchErr *itemcore.ETagMismatchError
 		if !errors.As(err, &mismatchErr) {
 			t.Errorf("Expected ETagMismatchError, got %T: %v", err, err)
 		}
@@ -3176,7 +3176,7 @@ func TestListFiles(t *testing.T) {
 	run("commit", "-m", "init")
 
 	resolver := &Resolver{
-		CoreResolver: &beangraph.CoreResolver{},
+		CoreResolver: &itemgraph.CoreResolver{},
 		ProjectRoot:  tmpDir,
 	}
 	qr := resolver.Query().(*queryResolver)
@@ -3252,11 +3252,11 @@ func TestListFiles(t *testing.T) {
 	})
 }
 
-func TestQueryBeanExtra(t *testing.T) {
+func TestQueryItemExtra(t *testing.T) {
 	resolver, core := setupTestResolver(t)
 	ctx := context.Background()
 
-	b := &bean.Bean{
+	b := &item.Item{
 		ID:     "extra-test",
 		Title:  "Bean With Extra",
 		Status: "todo",
@@ -3279,11 +3279,11 @@ func TestQueryBeanExtra(t *testing.T) {
 	}
 }
 
-func TestMutationUpdateBeanPreservesExtra(t *testing.T) {
+func TestMutationUpdateItemPreservesExtra(t *testing.T) {
 	resolver, core := setupTestResolver(t)
 	ctx := context.Background()
 
-	b := &bean.Bean{
+	b := &item.Item{
 		ID:       "extra-update-test",
 		Title:    "Original Title",
 		Status:   "todo",
@@ -3311,9 +3311,9 @@ func TestMutationUpdateBeanPreservesExtra(t *testing.T) {
 	}
 
 	// Verify the extra key is preserved on disk
-	beansDir := filepath.Join(core.Root(), "")
-	filename := bean.BuildFilename("extra-update-test", got.Slug)
-	filePath := filepath.Join(beansDir, filename)
+	itemsDir := filepath.Join(core.Root(), "")
+	filename := item.BuildFilename("extra-update-test", got.Slug)
+	filePath := filepath.Join(itemsDir, filename)
 	fileContent, err := os.ReadFile(filePath)
 	if err != nil {
 		t.Fatalf("failed to read bean file from disk: %v", err)

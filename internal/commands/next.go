@@ -7,8 +7,8 @@ import (
 
 	"github.com/xRiErOS/lif/internal/output"
 	"github.com/xRiErOS/lif/internal/ui"
-	"github.com/xRiErOS/lif/pkg/beangraph"
-	"github.com/xRiErOS/lif/pkg/beangraph/model"
+	"github.com/xRiErOS/lif/pkg/itemgraph"
+	"github.com/xRiErOS/lif/pkg/itemgraph/model"
 	"github.com/spf13/cobra"
 )
 
@@ -31,7 +31,7 @@ query can be moved between the two commands unchanged.`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
-		resolver := &beangraph.CoreResolver{Core: core}
+		resolver := &itemgraph.CoreResolver{Core: core}
 
 		// Same flag names and semantics as list, so that narrowing a query
 		// does not require translating it between the two commands.
@@ -44,20 +44,20 @@ query can be moved between the two commands unchanged.`,
 		}
 		applyReadyFilter(filter, cfg)
 
-		beans, err := resolver.Beans(ctx, filter)
+		items, err := resolver.Items(ctx, filter)
 		if err != nil {
 			return cmdError(nextJSON, output.ErrValidation, "querying beans: %v", err)
 		}
 
-		sortBeans(beans, nextSort, nextDesc, cfg)
+		sortItems(items, nextSort, nextDesc, cfg)
 
-		if len(beans) == 0 {
-			return reportNoReadyBeans(describeNextFilters())
+		if len(items) == 0 {
+			return reportNoReadyItems(describeNextFilters())
 		}
 
 		// Delegate to show command for display
 		showJSON = nextJSON
-		return showCmd.RunE(showCmd, []string{beans[0].ID})
+		return showCmd.RunE(showCmd, []string{items[0].ID})
 	},
 }
 
@@ -78,10 +78,10 @@ func describeNextFilters() string {
 	return strings.Join(parts, " ")
 }
 
-// reportNoReadyBeans prints the empty-result message. With filters active it
+// reportNoReadyItems prints the empty-result message. With filters active it
 // names them, so that "nothing is ready" stays distinguishable from "the
 // filter was too narrow".
-func reportNoReadyBeans(filters string) error {
+func reportNoReadyItems(filters string) error {
 	if filters == "" {
 		if nextJSON {
 			return output.SuccessMessage("no ready beans found")
@@ -105,9 +105,9 @@ func RegisterNextCmd(root *cobra.Command) {
 	nextCmd.Flags().BoolVar(&nextDesc, "desc", false, "Reverse the sort order")
 	nextCmd.Flags().BoolVar(&nextJSON, "json", false, "Output as JSON")
 	// next's doc comment (:29) states --type/--tag/--parent "mean the same
-	// as in `beans list`" -- --parent is therefore list's single-value
+	// as in `lif list`" -- --parent is therefore list's single-value
 	// filter-by-existing-ID semantics (listParentFlagCompletion,
-	// beanIDCandidates), not update's type-eligible-new-parent chooser
+	// itemIDCandidates), not update's type-eligible-new-parent chooser
 	// (candidates.ParentCandidates) -- beans-pkq3 Auflage 1.
 	_ = nextCmd.RegisterFlagCompletionFunc("type", typeFlagCompletion)
 	_ = nextCmd.RegisterFlagCompletionFunc("tag", tagFlagCompletion)

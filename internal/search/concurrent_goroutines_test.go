@@ -7,14 +7,14 @@ import (
 	"testing"
 )
 
-// TestSearch_ConcurrentWithIndexBean forces AC-01's concurrency instead of
+// TestSearch_ConcurrentWithIndexItem forces AC-01's concurrency instead of
 // hoping the race detector trips over accidental interleaving: it starts
 // several goroutines against the SAME *Index, releases them through a
-// barrier, and has one goroutine repeatedly call IndexBean while the others
+// barrier, and has one goroutine repeatedly call IndexItem while the others
 // repeatedly call Search. This is the real production window
-// (pkg/beancore/core.go's Core.Search captures the *Index reference under
+// (pkg/itemcore/core.go's Core.Search captures the *Index reference under
 // c.mu, then calls idx.Search after releasing it, while Create/Update/
-// Delete call idx.IndexBean under c.mu on that same *Index -- c.mu is what
+// Delete call idx.IndexItem under c.mu on that same *Index -- c.mu is what
 // serializes writers there, so this test mirrors it with exactly one writer
 // goroutine, not several: idx.etags (index.go:106) is a plain, unsynchronized
 // map and concurrent writers to it would crash on "concurrent map writes"
@@ -26,7 +26,7 @@ import (
 //
 // Before this test, `grep -nE 'go func|sync.WaitGroup' internal/search/*_test.go`
 // found no hits (see beans-rciy's Problem section) -- this is the fix.
-func TestSearch_ConcurrentWithIndexBean(t *testing.T) {
+func TestSearch_ConcurrentWithIndexItem(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "idx")
 	idx := mustOpen(t, dir)
 
@@ -43,7 +43,7 @@ func TestSearch_ConcurrentWithIndexBean(t *testing.T) {
 		<-start
 		for i := range iterations {
 			id := "writer-" + strconv.Itoa(i)
-			if err := idx.IndexBean(beanWith(id, "Concurrent Writer", "payload")); err != nil {
+			if err := idx.IndexItem(itemWith(id, "Concurrent Writer", "payload")); err != nil {
 				errs <- err
 				return
 			}
@@ -72,7 +72,7 @@ func TestSearch_ConcurrentWithIndexBean(t *testing.T) {
 	}
 
 	// The index must still be fully usable and internally consistent after
-	// the concurrent phase: the writer's last bean is findable.
+	// the concurrent phase: the writer's last item is findable.
 	results, err := idx.Search("Concurrent", 0)
 	if err != nil {
 		t.Fatalf("Search() after concurrent phase error = %v", err)
