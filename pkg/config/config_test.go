@@ -2497,7 +2497,7 @@ func TestColourOnlyOverrideKeepsTheBuiltInRank(t *testing.T) {
 	}
 }
 
-// An explicit "color: ”"/"description: ”"/"short: ”" in the YAML source
+// An explicit `color: ""`, `description: ""` or `short: ""` in the YAML source
 // is a real value - clear the built-in default - not the same as never
 // naming the key at all, which leaves the default alone. This only applies
 // to configs loaded from YAML: UnmarshalYAML is what records which keys
@@ -2558,7 +2558,7 @@ func TestExplicitEmptyOverrideClearsTheBuiltInValue(t *testing.T) {
 }
 
 // A Save() -> Load() round trip must not lose the explicit clear either:
-// toYAMLNode() has to write "color: ”" back out, not skip the key the way
+// toYAMLNode() has to write `color: ""` back out, not skip the key the way
 // it would for a genuinely-unset override.
 func TestSaveRoundTripsAnExplicitlyEmptyOverride(t *testing.T) {
 	tmpDir := t.TempDir()
