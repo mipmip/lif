@@ -1,9 +1,11 @@
 package commands
 
 import (
+	"regexp"
 	"strings"
 	"testing"
 
+	"github.com/xRiErOS/lif/internal/graph"
 	"github.com/xRiErOS/lif/pkg/item"
 )
 
@@ -35,4 +37,23 @@ func TestServeAgentPromptsNameLifAndItem(t *testing.T) {
 			}
 		}
 	})
+}
+
+// The central agent prompt cites GraphQL mutations by name. Every cited
+// mutation must exist in the served schema, otherwise the agent gets a
+// GraphQL error (beans-xw7j: startWork never existed).
+func TestCentralAgentPromptCitesOnlyRealMutations(t *testing.T) {
+	schema := graph.NewExecutableSchema(graph.Config{}).Schema()
+	cited := regexp.MustCompile(`mutation \{ (\w+)\(`).FindAllStringSubmatch(centralAgentPrompt, -1)
+	if len(cited) == 0 {
+		t.Fatal("centralAgentPrompt cites no mutation example")
+	}
+	for _, m := range cited {
+		if schema.Mutation.Fields.ForName(m[1]) == nil {
+			t.Errorf("centralAgentPrompt cites mutation %q, not in schema", m[1])
+		}
+	}
+	if strings.Contains(centralAgentPrompt, "startWork") {
+		t.Error("centralAgentPrompt still mentions nonexistent startWork")
+	}
 }
