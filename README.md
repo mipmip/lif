@@ -1,3 +1,5 @@
+<p align="center"><img src="wiki/assets/lif-banner.webp" alt="Lif" width="720"></p>
+
 # Lif
 
 [![License](https://img.shields.io/github/license/xRiErOS/lif?style=for-the-badge)](LICENSE)
