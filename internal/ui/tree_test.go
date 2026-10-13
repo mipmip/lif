@@ -3,28 +3,28 @@ package ui
 import (
 	"testing"
 
-	"github.com/xRiErOS/beans/pkg/bean"
+	"github.com/xRiErOS/lif/pkg/item"
 )
 
 func TestBuildTree(t *testing.T) {
-	// Create test beans with parent relationships:
+	// Create test items with parent relationships:
 	// milestone1
 	//   └── epic1
 	//       └── task1
 	// task2 (orphan)
 
-	milestone1 := &bean.Bean{ID: "m1", Title: "Milestone 1", Type: "milestone"}
-	epic1 := &bean.Bean{ID: "e1", Title: "Epic 1", Type: "epic", Parent: "m1"}
-	task1 := &bean.Bean{ID: "t1", Title: "Task 1", Type: "task", Parent: "e1"}
-	task2 := &bean.Bean{ID: "t2", Title: "Task 2", Type: "task"} // orphan
+	milestone1 := &item.Item{ID: "m1", Title: "Milestone 1", Type: "milestone"}
+	epic1 := &item.Item{ID: "e1", Title: "Epic 1", Type: "epic", Parent: "m1"}
+	task1 := &item.Item{ID: "t1", Title: "Task 1", Type: "task", Parent: "e1"}
+	task2 := &item.Item{ID: "t2", Title: "Task 2", Type: "task"} // orphan
 
-	allBeans := []*bean.Bean{milestone1, epic1, task1, task2}
+	allItems := []*item.Item{milestone1, epic1, task1, task2}
 
 	// Identity sort function (no sorting)
-	noSort := func(b []*bean.Bean) {}
+	noSort := func(b []*item.Item) {}
 
 	t.Run("all beans matched", func(t *testing.T) {
-		tree := BuildTree(allBeans, allBeans, noSort, nil)
+		tree := BuildTree(allItems, allItems, noSort, nil)
 
 		// Should have 2 root nodes: milestone1 and task2
 		if len(tree) != 2 {
@@ -34,7 +34,7 @@ func TestBuildTree(t *testing.T) {
 		// Find milestone node
 		var milestoneNode *TreeNode
 		for _, n := range tree {
-			if n.Bean.ID == "m1" {
+			if n.Item.ID == "m1" {
 				milestoneNode = n
 				break
 			}
@@ -51,8 +51,8 @@ func TestBuildTree(t *testing.T) {
 			t.Errorf("milestone should have 1 child, got %d", len(milestoneNode.Children))
 		}
 		epicNode := milestoneNode.Children[0]
-		if epicNode.Bean.ID != "e1" {
-			t.Errorf("expected epic child, got %s", epicNode.Bean.ID)
+		if epicNode.Item.ID != "e1" {
+			t.Errorf("expected epic child, got %s", epicNode.Item.ID)
 		}
 
 		// Epic should have task as child
@@ -60,15 +60,15 @@ func TestBuildTree(t *testing.T) {
 			t.Errorf("epic should have 1 child, got %d", len(epicNode.Children))
 		}
 		taskNode := epicNode.Children[0]
-		if taskNode.Bean.ID != "t1" {
-			t.Errorf("expected task child, got %s", taskNode.Bean.ID)
+		if taskNode.Item.ID != "t1" {
+			t.Errorf("expected task child, got %s", taskNode.Item.ID)
 		}
 	})
 
 	t.Run("filter leaf only - ancestors included", func(t *testing.T) {
 		// Only task1 matched, but ancestors should be included
-		matchedBeans := []*bean.Bean{task1}
-		tree := BuildTree(matchedBeans, allBeans, noSort, nil)
+		matchedItems := []*item.Item{task1}
+		tree := BuildTree(matchedItems, allItems, noSort, nil)
 
 		// Should have 1 root: milestone (as ancestor)
 		if len(tree) != 1 {
@@ -76,8 +76,8 @@ func TestBuildTree(t *testing.T) {
 		}
 
 		milestoneNode := tree[0]
-		if milestoneNode.Bean.ID != "m1" {
-			t.Errorf("expected milestone as root, got %s", milestoneNode.Bean.ID)
+		if milestoneNode.Item.ID != "m1" {
+			t.Errorf("expected milestone as root, got %s", milestoneNode.Item.ID)
 		}
 		if milestoneNode.Matched {
 			t.Error("milestone should NOT be marked as matched (it's an ancestor)")
@@ -104,8 +104,8 @@ func TestBuildTree(t *testing.T) {
 
 	t.Run("filter middle - ancestors included", func(t *testing.T) {
 		// Only epic1 matched
-		matchedBeans := []*bean.Bean{epic1}
-		tree := BuildTree(matchedBeans, allBeans, noSort, nil)
+		matchedItems := []*item.Item{epic1}
+		tree := BuildTree(matchedItems, allItems, noSort, nil)
 
 		// Should have 1 root: milestone (ancestor)
 		if len(tree) != 1 {
@@ -129,14 +129,14 @@ func TestBuildTree(t *testing.T) {
 	})
 
 	t.Run("orphan bean", func(t *testing.T) {
-		matchedBeans := []*bean.Bean{task2}
-		tree := BuildTree(matchedBeans, allBeans, noSort, nil)
+		matchedItems := []*item.Item{task2}
+		tree := BuildTree(matchedItems, allItems, noSort, nil)
 
 		if len(tree) != 1 {
 			t.Errorf("expected 1 root node, got %d", len(tree))
 		}
-		if tree[0].Bean.ID != "t2" {
-			t.Errorf("expected task2 as root, got %s", tree[0].Bean.ID)
+		if tree[0].Item.ID != "t2" {
+			t.Errorf("expected task2 as root, got %s", tree[0].Item.ID)
 		}
 		if !tree[0].Matched {
 			t.Error("task2 should be marked as matched")
@@ -144,25 +144,25 @@ func TestBuildTree(t *testing.T) {
 	})
 
 	t.Run("broken parent link", func(t *testing.T) {
-		// Bean with parent that doesn't exist
-		brokenBean := &bean.Bean{ID: "broken", Title: "Broken", Parent: "nonexistent"}
-		matchedBeans := []*bean.Bean{brokenBean}
-		allBeansWithBroken := append(allBeans, brokenBean)
+		// Item with parent that doesn't exist
+		brokenItem := &item.Item{ID: "broken", Title: "Broken", Parent: "nonexistent"}
+		matchedItems := []*item.Item{brokenItem}
+		allItemsWithBroken := append(allItems, brokenItem)
 
-		tree := BuildTree(matchedBeans, allBeansWithBroken, noSort, nil)
+		tree := BuildTree(matchedItems, allItemsWithBroken, noSort, nil)
 
 		// Should be treated as root (parent not found)
 		if len(tree) != 1 {
 			t.Errorf("expected 1 root node, got %d", len(tree))
 		}
-		if tree[0].Bean.ID != "broken" {
-			t.Errorf("expected broken bean as root, got %s", tree[0].Bean.ID)
+		if tree[0].Item.ID != "broken" {
+			t.Errorf("expected broken bean as root, got %s", tree[0].Item.ID)
 		}
 	})
 }
 
 func TestTreeNodeToJSON(t *testing.T) {
-	b := &bean.Bean{
+	b := &item.Item{
 		ID:       "test-id",
 		Slug:     "test-slug",
 		Path:     "test.md",
@@ -175,11 +175,11 @@ func TestTreeNodeToJSON(t *testing.T) {
 	}
 
 	node := &TreeNode{
-		Bean:    b,
+		Item:    b,
 		Matched: true,
 		Children: []*TreeNode{
 			{
-				Bean:    &bean.Bean{ID: "child-id", Title: "Child"},
+				Item:    &item.Item{ID: "child-id", Title: "Child"},
 				Matched: false,
 			},
 		},

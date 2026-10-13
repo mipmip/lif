@@ -16,8 +16,8 @@ import (
 func TestSendToProcessImageOnlyNoEmptyTextBlock(t *testing.T) {
 	// Set up a temp store with a fake image file
 	tmpDir := t.TempDir()
-	beanID := "beans-test1"
-	attachDir := filepath.Join(tmpDir, "attachments", beanID)
+	itemID := "beans-test1"
+	attachDir := filepath.Join(tmpDir, "attachments", itemID)
 	if err := os.MkdirAll(attachDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -47,7 +47,7 @@ func TestSendToProcessImageOnlyNoEmptyTextBlock(t *testing.T) {
 		output, _ = io.ReadAll(pr)
 	}()
 
-	err := m.sendToProcess(proc, beanID, "", images)
+	err := m.sendToProcess(proc, itemID, "", images)
 	if err != nil {
 		t.Fatalf("sendToProcess failed: %v", err)
 	}
@@ -88,8 +88,8 @@ func TestSendToProcessImageOnlyNoEmptyTextBlock(t *testing.T) {
 // provided, both blocks are included in the correct order.
 func TestSendToProcessImageWithText(t *testing.T) {
 	tmpDir := t.TempDir()
-	beanID := "beans-test2"
-	attachDir := filepath.Join(tmpDir, "attachments", beanID)
+	itemID := "beans-test2"
+	attachDir := filepath.Join(tmpDir, "attachments", itemID)
 	if err := os.MkdirAll(attachDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -117,7 +117,7 @@ func TestSendToProcessImageWithText(t *testing.T) {
 		output, _ = io.ReadAll(pr)
 	}()
 
-	err := m.sendToProcess(proc, beanID, "Describe this image", images)
+	err := m.sendToProcess(proc, itemID, "Describe this image", images)
 	if err != nil {
 		t.Fatalf("sendToProcess failed: %v", err)
 	}

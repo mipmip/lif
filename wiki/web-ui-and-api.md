@@ -1,17 +1,17 @@
 # Web UI and API
 
-This page documents what `beans-serve` starts, exactly which HTTP routes it exposes, and its network exposure and authentication posture. Read the security posture section before starting it anywhere other than a trusted local machine.
+This page documents what `lif-serve` starts, exactly which HTTP routes it exposes, and its network exposure and authentication posture. Read the security posture section before starting it anywhere other than a trusted local machine.
 
 ## Starting the server
 
-`beans-serve` is a [separate binary](commands/separate-binaries.md) from `beans`; running it with no arguments (or any flag as the first argument) is equivalent to `beans-serve serve`:
+`lif-serve` is a [separate binary](commands/separate-binaries.md) from `lif`; running it with no arguments (or any flag as the first argument) is equivalent to `lif-serve serve`:
 
 ```
-$ beans-serve --help
+$ lif-serve --help
 Start the web server
 
 Usage:
-  beans-serve serve [flags]
+  lif-serve serve [flags]
 
 Aliases:
   serve, server, s
@@ -20,29 +20,27 @@ Flags:
       --cors-origin strings   Allowed CORS origins (use * to allow all) (default [http://localhost:*,http://127.0.0.1:*])
   -h, --help                  help for serve
   -p, --port int              Port to listen on (default 8080)
-
-Global Flags:
-      --beans-path string   Path to data directory (overrides config and BEANS_PATH env var)
-      --config string       Path to config file (default: searches upward for .beans.yml)
 ```
 
-The port and the allowed CORS origins each resolve in the same order: the `--port`/`--cors-origin` flag if given, else `server.port`/`server.cors_origins` from `.beans.yml`, else the built-in default (port `8080`; origins `http://localhost:*` and `http://127.0.0.1:*`). See [Configuration Reference](configuration.md) for the `.beans.yml` keys.
+The global flags `--config` and `--lif-path` apply as in every other binary; read each command's `--help` for their exact wording.
 
-At startup the server starts a filesystem watcher on the beans store (for GraphQL subscriptions), creates the worktree root directory if missing (default `~/.beans/worktrees/<project>/`), restores any previously allocated workspace ports, and logs the port and configured origins before it starts listening. Shutdown is graceful on `SIGINT`/`SIGTERM`: in-flight requests get up to 5 seconds to finish before the listener force-closes, and the whole process force-exits after a 10-second hard deadline if something (an unresponsive subprocess, a stuck WebSocket handler) blocks shutdown from completing.
+The port and the allowed CORS origins each resolve in the same order: the `--port`/`--cors-origin` flag if given, else `server.port`/`server.cors_origins` from `.lif.yml`, else the built-in default (port `8080`; origins `http://localhost:*` and `http://127.0.0.1:*`). See [Configuration Reference](configuration.md) for the `.lif.yml` keys.
+
+At startup the server starts a filesystem watcher on the Lif store (for GraphQL subscriptions), creates the worktree root directory if missing (default `~/.lif/worktrees/<project>/`), restores any previously allocated workspace ports, and logs the port and configured origins before it starts listening. Shutdown is graceful on `SIGINT`/`SIGTERM`: in-flight requests get up to 5 seconds to finish before the listener force-closes, and the whole process force-exits after a 10-second hard deadline if something (an unresponsive subprocess, a stuck WebSocket handler) blocks shutdown from completing.
 
 ## Network binding
 
-The HTTP server binds to `:<port>` — an empty host, which means every network interface, not just loopback. There is no `--host`, `--bind`, or `--listen-address` flag to restrict it to `127.0.0.1`. Starting `beans-serve` on a machine with a routable network interface makes it reachable from that network, not just from `localhost`, regardless of the CORS origin allowlist described below: CORS governs which *browser* origins may read cross-origin responses, and does not prevent a non-browser client (`curl`, another service, a script) elsewhere on the network from reaching the port directly.
+The HTTP server binds to `:<port>` — an empty host, which means every network interface, not just loopback. There is no `--host`, `--bind`, or `--listen-address` flag to restrict it to `127.0.0.1`. Starting `lif-serve` on a machine with a routable network interface makes it reachable from that network, not just from `localhost`, regardless of the CORS origin allowlist described below: CORS governs which *browser* origins may read cross-origin responses, and does not prevent a non-browser client (`curl`, another service, a script) elsewhere on the network from reaching the port directly.
 
 ## Routes
 
-`beans-serve` exposes exactly five route groups, mounted on a single Gin router:
+`lif-serve` exposes exactly five route groups, mounted on a single Gin router:
 
 | Method | Path | Purpose |
 |---|---|---|
 | any | `/api/graphql` | The GraphQL API — queries, mutations, and WebSocket subscriptions, all on one endpoint |
 | `GET` | `/playground` | The GraphQL Playground, an interactive query IDE pointed at `/api/graphql` |
-| `GET` | `/api/attachments/:beanId/:filename` | Serves an image attached to an agent chat message |
+| `GET` | `/api/attachments/<item-id>/<filename>` | Serves an image attached to an agent chat message |
 | `GET` | `/api/terminal` | WebSocket endpoint that bridges a browser terminal to a PTY session, in the central project directory or a worktree |
 | any unmatched path | (fallback) | Serves the embedded frontend single-page app, with client-side routing for unmatched non-asset paths |
 
@@ -52,7 +50,7 @@ The frontend fallback route serves the same Svelte-based single-page app that sh
 
 ## Request handling and limits
 
-Every request passes through, in order: Gin's request logger, a panic-recovery middleware, a request-body size cap (10 MB — GraphQL documents and bean bodies are far smaller; agent chat image attachments are the largest legitimate payload), a shared concurrent-WebSocket-connection cap (100, shared across `/api/graphql` subscriptions and `/api/terminal`, since both compete for the same process's file descriptors), and the CORS middleware. The underlying `net/http.Server` enforces a 15-second read timeout, a 15-second write timeout, and a 60-second idle timeout on top of those.
+Every request passes through, in order: Gin's request logger, a panic-recovery middleware, a request-body size cap (10 MB — GraphQL documents and item bodies are far smaller; agent chat image attachments are the largest legitimate payload), a shared concurrent-WebSocket-connection cap (100, shared across `/api/graphql` subscriptions and `/api/terminal`, since both compete for the same process's file descriptors), and the CORS middleware. The underlying `net/http.Server` enforces a 15-second read timeout, a 15-second write timeout, and a 60-second idle timeout on top of those.
 
 ## CORS and origin checking
 
@@ -66,11 +64,15 @@ The same allowlist and the same `Checker` gate both the CORS middleware and ever
 
 ## Security posture
 
-There is no authentication or authorization anywhere in `beans-serve`: no login, no API key, no bearer token, no session cookie. Every route — the GraphQL API (queries and mutations, including workspace creation, terminal commands run through the agent tooling, and file changes), the Playground, and the PTY-backed terminal WebSocket — is reachable by anyone who can reach the port and satisfy the CORS/origin check above. The origin check is a browser-focused CSRF-style guard, not an authentication mechanism: it does nothing against a direct, non-browser client that can already reach the port on the network.
+There is no authentication or authorization anywhere in `lif-serve`: no login, no API key, no bearer token, no session cookie. Every route — the GraphQL API (queries and mutations, including workspace creation, terminal commands run through the agent tooling, and file changes), the Playground, and the PTY-backed terminal WebSocket — is reachable by anyone who can reach the port and satisfy the CORS/origin check above. The origin check is a browser-focused CSRF-style guard, not an authentication mechanism: it does nothing against a direct, non-browser client that can already reach the port on the network.
 
-The GraphQL Playground at `/playground` is not gated separately from the API itself — anyone who can load it can execute any query or mutation the schema exposes, with full read/write access to the bean store, worktrees, and terminal sessions. The terminal WebSocket at `/api/terminal` grants an interactive shell in the project's own working directory or one of its worktrees; nothing in the request path checks who is opening that shell beyond the CORS/origin allowlist. There is no separate "read-only" or "public" mode.
+The GraphQL Playground at `/playground` is not gated separately from the API itself — anyone who can load it can execute any query or mutation the schema exposes, with full read/write access to the item store, worktrees, and terminal sessions. The terminal WebSocket at `/api/terminal` grants an interactive shell in the project's own working directory or one of its worktrees; nothing in the request path checks who is opening that shell beyond the CORS/origin allowlist. There is no separate "read-only" or "public" mode.
 
-Given this, `beans-serve` is meant to be run on a trusted local machine, bound to a network the operator controls, with the default `localhost`-only CORS origins left in place. Widening `--cors-origin` to `*` or to a non-localhost origin, or exposing the port beyond loopback (a shared network, a container port mapping, a reverse proxy without its own authentication layer), extends every one of the capabilities above to whoever can then reach it.
+Given this, `lif-serve` is meant to be run on a trusted local machine, bound to a network the operator controls, with the default `localhost`-only CORS origins left in place. Widening `--cors-origin` to `*` or to a non-localhost origin, or exposing the port beyond loopback (a shared network, a container port mapping, a reverse proxy without its own authentication layer), extends every one of the capabilities above to whoever can then reach it.
+
+## Web UI state and deep links
+
+The web UI keeps its layout in the browser's `localStorage`, under keys that start with `lif-`: `lif-planning-chat`, `lif-changes-pane`, `lif-filter-text`, and `lif-split-<panel>` for pane sizes. A selected item is mirrored into the address bar as `?item=<id>`, so a link such as `http://localhost:8080/?item=<id>` opens the board with that item selected. A browser that still holds layout state from an earlier release starts with the default layout once; see [Compatibility and upgrading](compatibility-and-upgrading.md).
 
 ## Related documentation
 

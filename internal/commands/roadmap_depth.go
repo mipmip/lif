@@ -16,8 +16,8 @@ func validateRoadmapDepth(depth int, changed bool) error {
 // pruneRoadmapDepth truncates data in place to maxDepth levels, following
 // `tree -L n` semantics: the root never counts. Without a scope ID the root
 // is the roadmap as a whole, so milestones -- and the unscheduled branch's
-// top-level entries, since "Unscheduled" is a heading and not a bean -- are
-// level 1. With a scope ID the root is the scoped bean itself, so its direct
+// top-level entries, since "Unscheduled" is a heading and not an item -- are
+// level 1. With a scope ID the root is the scoped item itself, so its direct
 // children are level 1.
 //
 // This runs on the finished roadmapData rather than inside buildRoadmap on
@@ -54,26 +54,30 @@ func pruneRoadmapDepth(data *roadmapData, maxDepth int, scoped bool) {
 		mg := &data.Milestones[i]
 		childLevel := top + 1
 		if childLevel > maxDepth {
-			mg.Epics, mg.Features, mg.Other = nil, nil, nil
+			mg.Containers, mg.Other = nil, nil
 			continue
 		}
-		for j := range mg.Epics {
-			pruneEpicGroup(&mg.Epics[j], childLevel, maxDepth)
-		}
-		for j := range mg.Features {
-			pruneFeatureGroup(&mg.Features[j], childLevel, maxDepth)
+		for j := range mg.Containers {
+			pruneRoadmapContainer(&mg.Containers[j], childLevel, maxDepth)
 		}
 	}
 
 	if data.Unscheduled != nil {
 		un := data.Unscheduled
-		for i := range un.Epics {
-			pruneEpicGroup(&un.Epics[i], top, maxDepth)
-		}
-		for i := range un.Features {
-			pruneFeatureGroup(&un.Features[i], top, maxDepth)
+		for i := range un.Containers {
+			pruneRoadmapContainer(&un.Containers[i], top, maxDepth)
 		}
 	}
+}
+
+// pruneRoadmapContainer dispatches pruning to the slot's group. level is the
+// level of the container row itself.
+func pruneRoadmapContainer(c *roadmapContainer, level, maxDepth int) {
+	if c.Epic != nil {
+		pruneEpicGroup(c.Epic, level, maxDepth)
+		return
+	}
+	pruneFeatureGroup(c.Feature, level, maxDepth)
 }
 
 // pruneEpicGroup cuts an epic's children when they sit below maxDepth.

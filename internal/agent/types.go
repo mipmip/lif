@@ -20,9 +20,9 @@ const (
 	StatusError   SessionStatus = "error"
 )
 
-// ActiveAgent is a lightweight struct for reporting which beans have active agents.
+// ActiveAgent is a lightweight struct for reporting which items have active agents.
 type ActiveAgent struct {
-	BeanID string
+	ItemID string
 	Status SessionStatus
 }
 
@@ -99,7 +99,7 @@ type PendingInteraction struct {
 
 // Session represents an active or idle agent conversation for a worktree.
 type Session struct {
-	ID        string        // beanID — one session per worktree
+	ID        string        // itemID — one session per worktree
 	AgentType string        // "claude" for now
 	SessionID string        // CLI session ID for --resume
 	Status    SessionStatus // idle, running, error

@@ -3,12 +3,12 @@ package commands
 import (
 	"context"
 
-	"github.com/xRiErOS/beans/internal/output"
-	"github.com/xRiErOS/beans/internal/ui"
-	"github.com/xRiErOS/beans/pkg/bean"
-	"github.com/xRiErOS/beans/pkg/beangraph"
-	"github.com/xRiErOS/beans/pkg/beangraph/model"
 	"github.com/spf13/cobra"
+	"github.com/xRiErOS/lif/internal/output"
+	"github.com/xRiErOS/lif/internal/ui"
+	"github.com/xRiErOS/lif/pkg/item"
+	"github.com/xRiErOS/lif/pkg/itemgraph"
+	"github.com/xRiErOS/lif/pkg/itemgraph/model"
 )
 
 var (
@@ -19,16 +19,16 @@ var (
 
 var tagCmd = &cobra.Command{
 	Use:   "tag <id> [id...]",
-	Short: "Add or remove tags on one or more beans",
-	Long: `Adds and removes tags on one or more beans in a single call.
+	Short: "Add or remove tags on one or more items",
+	Long: `Adds and removes tags on one or more items in a single call.
 
 Tags are merged, not replaced: --tag adds, --remove-tag takes away, and every
 tag not named is left alone. At least one of the two is required. Every ID is
-resolved before the first bean is written.`,
+resolved before the first item is written.`,
 	Args: cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
-		resolver := &beangraph.CoreResolver{Core: core}
+		resolver := &itemgraph.CoreResolver{Core: core}
 
 		if len(tagAdd) == 0 && len(tagRemove) == 0 {
 			return cmdError(tagJSON, output.ErrValidation, "no tags given (use --tag or --remove-tag)")
@@ -42,14 +42,14 @@ resolved before the first bean is written.`,
 		// Built here rather than through buildUpdateInput: that helper reads
 		// the update* globals, which would let a previous update in the same
 		// process leak into a tag call.
-		input := model.UpdateBeanInput{
+		input := model.UpdateItemInput{
 			AddTags:    tagAdd,
 			RemoveTags: tagRemove,
 		}
 
-		done := make([]*bean.Bean, 0, len(targets))
+		done := make([]*item.Item, 0, len(targets))
 		for _, target := range targets {
-			b, err := resolver.UpdateBean(ctx, target.ID, input)
+			b, err := resolver.UpdateItem(ctx, target.ID, input)
 			if err != nil {
 				return emitBatchFailure(tagJSON, done, err)
 			}
@@ -58,7 +58,7 @@ resolved before the first bean is written.`,
 
 		return emitBatchSuccess(tagJSON, done,
 			output.SuccessSingle,
-			func(b *bean.Bean) string {
+			func(b *item.Item) string {
 				return ui.Success.Render("Tagged ") + ui.ID.Render(b.ID) + " " + b.Title
 			})
 	},

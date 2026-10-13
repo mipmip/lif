@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
-	"github.com/xRiErOS/beans/pkg/safepath"
+	"github.com/xRiErOS/lif/pkg/safepath"
 )
 
 // maxImageSize is the maximum allowed image size (5 MB, matching Anthropic API limits).
@@ -24,7 +24,7 @@ var allowedImageTypes = map[string]string{
 }
 
 // store handles JSONL persistence for agent conversations.
-// Each bean gets a file at <beansDir>/.conversations/<beanID>.jsonl.
+// Each item gets a file at <itemsDir>/.conversations/<itemID>.jsonl.
 type store struct {
 	dir string // .beans/.conversations/
 }
@@ -38,17 +38,17 @@ type entryImage struct {
 // entry is a single line in the JSONL file.
 type entry struct {
 	Type        string       `json:"type"`                  // "message" or "meta"
-	Role        string       `json:"role,omitempty"`         // for messages: "user" or "assistant"
-	Content     string       `json:"content,omitempty"`      // for messages
-	Images      []entryImage `json:"images,omitempty"`       // for messages with image attachments
-	Diff        string       `json:"diff,omitempty"`         // for tool messages: unified diff output
-	Attachments []string     `json:"attachments,omitempty"`  // file paths from @-mentions
-	SessionID   string       `json:"session_id,omitempty"`   // for meta
+	Role        string       `json:"role,omitempty"`        // for messages: "user" or "assistant"
+	Content     string       `json:"content,omitempty"`     // for messages
+	Images      []entryImage `json:"images,omitempty"`      // for messages with image attachments
+	Diff        string       `json:"diff,omitempty"`        // for tool messages: unified diff output
+	Attachments []string     `json:"attachments,omitempty"` // file paths from @-mentions
+	SessionID   string       `json:"session_id,omitempty"`  // for meta
 }
 
 // newStore creates the conversations directory if needed.
-func newStore(beansDir string) (*store, error) {
-	dir := filepath.Join(beansDir, ".conversations")
+func newStore(itemsDir string) (*store, error) {
+	dir := filepath.Join(itemsDir, ".conversations")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return nil, fmt.Errorf("create conversations dir: %w", err)
 	}
@@ -56,9 +56,9 @@ func newStore(beansDir string) (*store, error) {
 	return &store{dir: dir}, nil
 }
 
-// load reads the JSONL file for a bean and returns the messages and session ID.
-func (s *store) load(beanID string) ([]Message, string, error) {
-	path, err := s.path(beanID)
+// load reads the JSONL file for an item and returns the messages and session ID.
+func (s *store) load(itemID string) ([]Message, string, error) {
+	path, err := s.path(itemID)
 	if err != nil {
 		return nil, "", err
 	}
@@ -104,7 +104,7 @@ func (s *store) load(beanID string) ([]Message, string, error) {
 }
 
 // appendMessage appends a message entry to the JSONL file.
-func (s *store) appendMessage(beanID string, msg Message) error {
+func (s *store) appendMessage(itemID string, msg Message) error {
 	e := entry{
 		Type:        "message",
 		Role:        string(msg.Role),
@@ -115,26 +115,26 @@ func (s *store) appendMessage(beanID string, msg Message) error {
 	for _, img := range msg.Images {
 		e.Images = append(e.Images, entryImage{ID: img.ID, MediaType: img.MediaType})
 	}
-	return s.appendEntry(beanID, e)
+	return s.appendEntry(itemID, e)
 }
 
 // saveSessionID appends a meta entry with the session ID.
-func (s *store) saveSessionID(beanID, sessionID string) error {
-	return s.appendEntry(beanID, entry{
+func (s *store) saveSessionID(itemID, sessionID string) error {
+	return s.appendEntry(itemID, entry{
 		Type:      "meta",
 		SessionID: sessionID,
 	})
 }
 
 // appendEntry appends a single JSON line to the JSONL file.
-func (s *store) appendEntry(beanID string, e entry) error {
+func (s *store) appendEntry(itemID string, e entry) error {
 	data, err := json.Marshal(e)
 	if err != nil {
 		return err
 	}
 	data = append(data, '\n')
 
-	path, err := s.path(beanID)
+	path, err := s.path(itemID)
 	if err != nil {
 		return err
 	}
@@ -148,9 +148,9 @@ func (s *store) appendEntry(beanID string, e entry) error {
 	return err
 }
 
-// clear deletes the JSONL file and all attachments for a bean.
-func (s *store) clear(beanID string) error {
-	path, err := s.path(beanID)
+// clear deletes the JSONL file and all attachments for an item.
+func (s *store) clear(itemID string) error {
+	path, err := s.path(itemID)
 	if err != nil {
 		return err
 	}
@@ -158,24 +158,24 @@ func (s *store) clear(beanID string) error {
 	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
-	return s.clearAttachments(beanID)
+	return s.clearAttachments(itemID)
 }
 
-// path returns the JSONL file path for a bean.
-// Returns an error if the beanID would cause path traversal.
-func (s *store) path(beanID string) (string, error) {
-	if err := safepath.ValidateBeanID(beanID); err != nil {
-		return "", fmt.Errorf("invalid bean ID for conversation path: %w", err)
+// path returns the JSONL file path for an item.
+// Returns an error if the itemID would cause path traversal.
+func (s *store) path(itemID string) (string, error) {
+	if err := safepath.ValidateItemID(itemID); err != nil {
+		return "", fmt.Errorf("invalid item ID for conversation path: %w", err)
 	}
-	return safepath.SafeJoin(s.dir, beanID+".jsonl")
+	return safepath.SafeJoin(s.dir, itemID+".jsonl")
 }
 
-// attachmentDir returns the directory for a bean's image attachments, creating it if needed.
-func (s *store) attachmentDir(beanID string) (string, error) {
-	if err := safepath.ValidateBeanID(beanID); err != nil {
-		return "", fmt.Errorf("invalid bean ID for attachment dir: %w", err)
+// attachmentDir returns the directory for an item's image attachments, creating it if needed.
+func (s *store) attachmentDir(itemID string) (string, error) {
+	if err := safepath.ValidateItemID(itemID); err != nil {
+		return "", fmt.Errorf("invalid item ID for attachment dir: %w", err)
 	}
-	dir, err := safepath.SafeJoin(s.dir, filepath.Join("attachments", beanID))
+	dir, err := safepath.SafeJoin(s.dir, filepath.Join("attachments", itemID))
 	if err != nil {
 		return "", err
 	}
@@ -187,7 +187,7 @@ func (s *store) attachmentDir(beanID string) (string, error) {
 
 // saveImage stores an image file to disk and returns a reference to it.
 // Validates media type and file size.
-func (s *store) saveImage(beanID, mediaType string, data []byte) (ImageRef, error) {
+func (s *store) saveImage(itemID, mediaType string, data []byte) (ImageRef, error) {
 	ext, ok := allowedImageTypes[mediaType]
 	if !ok {
 		return ImageRef{}, fmt.Errorf("unsupported image type %q (allowed: jpeg, png, gif, webp)", mediaType)
@@ -196,7 +196,7 @@ func (s *store) saveImage(beanID, mediaType string, data []byte) (ImageRef, erro
 		return ImageRef{}, fmt.Errorf("image too large (%d bytes, max %d)", len(data), maxImageSize)
 	}
 
-	dir, err := s.attachmentDir(beanID)
+	dir, err := s.attachmentDir(itemID)
 	if err != nil {
 		return ImageRef{}, err
 	}
@@ -211,25 +211,25 @@ func (s *store) saveImage(beanID, mediaType string, data []byte) (ImageRef, erro
 }
 
 // attachmentPath returns the filesystem path for a stored image.
-// Validates both beanID and imageID to prevent path traversal.
-func (s *store) attachmentPath(beanID, imageID string) (string, error) {
-	if err := safepath.ValidateBeanID(beanID); err != nil {
-		return "", fmt.Errorf("invalid bean ID for attachment: %w", err)
+// Validates both itemID and imageID to prevent path traversal.
+func (s *store) attachmentPath(itemID, imageID string) (string, error) {
+	if err := safepath.ValidateItemID(itemID); err != nil {
+		return "", fmt.Errorf("invalid item ID for attachment: %w", err)
 	}
 	// Validate imageID: must not contain path separators or traversal sequences
 	if strings.ContainsAny(imageID, "/\\") || strings.Contains(imageID, "..") || imageID == "" {
 		return "", fmt.Errorf("invalid image ID %q", imageID)
 	}
-	dir := filepath.Join(s.dir, "attachments", beanID)
+	dir := filepath.Join(s.dir, "attachments", itemID)
 	return safepath.SafeJoin(dir, imageID)
 }
 
-// clearAttachments removes all stored images for a bean.
-func (s *store) clearAttachments(beanID string) error {
-	if err := safepath.ValidateBeanID(beanID); err != nil {
-		return fmt.Errorf("invalid bean ID for attachment cleanup: %w", err)
+// clearAttachments removes all stored images for an item.
+func (s *store) clearAttachments(itemID string) error {
+	if err := safepath.ValidateItemID(itemID); err != nil {
+		return fmt.Errorf("invalid item ID for attachment cleanup: %w", err)
 	}
-	dir := filepath.Join(s.dir, "attachments", beanID)
+	dir := filepath.Join(s.dir, "attachments", itemID)
 	err := os.RemoveAll(dir)
 	if err != nil && !os.IsNotExist(err) {
 		return err
@@ -237,12 +237,12 @@ func (s *store) clearAttachments(beanID string) error {
 	return nil
 }
 
-// pruneAttachments deletes any attachment files for a bean that are NOT in keepIDs.
-func (s *store) pruneAttachments(beanID string, keepIDs []string) error {
-	if err := safepath.ValidateBeanID(beanID); err != nil {
-		return fmt.Errorf("invalid bean ID for attachment prune: %w", err)
+// pruneAttachments deletes any attachment files for an item that are NOT in keepIDs.
+func (s *store) pruneAttachments(itemID string, keepIDs []string) error {
+	if err := safepath.ValidateItemID(itemID); err != nil {
+		return fmt.Errorf("invalid item ID for attachment prune: %w", err)
 	}
-	dir := filepath.Join(s.dir, "attachments", beanID)
+	dir := filepath.Join(s.dir, "attachments", itemID)
 	entries, err := os.ReadDir(dir)
 	if os.IsNotExist(err) {
 		return nil

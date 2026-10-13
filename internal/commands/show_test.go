@@ -12,25 +12,25 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/muesli/termenv"
-	"github.com/xRiErOS/beans/internal/ui"
-	"github.com/xRiErOS/beans/pkg/bean"
-	"github.com/xRiErOS/beans/pkg/beancore"
-	"github.com/xRiErOS/beans/pkg/config"
+	"github.com/xRiErOS/lif/internal/ui"
+	"github.com/xRiErOS/lif/pkg/config"
+	"github.com/xRiErOS/lif/pkg/item"
+	"github.com/xRiErOS/lif/pkg/itemcore"
 )
 
 // setupShowTest installs a throwaway core and the default config into the
-// package globals that showStyledBean reads (cfg.GetStatus, core.ImplicitStatus)
+// package globals that showStyledItem reads (cfg.GetStatus, core.ImplicitStatus)
 // and restores both afterwards.
 func setupShowTest(t *testing.T) {
 	t.Helper()
 	tmpDir := t.TempDir()
-	beansDir := filepath.Join(tmpDir, ".beans")
-	if err := os.MkdirAll(beansDir, 0755); err != nil {
+	itemsDir := filepath.Join(tmpDir, ".beans")
+	if err := os.MkdirAll(itemsDir, 0755); err != nil {
 		t.Fatalf("failed to create test .beans dir: %v", err)
 	}
 
 	testCfg := config.Default()
-	testCore := beancore.New(beansDir, testCfg)
+	testCore := itemcore.New(itemsDir, testCfg)
 	if err := testCore.Load(); err != nil {
 		t.Fatalf("failed to load core: %v", err)
 	}
@@ -40,10 +40,10 @@ func setupShowTest(t *testing.T) {
 	t.Cleanup(func() { core, cfg = oldCore, oldCfg })
 }
 
-func showTestBean(id, title, body string) *bean.Bean {
-	return &bean.Bean{
+func showTestItem(id, title, body string) *item.Item {
+	return &item.Item{
 		ID:     id,
-		Slug:   bean.Slugify(title),
+		Slug:   item.Slugify(title),
 		Title:  title,
 		Status: "todo",
 		Type:   "task",
@@ -51,11 +51,11 @@ func showTestBean(id, title, body string) *bean.Bean {
 	}
 }
 
-func mustRender(t *testing.T, b *bean.Bean) string {
+func mustRender(t *testing.T, b *item.Item) string {
 	t.Helper()
 	content, err := b.Render()
 	if err != nil {
-		t.Fatalf("bean.Render() error = %v", err)
+		t.Fatalf("item.Render() error = %v", err)
 	}
 	return string(content)
 }
@@ -65,7 +65,7 @@ func mustRender(t *testing.T, b *bean.Bean) string {
 // mutation that keeps the glamour path for the non-TTY branch turns this red.
 func TestShowOutputSwitchesOnTTY(t *testing.T) {
 	setupShowTest(t)
-	b := showTestBean("beans-test1", "A test bean", "# Heading\n\nSome body text.\n")
+	b := showTestItem("beans-test1", "A test bean", "# Heading\n\nSome body text.\n")
 
 	t.Run("non-tty is byte-identical to raw", func(t *testing.T) {
 		got, err := showOutput(b, false, false, 110)
@@ -74,7 +74,7 @@ func TestShowOutputSwitchesOnTTY(t *testing.T) {
 		}
 		want := mustRender(t, b)
 		if got != want {
-			t.Errorf("non-TTY output differs from bean.Render()\n got: %q\nwant: %q", got, want)
+			t.Errorf("non-TTY output differs from item.Render()\n got: %q\nwant: %q", got, want)
 		}
 	})
 
@@ -98,16 +98,16 @@ func TestShowOutputSwitchesOnTTY(t *testing.T) {
 	})
 }
 
-// REQ-04 / AC-04.1: without a terminal, consecutive beans are joined by
+// REQ-04 / AC-04.1: without a terminal, consecutive items are joined by
 // "\n---\n\n". The assertion is an equality against the expected concatenation
-// rather than a substring count: bean.Render emits "\n---\n\n" around its own
+// rather than a substring count: item.Render emits "\n---\n\n" around its own
 // closing front-matter fence, so a global count would not isolate the joint.
 func TestShowOutputAllSeparatorNonTTY(t *testing.T) {
 	setupShowTest(t)
-	b1 := showTestBean("beans-test4", "First bean", "First body.\n")
-	b2 := showTestBean("beans-test5", "Second bean", "Second body.\n")
+	b1 := showTestItem("beans-test4", "First bean", "First body.\n")
+	b2 := showTestItem("beans-test5", "Second bean", "Second body.\n")
 
-	got, err := showOutputAll([]*bean.Bean{b1, b2}, false, false, 110)
+	got, err := showOutputAll([]*item.Item{b1, b2}, false, false, 110)
 	if err != nil {
 		t.Fatalf("showOutputAll() error = %v", err)
 	}
@@ -118,15 +118,15 @@ func TestShowOutputAllSeparatorNonTTY(t *testing.T) {
 	}
 }
 
-// REQ-02 / AC-02.2: with a terminal, consecutive beans are joined by the
+// REQ-02 / AC-02.2: with a terminal, consecutive items are joined by the
 // separator showCmd.RunE builds today from three fmt.Println calls -- a blank
 // line, a rule of 60 U+2550, and another blank line.
 func TestShowOutputAllSeparatorTTY(t *testing.T) {
 	setupShowTest(t)
-	b1 := showTestBean("beans-test6", "First bean", "First body.\n")
-	b2 := showTestBean("beans-test7", "Second bean", "Second body.\n")
+	b1 := showTestItem("beans-test6", "First bean", "First body.\n")
+	b2 := showTestItem("beans-test7", "Second bean", "Second body.\n")
 
-	got, err := showOutputAll([]*bean.Bean{b1, b2}, true, false, 110)
+	got, err := showOutputAll([]*item.Item{b1, b2}, true, false, 110)
 	if err != nil {
 		t.Fatalf("showOutputAll() error = %v", err)
 	}
@@ -149,19 +149,19 @@ func TestShowOutputAllSeparatorTTY(t *testing.T) {
 	}
 }
 
-// REQ-01 / AC-01.3: a bean without a body still round-trips byte-identically,
-// including the trailing POSIX newline bean.Render appends after the closing
+// REQ-01 / AC-01.3: an item without a body still round-trips byte-identically,
+// including the trailing POSIX newline item.Render appends after the closing
 // front-matter fence.
 func TestShowOutputEmptyBodyNonTTY(t *testing.T) {
 	setupShowTest(t)
-	b := showTestBean("beans-test2", "Bean without body", "")
+	b := showTestItem("beans-test2", "Bean without body", "")
 
 	got, err := showOutput(b, false, false, 110)
 	if err != nil {
 		t.Fatalf("showOutput() error = %v", err)
 	}
 	if want := mustRender(t, b); got != want {
-		t.Errorf("non-TTY output differs from bean.Render()\n got: %q\nwant: %q", got, want)
+		t.Errorf("non-TTY output differs from item.Render()\n got: %q\nwant: %q", got, want)
 	}
 	if !strings.HasSuffix(got, "---\n\n") {
 		t.Errorf("expected output to end with %q, got tail %q", "---\n\n", got[max(0, len(got)-10):])
@@ -172,11 +172,11 @@ func TestShowOutputEmptyBodyNonTTY(t *testing.T) {
 // showOutput directly, so they stay green even if showCmd.RunE stops consulting
 // term.IsTerminal and hardcodes the styled path. This test runs the command
 // itself with os.Stdout replaced by a pipe -- which is exactly the non-TTY
-// case -- and pins the output to bean.Render().
+// case -- and pins the output to item.Render().
 func TestShowCmdNonTTYWiring(t *testing.T) {
 	setupShowTest(t)
 
-	b := showTestBean("beans-test8", "Wired bean", "# Heading\n\nSome body text.\n")
+	b := showTestItem("beans-test8", "Wired bean", "# Heading\n\nSome body text.\n")
 	if err := core.Create(b); err != nil {
 		t.Fatalf("failed to create test bean: %v", err)
 	}
@@ -213,7 +213,7 @@ func TestShowCmdNonTTYWiring(t *testing.T) {
 		t.Fatalf("core.Get() error = %v", err)
 	}
 	if want := mustRender(t, stored); string(captured) != want {
-		t.Errorf("piped command output differs from bean.Render()\n got: %q\nwant: %q", string(captured), want)
+		t.Errorf("piped command output differs from item.Render()\n got: %q\nwant: %q", string(captured), want)
 	}
 }
 
@@ -223,7 +223,7 @@ func TestShowCmdNonTTYWiring(t *testing.T) {
 func TestShowNonTTYPreservesLineStructure(t *testing.T) {
 	setupShowTest(t)
 	longLine := strings.Repeat("lorem ipsum dolor sit amet ", 12) // 324 chars
-	b := showTestBean("beans-test3", "Bean with a long paragraph", longLine+"\n")
+	b := showTestItem("beans-test3", "Bean with a long paragraph", longLine+"\n")
 
 	got, err := showOutput(b, false, false, 110)
 	if err != nil {
@@ -241,7 +241,7 @@ func TestShowNonTTYPreservesLineStructure(t *testing.T) {
 	}
 }
 
-// runShowInTestStore returns the styled (TTY) show output for one bean
+// runShowInTestStore returns the styled (TTY) show output for one item
 // carrying the given body. It calls showOutput directly with isTTY forced
 // true, the same way the other styled-output tests in this file do --
 // routing through showCmd.RunE would capture stdout via an os.Pipe, which is
@@ -249,7 +249,7 @@ func TestShowNonTTYPreservesLineStructure(t *testing.T) {
 func runShowInTestStore(t *testing.T, body string) string {
 	t.Helper()
 	setupShowTest(t)
-	b := showTestBean("beans-detail1", "A detail bean", body)
+	b := showTestItem("beans-detail1", "A detail bean", body)
 	out, err := showOutput(b, true, false, 110)
 	if err != nil {
 		t.Fatalf("showOutput() error = %v", err)
@@ -275,7 +275,7 @@ func TestShowEmitsNoGlamourPadding(t *testing.T) {
 }
 
 // TestShowHeaderCarriesTypeIDAndStatus pins the minimum content of the new
-// attribute header: the bean's type and status must both still be visible
+// attribute header: the item's type and status must both still be visible
 // once colour is stripped.
 func TestShowHeaderCarriesTypeIDAndStatus(t *testing.T) {
 	withTrueColor(t)
@@ -289,7 +289,7 @@ func TestShowHeaderCarriesTypeIDAndStatus(t *testing.T) {
 
 // TestShowHeaderOrdersTypeIDTitleThenStatus pins the vertical reading order
 // the task requires: type, id, then title, then status (and priority, when
-// present) -- the same order the beans table reads across, read down
+// present) -- the same order the items table reads across, read down
 // instead. It asserts on index positions rather than a fixed line layout, so
 // it survives spacing changes but still catches the order flipping.
 func TestShowHeaderOrdersTypeIDTitleThenStatus(t *testing.T) {
@@ -333,7 +333,7 @@ func TestShowHeaderCarriesCreatedAndUpdatedTimestamps(t *testing.T) {
 	setupShowTest(t)
 	created := time.Date(2026, 1, 2, 15, 4, 0, 0, time.UTC)
 	updated := time.Date(2026, 3, 4, 9, 30, 0, 0, time.UTC)
-	b := showTestBean("beans-detail2", "A timestamped bean", "body text")
+	b := showTestItem("beans-detail2", "A timestamped bean", "body text")
 	b.CreatedAt = &created
 	b.UpdatedAt = &updated
 
@@ -357,12 +357,12 @@ func TestShowHeaderCarriesCreatedAndUpdatedTimestamps(t *testing.T) {
 // behaviour change: hiding a "normal" priority in the detail view. Hiding it
 // is correct in the table (Task 10's prioCell), where it removes a repeated
 // word from every row and buys density; a detail view shows exactly one
-// bean, has no density to buy, and previously showed the badge for it. The
+// item, has no density to buy, and previously showed the badge for it. The
 // title and body deliberately avoid the word "normal" so the only possible
 // source of the substring is the priority attribute itself.
 func TestShowDetailShowsNormalPriority(t *testing.T) {
 	setupShowTest(t)
-	b := showTestBean("beans-detail3", "Detail priority bean", "body text")
+	b := showTestItem("beans-detail3", "Detail priority bean", "body text")
 	b.Priority = "normal"
 
 	out, err := showOutput(b, true, false, 110)
@@ -383,7 +383,7 @@ func TestShowDetailShowsNormalPriority(t *testing.T) {
 // key off.
 func TestShowDetailShowsUnknownStatus(t *testing.T) {
 	setupShowTest(t)
-	b := showTestBean("beans-detail5", "Bean with an odd status", "body text")
+	b := showTestItem("beans-detail5", "Bean with an odd status", "body text")
 	b.Status = "wibble"
 
 	out, err := showOutput(b, true, false, 110)
@@ -396,14 +396,14 @@ func TestShowDetailShowsUnknownStatus(t *testing.T) {
 	}
 }
 
-// showFullBean returns a bean carrying every front matter field the format
+// showFullItem returns an item carrying every front matter field the format
 // allows -- tags, both blocking directions, order and unknown ("extra")
 // keys -- so a detail-view test can assert on the whole front matter rather
 // than the subset the header happened to render.
-func showFullBean(body string) *bean.Bean {
+func showFullItem(body string) *item.Item {
 	created := time.Date(2026, 9, 5, 10, 15, 5, 0, time.UTC)
 	updated := time.Date(2026, 9, 5, 20, 27, 9, 0, time.UTC)
-	return &bean.Bean{
+	return &item.Item{
 		ID:        "beans-full1",
 		Slug:      "a-full-bean",
 		Title:     "A full bean",
@@ -430,12 +430,12 @@ func showFullBean(body string) *bean.Bean {
 // TestShowHeaderCarriesWholeFrontMatter pins that the styled detail view
 // withholds nothing the file holds, and that it carries it *above* the body:
 // tags used to be printed after the rendered markdown, which put them below
-// a screenful of text on any real bean, and blocked_by and unknown keys were
+// a screenful of text on any real item, and blocked_by and unknown keys were
 // not rendered at all. Splitting on the horizontal rule is what makes this a
 // placement assertion and not just a "appears somewhere" one.
 func TestShowHeaderCarriesWholeFrontMatter(t *testing.T) {
 	setupShowTest(t)
-	b := showFullBean("Body text that mentions nothing else.\n")
+	b := showFullItem("Body text that mentions nothing else.\n")
 
 	out, err := showOutput(b, true, false, 110)
 	if err != nil {
@@ -466,12 +466,12 @@ func TestShowHeaderCarriesWholeFrontMatter(t *testing.T) {
 	}
 }
 
-// TestShowMetaDropsBodyOnATerminal: --meta answers "what is this bean" for a
+// TestShowMetaDropsBodyOnATerminal: --meta answers "what is this item" for a
 // reader who does not want to page through the body. The header must survive
 // whole; the body and the rule that introduces it must be gone.
 func TestShowMetaDropsBodyOnATerminal(t *testing.T) {
 	setupShowTest(t)
-	b := showFullBean("Distinctive body sentinel.\n")
+	b := showFullItem("Distinctive body sentinel.\n")
 
 	out, err := showOutput(b, true, true, 110)
 	if err != nil {
@@ -492,13 +492,13 @@ func TestShowMetaDropsBodyOnATerminal(t *testing.T) {
 	}
 }
 
-// TestShowMetaOffATerminalParsesAsABean: off a terminal, show emits source
+// TestShowMetaOffATerminalParsesAsAnItem: off a terminal, show emits source
 // markdown a parser can read; --meta must not break that contract by
 // emitting a styled or truncated form. The output has to parse back into the
 // same front matter with an empty body.
-func TestShowMetaOffATerminalParsesAsABean(t *testing.T) {
+func TestShowMetaOffATerminalParsesAsAnItem(t *testing.T) {
 	setupShowTest(t)
-	b := showFullBean("Distinctive body sentinel.\n")
+	b := showFullItem("Distinctive body sentinel.\n")
 
 	out, err := showOutput(b, false, true, 110)
 	if err != nil {
@@ -508,9 +508,9 @@ func TestShowMetaOffATerminalParsesAsABean(t *testing.T) {
 		t.Errorf("--meta printed the body:\n%s", out)
 	}
 
-	got, err := bean.Parse(strings.NewReader(out))
+	got, err := item.Parse(strings.NewReader(out))
 	if err != nil {
-		t.Fatalf("bean.Parse() error = %v, output:\n%s", err, out)
+		t.Fatalf("item.Parse() error = %v, output:\n%s", err, out)
 	}
 	if strings.TrimSpace(got.Body) != "" {
 		t.Errorf("parsed body = %q, want empty", got.Body)
@@ -525,7 +525,7 @@ func TestShowMetaOffATerminalParsesAsABean(t *testing.T) {
 		t.Errorf("parsed extra[release] = %v, want %q", got.Extra["release"], "0-9-0")
 	}
 
-	// The source bean must be untouched: --meta reads, it does not edit.
+	// The source item must be untouched: --meta reads, it does not edit.
 	if b.Body != "Distinctive body sentinel.\n" {
 		t.Errorf("--meta mutated the bean's body to %q", b.Body)
 	}
@@ -533,21 +533,21 @@ func TestShowMetaOffATerminalParsesAsABean(t *testing.T) {
 
 // TestShowMetaOffATerminalEmitsNoEmptyDocument: each --meta block ends with
 // the front matter's own closing "---", so the raw separator on top of it
-// produced an empty document between every pair of beans -- a stream that
-// still "looks like" markdown but hands a parser a bean with no fields.
+// produced an empty document between every pair of items -- a stream that
+// still "looks like" markdown but hands a parser an item with no fields.
 func TestShowMetaOffATerminalEmitsNoEmptyDocument(t *testing.T) {
 	setupShowTest(t)
-	b1 := showFullBean("First body.\n")
-	b2 := showTestBean("beans-second", "A second bean", "Second body.\n")
+	b1 := showFullItem("First body.\n")
+	b2 := showTestItem("beans-second", "A second bean", "Second body.\n")
 
-	got, err := showOutputAll([]*bean.Bean{b1, b2}, false, true, 110)
+	got, err := showOutputAll([]*item.Item{b1, b2}, false, true, 110)
 	if err != nil {
 		t.Fatalf("showOutputAll() error = %v", err)
 	}
 
-	// Two beans are exactly four delimiter lines: an opening and a closing
+	// Two items are exactly four delimiter lines: an opening and a closing
 	// "---" each. A fifth is the stray separator, and the empty document it
-	// opens is what a parser then reads as a bean with no fields.
+	// opens is what a parser then reads as an item with no fields.
 	var delimiters int
 	for _, line := range strings.Split(got, "\n") {
 		if line == "---" {
@@ -646,9 +646,9 @@ func tableIsFieldRow(line string) bool {
 // header would notice.
 func TestTableCarriesEveryFrontMatterField(t *testing.T) {
 	setupShowTest(t)
-	b := showFullBean("Body text.\n")
+	b := showFullItem("Body text.\n")
 
-	out := renderBeanTable(b, cfg, 110, beanTableLabelWidth([]*bean.Bean{b}, cfg))
+	out := renderItemTable(b, cfg, 110, itemTableLabelWidth([]*item.Item{b}, cfg))
 
 	for _, want := range []string{
 		"title:", "id:", "type:", "status:", "priority:", "tags:",
@@ -673,7 +673,7 @@ func TestTableCarriesEveryFrontMatterField(t *testing.T) {
 
 // TestTableBlockOrderFollowsTheSketch pins the PO's arrangement: an
 // identity band, then one ruled field per front matter entry in a fixed
-// order, then the stamps band. A grid whose rows move between beans buys
+// order, then the stamps band. A grid whose rows move between items buys
 // nothing over the flowing header -- reading a column only works when the
 // same label sits on the same row every time.
 //
@@ -681,9 +681,9 @@ func TestTableCarriesEveryFrontMatterField(t *testing.T) {
 // order is a property of the layout and not of the box drawing.
 func TestTableBlockOrderFollowsTheSketch(t *testing.T) {
 	setupShowTest(t)
-	b := showFullBean("Body.\n")
+	b := showFullItem("Body.\n")
 
-	blocks := beanTableBlocks(b, cfg)
+	blocks := itemTableBlocks(b, cfg)
 	if len(blocks) < 3 {
 		t.Fatalf("got %d blocks, want an identity band, fields and a stamps band", len(blocks))
 	}
@@ -721,9 +721,9 @@ func TestTableBlockOrderFollowsTheSketch(t *testing.T) {
 // the density this view exists to buy.
 func TestTablePairsShareOneRow(t *testing.T) {
 	setupShowTest(t)
-	b := showFullBean("Body.\n")
+	b := showFullItem("Body.\n")
 
-	out := renderBeanTable(b, cfg, 110, beanTableLabelWidth([]*bean.Bean{b}, cfg))
+	out := renderItemTable(b, cfg, 110, itemTableLabelWidth([]*item.Item{b}, cfg))
 	for _, want := range []struct{ label, mate string }{
 		{"type:", "status:"},
 		{"type:", "priority:"},
@@ -743,21 +743,21 @@ func TestTablePairsShareOneRow(t *testing.T) {
 	}
 }
 
-// TestTableRasterIsIdenticalAcrossBeans is the whole promise of the view: two
-// beans with wildly different content produce the same column geometry, so a
+// TestTableRasterIsIdenticalAcrossItems is the whole promise of the view: two
+// items with wildly different content produce the same column geometry, so a
 // reader scans down one column instead of reading every line. A renderer that
 // sized its columns from the values it happens to hold would fail here while
-// looking perfectly fine on a single bean.
+// looking perfectly fine on a single item.
 //
-// The promise holds for beans whose labels stay inside the vocabulary, which
+// The promise holds for items whose labels stay inside the vocabulary, which
 // is what the width is floored at. A longer custom front matter key widens
 // the column on purpose -- see TestTableLongCustomKeyWidensTheColumn -- so
-// the claim here is stability across ordinary beans, not a fixed width.
-func TestTableRasterIsIdenticalAcrossBeans(t *testing.T) {
+// the claim here is stability across ordinary items, not a fixed width.
+func TestTableRasterIsIdenticalAcrossItems(t *testing.T) {
 	setupShowTest(t)
 
-	narrow := &bean.Bean{ID: "beans-n1", Title: "x", Status: "todo", Type: "task"}
-	wide := showFullBean("Body.\n")
+	narrow := &item.Item{ID: "beans-n1", Title: "x", Status: "todo", Type: "task"}
+	wide := showFullItem("Body.\n")
 
 	// The measurement is the *position of the column separator*, not the
 	// total row width: a renderer that sizes the label column from its own
@@ -776,7 +776,7 @@ func TestTableRasterIsIdenticalAcrossBeans(t *testing.T) {
 		return boundaries
 	}
 
-	gotNarrow, gotWide := geometry(renderBeanTable(narrow, cfg, 110, beanTableLabelWidth([]*bean.Bean{narrow}, cfg))), geometry(renderBeanTable(wide, cfg, 110, beanTableLabelWidth([]*bean.Bean{wide}, cfg)))
+	gotNarrow, gotWide := geometry(renderItemTable(narrow, cfg, 110, itemTableLabelWidth([]*item.Item{narrow}, cfg))), geometry(renderItemTable(wide, cfg, 110, itemTableLabelWidth([]*item.Item{wide}, cfg)))
 	if len(gotNarrow) == 0 || len(gotWide) == 0 {
 		t.Fatalf("no bordered rows rendered")
 	}
@@ -794,10 +794,10 @@ func TestTableRasterIsIdenticalAcrossBeans(t *testing.T) {
 // destroy the raster the other tests pin.
 func TestTableWrapsLongValuesInsideTheColumn(t *testing.T) {
 	setupShowTest(t)
-	b := showFullBean("Body.\n")
+	b := showFullItem("Body.\n")
 	b.Extra = map[string]any{"goal": strings.Repeat("Lorem ipsum dolor sit amet. ", 12)}
 
-	out := renderBeanTable(b, cfg, 72, beanTableLabelWidth([]*bean.Bean{b}, cfg))
+	out := renderItemTable(b, cfg, 72, itemTableLabelWidth([]*item.Item{b}, cfg))
 
 	var rows int
 	for _, line := range strings.Split(out, "\n") {
@@ -832,10 +832,10 @@ func TestTableWrapsLongValuesInsideTheColumn(t *testing.T) {
 // terminal wrap.
 func TestTableMaxWidthCapsTheGrid(t *testing.T) {
 	setupShowTest(t)
-	b := showFullBean("Body.\n")
+	b := showFullItem("Body.\n")
 
 	for _, width := range []int{40, 60, 100} {
-		out := renderBeanTable(b, cfg, width, beanTableLabelWidth([]*bean.Bean{b}, cfg))
+		out := renderItemTable(b, cfg, width, itemTableLabelWidth([]*item.Item{b}, cfg))
 		for _, line := range strings.Split(out, "\n") {
 			if !strings.Contains(line, "│") {
 				continue
@@ -850,7 +850,7 @@ func TestTableMaxWidthCapsTheGrid(t *testing.T) {
 
 // TestTableForcesTheGridOffATerminal pins that --table is a forcing flag in
 // both directions, the way --raw forces raw markdown on a terminal. Piping
-// the grid into less or a file is exactly what a reader comparing beans does.
+// the grid into less or a file is exactly what a reader comparing items does.
 //
 // It runs the command rather than the renderer, because the forcing decision
 // lives in RunE: showOutputTable itself cannot tell a pipe from a terminal,
@@ -859,9 +859,9 @@ func TestTableMaxWidthCapsTheGrid(t *testing.T) {
 func TestTableForcesTheGridOffATerminal(t *testing.T) {
 	setupShowTest(t)
 
-	b := &bean.Bean{
+	b := &item.Item{
 		ID:     "beans-grid1",
-		Slug:   bean.Slugify("A gridded bean"),
+		Slug:   item.Slugify("A gridded bean"),
 		Title:  "A gridded bean",
 		Status: "todo",
 		Type:   "task",
@@ -903,9 +903,9 @@ func TestTableForcesTheGridOffATerminal(t *testing.T) {
 // the flag is an arrangement of the front matter, not a body switch.
 func TestTableWithoutMetaKeepsTheBody(t *testing.T) {
 	setupShowTest(t)
-	b := showFullBean("Body text that is unmistakable.\n")
+	b := showFullItem("Body text that is unmistakable.\n")
 
-	out, err := showOutputTable(b, false, 110, beanTableLabelWidth([]*bean.Bean{b}, cfg))
+	out, err := showOutputTable(b, false, 110, itemTableLabelWidth([]*item.Item{b}, cfg))
 	if err != nil {
 		t.Fatalf("showOutputTable() error = %v", err)
 	}
@@ -923,9 +923,9 @@ func TestTableWithoutMetaKeepsTheBody(t *testing.T) {
 func TestTableRelationsNameTypeAndTitle(t *testing.T) {
 	setupShowTest(t)
 
-	parent := &bean.Bean{
+	parent := &item.Item{
 		ID:     "beans-pare1",
-		Slug:   bean.Slugify("The parent epic"),
+		Slug:   item.Slugify("The parent epic"),
 		Title:  "The parent epic",
 		Status: "todo",
 		Type:   "epic",
@@ -934,11 +934,11 @@ func TestTableRelationsNameTypeAndTitle(t *testing.T) {
 		t.Fatalf("core.Create() error = %v", err)
 	}
 
-	b := showFullBean("Body.\n")
+	b := showFullItem("Body.\n")
 	b.Parent = parent.ID
 	b.BlockedBy = []string{"beans-gone1"}
 
-	out := renderBeanTable(b, cfg, 110, beanTableLabelWidth([]*bean.Bean{b}, cfg))
+	out := renderItemTable(b, cfg, 110, itemTableLabelWidth([]*item.Item{b}, cfg))
 	if !strings.Contains(out, "The parent epic") {
 		t.Errorf("parent row does not name the title:\n%s", out)
 	}
@@ -1027,16 +1027,16 @@ func TestTableWrapsStyledValuesAtVisibleWidth(t *testing.T) {
 }
 
 // TestShowMaxWidthAppliesWithoutTable pins that --max-width is a property of
-// the command, not of --table. styledBeanOutput hard-wired resolveWidth(0,
-// false, cfg), so `beans show --max-width 60` silently rendered at the
-// default while `beans show --table --max-width 60` obeyed -- a flag that
+// the command, not of --table. styledItemOutput hard-wired resolveWidth(0,
+// false, cfg), so `lif show --max-width 60` silently rendered at the
+// default while `lif show --table --max-width 60` obeyed -- a flag that
 // works in one combination and is ignored in another is worse than no flag.
 //
 // The horizontal rule between header and body is the measurement, because
 // its width *is* the resolved width.
 func TestShowMaxWidthAppliesWithoutTable(t *testing.T) {
 	setupShowTest(t)
-	b := showFullBean("Body text.\n")
+	b := showFullItem("Body text.\n")
 
 	for _, width := range []int{60, 80} {
 		out, err := showOutput(b, true, false, width)
@@ -1061,8 +1061,8 @@ func TestShowMaxWidthAppliesWithoutTable(t *testing.T) {
 }
 
 // TestShowHeaderWrapsAtTheResolvedWidth pins that --max-width governs the
-// header too. renderBeanHeader emitted every label/value pair as one
-// unbroken line, so a bean with a few sentences in an extra key ran to the
+// header too. renderItemHeader emitted every label/value pair as one
+// unbroken line, so an item with a few sentences in an extra key ran to the
 // terminal's own width while the rule below it obeyed the cap -- the flag
 // looked honoured because the only measurable element, the rule, was.
 //
@@ -1071,7 +1071,7 @@ func TestShowMaxWidthAppliesWithoutTable(t *testing.T) {
 // remainder of the one above it.
 func TestShowHeaderWrapsAtTheResolvedWidth(t *testing.T) {
 	setupShowTest(t)
-	b := showFullBean("Body.\n")
+	b := showFullItem("Body.\n")
 	b.Extra = map[string]any{
 		"customer_value": "Entries that are still queued, that failed, or that look " +
 			"like a double capture are recognisable without relying on colour, and " +
@@ -1080,7 +1080,7 @@ func TestShowHeaderWrapsAtTheResolvedWidth(t *testing.T) {
 	b.Title = "Offline states and duplicate detection: pending, failed and suspicious are visible"
 
 	for _, width := range []int{80, 100} {
-		out := renderBeanHeader(b, cfg, width)
+		out := renderItemHeader(b, cfg, width)
 		for _, line := range strings.Split(out, "\n") {
 			if got := ui.DisplayWidth(stripANSI(line)); got > width {
 				t.Errorf("at width %d a header line is %d cells: %q", width, got, stripANSI(line))
@@ -1124,13 +1124,13 @@ func TestBandIDWidthFollowsTheConfiguredPrefix(t *testing.T) {
 		{"beans-", 4},
 		{"a-very-long-prefix-", 6},
 	} {
-		old := cfg.Beans
-		cfg.Beans.Prefix, cfg.Beans.IDLength = tc.prefix, tc.idLength
+		old := cfg.Items
+		cfg.Items.Prefix, cfg.Items.IDLength = tc.prefix, tc.idLength
 
-		b := showFullBean("Body.\n")
+		b := showFullItem("Body.\n")
 		b.ID = tc.prefix + strings.Repeat("z", tc.idLength)
-		band := stripANSI(strings.Split(renderBeanTable(b, cfg, 110, beanTableLabelWidth([]*bean.Bean{b}, cfg)), "\n")[1])
-		cfg.Beans = old
+		band := stripANSI(strings.Split(renderItemTable(b, cfg, 110, itemTableLabelWidth([]*item.Item{b}, cfg)), "\n")[1])
+		cfg.Items = old
 
 		// "│ " + "id: " + <id cell> + "    " + "type:"
 		want := len("│ id: ") + len(tc.prefix) + tc.idLength + 4
@@ -1140,17 +1140,17 @@ func TestBandIDWidthFollowsTheConfiguredPrefix(t *testing.T) {
 		}
 	}
 
-	// Two beans of one store keep the column: an id shorter than the
+	// Two items of one store keep the column: an id shorter than the
 	// configured shape is padded up to it, which is what a width derived
 	// from the data at hand would not do.
-	old := cfg.Beans
-	cfg.Beans.Prefix, cfg.Beans.IDLength = "beans-", 4
-	t.Cleanup(func() { cfg.Beans = old })
+	old := cfg.Items
+	cfg.Items.Prefix, cfg.Items.IDLength = "beans-", 4
+	t.Cleanup(func() { cfg.Items = old })
 
-	b1, b2 := showFullBean("x\n"), showFullBean("y\n")
+	b1, b2 := showFullItem("x\n"), showFullItem("y\n")
 	b1.ID, b2.ID = "beans-aaaa", "beans-b"
-	col := func(b *bean.Bean) int {
-		return strings.Index(stripANSI(strings.Split(renderBeanTable(b, cfg, 110, beanTableLabelWidth([]*bean.Bean{b}, cfg)), "\n")[1]), "type:")
+	col := func(b *item.Item) int {
+		return strings.Index(stripANSI(strings.Split(renderItemTable(b, cfg, 110, itemTableLabelWidth([]*item.Item{b}, cfg)), "\n")[1]), "type:")
 	}
 	if col(b1) != col(b2) {
 		t.Errorf("type: moves between beans of one store: %d vs %d", col(b1), col(b2))
@@ -1196,9 +1196,9 @@ func TestHeaderHangIndentSurvivesColour(t *testing.T) {
 // right width, the corners were simply not joined.
 func TestTableRulesConnectTheColumn(t *testing.T) {
 	setupShowTest(t)
-	b := showFullBean("Body.\n")
+	b := showFullItem("Body.\n")
 
-	lines := strings.Split(strings.TrimRight(renderBeanTable(b, cfg, 110, beanTableLabelWidth([]*bean.Bean{b}, cfg)), "\n"), "\n")
+	lines := strings.Split(strings.TrimRight(renderItemTable(b, cfg, 110, itemTableLabelWidth([]*item.Item{b}, cfg)), "\n"), "\n")
 	if len(lines) < 5 {
 		t.Fatalf("grid too small to have interior rules:\n%s", strings.Join(lines, "\n"))
 	}
@@ -1254,13 +1254,13 @@ func TestTableRulesConnectTheColumn(t *testing.T) {
 // assertion would pass on an unstyled title.
 func TestTableTitleIsBold(t *testing.T) {
 	setupShowTest(t)
-	b := showFullBean("Body.\n")
+	b := showFullItem("Body.\n")
 	b.Title = "A full bean"
 
 	var title *tableBlock
-	for i, bl := range beanTableBlocks(b, cfg) {
+	for i, bl := range itemTableBlocks(b, cfg) {
 		if bl.label == "title:" {
-			title = &beanTableBlocks(b, cfg)[i]
+			title = &itemTableBlocks(b, cfg)[i]
 		}
 	}
 	if title == nil {
@@ -1290,9 +1290,9 @@ func TestTableStaysAlignedWithColour(t *testing.T) {
 	setupShowTest(t)
 	withTrueColorCommands(t)
 
-	parent := &bean.Bean{
+	parent := &item.Item{
 		ID:     "beans-pare1",
-		Slug:   bean.Slugify("The parent epic"),
+		Slug:   item.Slugify("The parent epic"),
 		Title:  "The parent epic",
 		Status: "todo",
 		Type:   "epic",
@@ -1301,7 +1301,7 @@ func TestTableStaysAlignedWithColour(t *testing.T) {
 		t.Fatalf("core.Create() error = %v", err)
 	}
 
-	b := showFullBean("Body.\n")
+	b := showFullItem("Body.\n")
 	b.Parent = parent.ID
 	// A label longer than the id is what exposes the defect: with
 	// "blocked by:" as the widest label and an eleven-character id there
@@ -1309,7 +1309,7 @@ func TestTableStaysAlignedWithColour(t *testing.T) {
 	// carry keys like customer_value.
 	b.Extra["customer_value"] = "Recognisable without relying on colour."
 
-	out := renderBeanTable(b, cfg, 100, beanTableLabelWidth([]*bean.Bean{b}, cfg))
+	out := renderItemTable(b, cfg, 100, itemTableLabelWidth([]*item.Item{b}, cfg))
 	if !strings.Contains(out, "\x1b[") {
 		t.Fatalf("no colour in output, so the test proves nothing")
 	}
@@ -1360,12 +1360,12 @@ func TestTableBoldTitleClosesOnEveryLine(t *testing.T) {
 	setupShowTest(t)
 	withTrueColorCommands(t)
 
-	b := showFullBean("Body.\n")
+	b := showFullItem("Body.\n")
 	b.Title = "Offline states and duplicate detection: pending, failed and suspicious are visible"
 
 	// The width has to force the title to wrap: on one line lipgloss's own
 	// reset lands before the border and the defect cannot appear.
-	rendered := renderBeanTable(b, cfg, 80, beanTableLabelWidth([]*bean.Bean{b}, cfg))
+	rendered := renderItemTable(b, cfg, 80, itemTableLabelWidth([]*item.Item{b}, cfg))
 	if !strings.Contains(rendered, "visible") || len(strings.Split(rendered, "\n")) < 6 {
 		t.Fatalf("title did not wrap, so the test proves nothing:\n%s", stripANSI(rendered))
 	}
@@ -1405,24 +1405,24 @@ func TestTableBoldTitleClosesOnEveryLine(t *testing.T) {
 	}
 }
 
-// TestTableSharesTheLabelColumnAcrossBeans is the promise the view exists
+// TestTableSharesTheLabelColumnAcrossItems is the promise the view exists
 // for, applied to the case that actually breaks it: several ids in one call.
-// The label column was sized per bean, so a bean carrying customer_value got
+// The label column was sized per item, so an item carrying customer_value got
 // a 16-cell column and its neighbour an 11-cell one -- rendered one after
 // the other, the grids stepped and a reader could not follow a column down
 // the page, which is the whole reason for a grid over the flowing header.
-func TestTableSharesTheLabelColumnAcrossBeans(t *testing.T) {
+func TestTableSharesTheLabelColumnAcrossItems(t *testing.T) {
 	setupShowTest(t)
 
-	rich := showFullBean("Body.\n")
+	rich := showFullItem("Body.\n")
 	rich.ID = "beans-rich1"
 	rich.Extra = map[string]any{"customer_value": "A sentence."}
 
-	plain := &bean.Bean{ID: "beans-plai1", Title: "Plain", Status: "todo", Type: "task"}
+	plain := &item.Item{ID: "beans-plai1", Title: "Plain", Status: "todo", Type: "task"}
 
-	labelWidth := beanTableLabelWidth([]*bean.Bean{rich, plain}, cfg)
-	boundary := func(b *bean.Bean) int {
-		for _, line := range strings.Split(renderBeanTable(b, cfg, 100, labelWidth), "\n") {
+	labelWidth := itemTableLabelWidth([]*item.Item{rich, plain}, cfg)
+	boundary := func(b *item.Item) int {
+		for _, line := range strings.Split(renderItemTable(b, cfg, 100, labelWidth), "\n") {
 			if !tableIsFieldRow(line) {
 				continue
 			}
@@ -1450,19 +1450,19 @@ func TestTableSharesTheLabelColumnAcrossBeans(t *testing.T) {
 }
 
 // TestTableCommandSharesTheColumnAcrossIDs covers the dispatch rather than
-// the renderer: `beans show <a> <b> --table` is the call that exposed the
+// the renderer: `lif show <a> <b> --table` is the call that exposed the
 // stepping grids, and a renderer that accepts a shared width proves nothing
 // if RunE does not compute one. Test stdout is a pipe, so this also
 // exercises --table's forcing path.
 func TestTableCommandSharesTheColumnAcrossIDs(t *testing.T) {
 	setupShowTest(t)
 
-	rich := &bean.Bean{
+	rich := &item.Item{
 		ID: "beans-rich2", Slug: "rich", Title: "Rich", Status: "todo", Type: "task",
 		Extra: map[string]any{"customer_value": "A sentence."},
 	}
-	plain := &bean.Bean{ID: "beans-plai2", Slug: "plain", Title: "Plain", Status: "todo", Type: "task"}
-	for _, b := range []*bean.Bean{rich, plain} {
+	plain := &item.Item{ID: "beans-plai2", Slug: "plain", Title: "Plain", Status: "todo", Type: "task"}
+	for _, b := range []*item.Item{rich, plain} {
 		if err := core.Create(b); err != nil {
 			t.Fatalf("core.Create() error = %v", err)
 		}
@@ -1511,28 +1511,28 @@ func TestTableCommandSharesTheColumnAcrossIDs(t *testing.T) {
 }
 
 // showParentTestFamily creates a parent with three children and one
-// unrelated bean, and returns the parent.
-func showParentTestFamily(t *testing.T) *bean.Bean {
+// unrelated item, and returns the parent.
+func showParentTestFamily(t *testing.T) *item.Item {
 	t.Helper()
-	parent := &bean.Bean{ID: "beans-fam01", Slug: "family", Title: "Family", Status: "todo", Type: "epic"}
+	parent := &item.Item{ID: "beans-fam01", Slug: "family", Title: "Family", Status: "todo", Type: "epic"}
 	if err := core.Create(parent); err != nil {
 		t.Fatalf("core.Create() error = %v", err)
 	}
 	for _, id := range []string{"beans-kid01", "beans-kid02", "beans-kid03"} {
-		child := &bean.Bean{ID: id, Slug: id, Title: id, Status: "todo", Type: "task", Parent: parent.ID}
+		child := &item.Item{ID: id, Slug: id, Title: id, Status: "todo", Type: "task", Parent: parent.ID}
 		if err := core.Create(child); err != nil {
 			t.Fatalf("core.Create() error = %v", err)
 		}
 	}
-	stranger := &bean.Bean{ID: "beans-out01", Slug: "outsider", Title: "Outsider", Status: "todo", Type: "task"}
+	stranger := &item.Item{ID: "beans-out01", Slug: "outsider", Title: "Outsider", Status: "todo", Type: "task"}
 	if err := core.Create(stranger); err != nil {
 		t.Fatalf("core.Create() error = %v", err)
 	}
 	return parent
 }
 
-// showIDsInOutput returns the bean IDs the rendered output shows, in order,
-// read off the id: cell so it counts beans shown rather than mentions.
+// showIDsInOutput returns the item IDs the rendered output shows, in order,
+// read off the id: cell so it counts items shown rather than mentions.
 func showIDsInOutput(out string) []string {
 	var ids []string
 	for _, line := range strings.Split(out, "\n") {
@@ -1549,7 +1549,7 @@ func showIDsInOutput(out string) []string {
 
 // TestShowParentResolvesChildren is the feature: the shell substitution over
 // `list --parent --json` moves into the tool. --parent alone selects the
-// children of that bean, mirroring `list --parent`, and takes no ids.
+// children of that item, mirroring `list --parent`, and takes no ids.
 func TestShowParentResolvesChildren(t *testing.T) {
 	setupShowTest(t)
 	parent := showParentTestFamily(t)
@@ -1574,7 +1574,7 @@ func TestShowParentResolvesChildren(t *testing.T) {
 // TestShowParentAppendsToGivenIDs keeps the case the feature was asked for:
 // a milestone and its children on one page, without naming the milestone
 // twice. Given ids come first, then the children, and the parent is not
-// repeated when it is both an argument and the --parent bean.
+// repeated when it is both an argument and the --parent item.
 func TestShowParentAppendsToGivenIDs(t *testing.T) {
 	setupShowTest(t)
 	parent := showParentTestFamily(t)
@@ -1596,9 +1596,9 @@ func TestShowParentAppendsToGivenIDs(t *testing.T) {
 	}
 }
 
-// TestShowParentRejectsUnknownBean keeps --parent as loud as a bad id: a typo
+// TestShowParentRejectsUnknownItem keeps --parent as loud as a bad id: a typo
 // must not silently render nothing.
-func TestShowParentRejectsUnknownBean(t *testing.T) {
+func TestShowParentRejectsUnknownItem(t *testing.T) {
 	setupShowTest(t)
 	showParentTestFamily(t)
 
@@ -1635,7 +1635,7 @@ func TestShowParentWithoutChildrenIsAnError(t *testing.T) {
 }
 
 // TestShowRequiresIDsWithoutParent guards the other half of the arity change:
-// dropping MinimumNArgs(1) must not make a bare `beans show` legal.
+// dropping MinimumNArgs(1) must not make a bare `lif show` legal.
 func TestShowRequiresIDsWithoutParent(t *testing.T) {
 	setupShowTest(t)
 
@@ -1705,7 +1705,6 @@ func TestShowParentDoesNotRepeatAGivenChild(t *testing.T) {
 	}
 }
 
-
 // TestTableLongCustomKeyWidensTheColumn pins the one case where the column is
 // not the vocabulary's width. Truncating a front matter key a user chose
 // would hide which field a row is, so the column grows instead, and the two
@@ -1713,15 +1712,15 @@ func TestShowParentDoesNotRepeatAGivenChild(t *testing.T) {
 func TestTableLongCustomKeyWidensTheColumn(t *testing.T) {
 	setupShowTest(t)
 
-	plain := &bean.Bean{ID: "beans-vocb1", Title: "Plain", Status: "todo", Type: "task"}
+	plain := &item.Item{ID: "beans-vocb1", Title: "Plain", Status: "todo", Type: "task"}
 	longKey := "acceptance_criteria_reference"
-	wide := &bean.Bean{
+	wide := &item.Item{
 		ID: "beans-vocb2", Title: "Wide", Status: "todo", Type: "task",
 		Extra: map[string]any{longKey: "yes"},
 	}
 
-	vocabulary := beanTableLabelWidth([]*bean.Bean{plain}, cfg)
-	widened := beanTableLabelWidth([]*bean.Bean{wide}, cfg)
+	vocabulary := itemTableLabelWidth([]*item.Item{plain}, cfg)
+	widened := itemTableLabelWidth([]*item.Item{wide}, cfg)
 
 	if widened <= vocabulary {
 		t.Errorf("label width %d did not grow past the vocabulary width %d for key %q",
@@ -1730,20 +1729,20 @@ func TestTableLongCustomKeyWidensTheColumn(t *testing.T) {
 	if widened < len(longKey+":") {
 		t.Errorf("label width %d cannot hold %q in full", widened, longKey+":")
 	}
-	if got := beanTableLabelWidth([]*bean.Bean{plain, wide}, cfg); got != widened {
+	if got := itemTableLabelWidth([]*item.Item{plain, wide}, cfg); got != widened {
 		t.Errorf("shared width %d for both beans, want the widened %d", got, widened)
 	}
-	rendered := renderBeanTable(wide, cfg, 110, widened)
+	rendered := renderItemTable(wide, cfg, 110, widened)
 	if !strings.Contains(stripANSI(rendered), longKey+":") {
 		t.Errorf("grid does not show the long key in full:\n%s", rendered)
 	}
 }
 
 // writeShowAttachment drops a file into the throwaway core's attachment
-// directory for the bean id.
+// directory for the item id.
 func writeShowAttachment(t *testing.T, id, name string) {
 	t.Helper()
-	dir := filepath.Join(core.Root(), beancore.AttachmentsDir, id)
+	dir := filepath.Join(core.Root(), itemcore.AttachmentsDir, id)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		t.Fatal(err)
 	}
@@ -1761,9 +1760,9 @@ func TestHeaderNamesAttachments(t *testing.T) {
 	setupShowTest(t)
 	writeShowAttachment(t, "beans-aaaa", "DESIGN.md")
 	writeShowAttachment(t, "beans-aaaa", "REQUIREMENTS.md")
-	b := showTestBean("beans-aaaa", "Host Bean", "Body.\n")
+	b := showTestItem("beans-aaaa", "Host Bean", "Body.\n")
 
-	out := stripANSI(renderBeanHeader(b, cfg, 110))
+	out := stripANSI(renderItemHeader(b, cfg, 110))
 
 	if !strings.Contains(out, "attachments:") {
 		t.Fatalf("header carries no attachments row:\n%s", out)
@@ -1775,13 +1774,13 @@ func TestHeaderNamesAttachments(t *testing.T) {
 	}
 }
 
-// Most beans have no attachments, and an empty row would cost every one of
+// Most items have no attachments, and an empty row would cost every one of
 // them a line to say nothing.
 func TestHeaderOmitsEmptyAttachments(t *testing.T) {
 	setupShowTest(t)
-	b := showTestBean("beans-aaaa", "Host Bean", "Body.\n")
+	b := showTestItem("beans-aaaa", "Host Bean", "Body.\n")
 
-	if out := stripANSI(renderBeanHeader(b, cfg, 110)); strings.Contains(out, "attachments:") {
+	if out := stripANSI(renderItemHeader(b, cfg, 110)); strings.Contains(out, "attachments:") {
 		t.Fatalf("header invents an attachments row:\n%s", out)
 	}
 }
@@ -1793,23 +1792,23 @@ func TestHeaderOmitsEmptyAttachments(t *testing.T) {
 func TestTableNamesAttachments(t *testing.T) {
 	setupShowTest(t)
 	writeShowAttachment(t, "beans-aaaa", "DESIGN.md")
-	b := showTestBean("beans-aaaa", "Host Bean", "Body.\n")
+	b := showTestItem("beans-aaaa", "Host Bean", "Body.\n")
 
-	out := stripANSI(renderBeanTable(b, cfg, 110, beanTableLabelWidth([]*bean.Bean{b}, cfg)))
+	out := stripANSI(renderItemTable(b, cfg, 110, itemTableLabelWidth([]*item.Item{b}, cfg)))
 
 	if !strings.Contains(out, "attachments:") || !strings.Contains(out, "DESIGN.md") {
 		t.Fatalf("grid does not name the attachment:\n%s", out)
 	}
 }
 
-// The piped representation is the bean file itself and "still parses as a
-// bean file" is its contract, so the derived row must not reach it: a
+// The piped representation is the item file itself and "still parses as a
+// item file" is its contract, so the derived row must not reach it: a
 // reader that round-trips the output would otherwise write the row back as
 // front matter and create exactly the second truth this design avoids.
 func TestPipedOutputHasNoAttachmentsRow(t *testing.T) {
 	setupShowTest(t)
 	writeShowAttachment(t, "beans-aaaa", "DESIGN.md")
-	b := showTestBean("beans-aaaa", "Host Bean", "Body.\n")
+	b := showTestItem("beans-aaaa", "Host Bean", "Body.\n")
 
 	out, err := showOutput(b, false, false, 110)
 	if err != nil {
@@ -1857,7 +1856,36 @@ func TestShowFilterLeavingNothingIsAnError(t *testing.T) {
 	if err == nil {
 		t.Fatal("show error = nil, want error")
 	}
-	if !strings.Contains(stderr, "no bean matches the filters") {
-		t.Errorf("stderr = %q, want it to contain %q", stderr, "no bean matches the filters")
+	if !strings.Contains(stderr, "no item matches the filters") {
+		t.Errorf("stderr = %q, want it to contain %q", stderr, "no item matches the filters")
+	}
+}
+
+// AC3: show's lookup errors name the noun as item, in plain and in JSON mode.
+func TestShowErrorsNameItems(t *testing.T) {
+	setupShowTest(t)
+	seedStatusMix(t)
+	t.Cleanup(func() { resetFlags(sharedTestRoot(t)) })
+
+	for _, tc := range []struct {
+		name string
+		args []string
+		want string
+	}{
+		{"unknown id", []string{"show", "beans-nope9"}, "item not found: beans-nope9"},
+		{"unknown id as json", []string{"show", "--json", "beans-nope9"}, "item not found: beans-nope9"},
+		{"unknown parent", []string{"show", "--parent", "beans-nope9"}, "item not found: beans-nope9"},
+		{"parent without children", []string{"show", "--parent", "beans-mixtd"}, "item has no children: beans-mixtd"},
+		{"filter leaves nothing as json", []string{"show", "--json", "--parent", "beans-mix00", "--status", "completed"}, "no item matches the filters"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			stdout, stderr, err := runRootInDir(t, core.Root(), tc.args...)
+			if err == nil {
+				t.Fatal("show error = nil, want error")
+			}
+			if got := stdout + stderr + err.Error(); !strings.Contains(got, tc.want) {
+				t.Errorf("output = %q, want it to contain %q", got, tc.want)
+			}
+		})
 	}
 }

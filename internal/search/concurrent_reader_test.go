@@ -46,7 +46,7 @@ func TestOpen_ConcurrentReadersShareOnDiskIndex(t *testing.T) {
 	if !seed.persistent {
 		t.Fatal("Open() on a fresh, uncontended directory should have acquired the persistent index")
 	}
-	if err := seed.IndexBean(beanWith("seed1", "Seed", "x")); err != nil {
+	if err := seed.IndexItem(itemWith("seed1", "Seed", "x")); err != nil {
 		t.Fatalf("IndexBean() (seed) error = %v", err)
 	}
 	if err := seed.Close(); err != nil {

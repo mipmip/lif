@@ -4,23 +4,23 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/xRiErOS/beans/internal/ui"
-	"github.com/xRiErOS/beans/pkg/bean"
-	"github.com/xRiErOS/beans/pkg/config"
+	"github.com/xRiErOS/lif/internal/ui"
+	"github.com/xRiErOS/lif/pkg/config"
+	"github.com/xRiErOS/lif/pkg/item"
 )
 
 // tagsFixture is a one-milestone roadmap where the milestone and one leaf
 // carry tags and a second leaf carries none, so a single render exercises
 // both the tagged and the untagged path.
 func tagsFixture() *roadmapData {
-	ms := &bean.Bean{ID: "beans-ms01", Title: "Payments", Type: "milestone", Status: "todo", Tags: []string{"planning", "cli"}}
-	tagged := &bean.Bean{ID: "beans-it01", Title: "Wire up sheet", Type: "task", Status: "todo", Parent: ms.ID, Tags: []string{"ux"}}
-	untagged := &bean.Bean{ID: "beans-it02", Title: "Rotate signing key", Type: "task", Status: "todo", Parent: ms.ID}
+	ms := &item.Item{ID: "beans-ms01", Title: "Payments", Type: "milestone", Status: "todo", Tags: []string{"planning", "cli"}}
+	tagged := &item.Item{ID: "beans-it01", Title: "Wire up sheet", Type: "task", Status: "todo", Parent: ms.ID, Tags: []string{"ux"}}
+	untagged := &item.Item{ID: "beans-it02", Title: "Rotate signing key", Type: "task", Status: "todo", Parent: ms.ID}
 
 	return &roadmapData{
 		Milestones: []milestoneGroup{{
 			Milestone: ms,
-			Other:     []*bean.Bean{tagged, untagged},
+			Other:     []*item.Item{tagged, untagged},
 		}},
 	}
 }
@@ -33,10 +33,10 @@ func tagsFixture() *roadmapData {
 // --tags is set, they occupy exactly one line, the first tag stays visible
 // even when it must be elided, and overflow becomes "+N" -- not the old
 // renderer's hanging-indent-row glyph shape, which ui/columns.go's tagCell
-// replaces with an inline cell on the bean's own line. Dropped entirely
+// replaces with an inline cell on the item's own line. Dropped entirely
 // (properties that no longer exist under the new layout, not migrated):
 // TestRoadmapTagLineRendersAtHangingIndent (pinned the old row's column-17
-// hanging indent -- tags are an inline cell on the bean's own line now, no
+// hanging indent -- tags are an inline cell on the item's own line now, no
 // hanging row exists), TestRoadmapTagLineWrapsAtTitleWidth (pinned that a
 // long tag list wraps over several lines -- inverted by design, tagCell
 // documents itself as never hard-breaking; overflow elides into "+N"
@@ -44,8 +44,8 @@ func tagsFixture() *roadmapData {
 // TestRoadmapTagLineFollowsWrappedTitle (pinned the ordering of a separate
 // tag row after a wrapped title's continuation lines -- there is no
 // separate tag row to order any more, see
-// TestRoadmapOutputTagsStayOnTheBeansOwnLine), TestRoadmapTagRowFollowedByBlankLine
-// and TestRoadmapUntaggedBeanKeepsNoBlankLine (both pinned a blank line
+// TestRoadmapOutputTagsStayOnTheItemsOwnLine), TestRoadmapTagRowFollowedByBlankLine
+// and TestRoadmapUntaggedItemKeepsNoBlankLine (both pinned a blank line
 // after a separate tag row -- moot once tags stopped being a separate row).
 
 // TestRoadmapOutputTagsAppearOnlyWhenFlagSet replaces
@@ -66,11 +66,11 @@ func TestRoadmapOutputTagsAppearOnlyWhenFlagSet(t *testing.T) {
 	}
 }
 
-// TestRoadmapOutputTagsOnlyForTaggedBeans replaces
-// TestRoadmapTagLineOnlyForTaggedBeans: a bean's tags render on its own
+// TestRoadmapOutputTagsOnlyForTaggedItems replaces
+// TestRoadmapTagLineOnlyForTaggedItems: an item's tags render on its own
 // line (tagCell is an inline cell, not a following row any more), and an
-// untagged bean's line carries no "#" at all.
-func TestRoadmapOutputTagsOnlyForTaggedBeans(t *testing.T) {
+// untagged item's line carries no "#" at all.
+func TestRoadmapOutputTagsOnlyForTaggedItems(t *testing.T) {
 	out := roadmapOutput(tagsFixture(), true, roadmapFormatTTY, 90, true, "", true, ui.FormTree, config.Default())
 
 	for _, line := range strings.Split(out, "\n") {
@@ -87,14 +87,14 @@ func TestRoadmapOutputTagsOnlyForTaggedBeans(t *testing.T) {
 	}
 }
 
-// TestRoadmapOutputTagsStayOnTheBeansOwnLine replaces
+// TestRoadmapOutputTagsStayOnTheItemsOwnLine replaces
 // TestRoadmapTagLineWrapsAtTitleWidth and TestRoadmapTagLineFollowsWrappedTitle:
 // tags never get their own row, even when the title wraps over several
-// lines -- they render once, on the bean's first (title-starting) line, and
+// lines -- they render once, on the item's first (title-starting) line, and
 // none of the title's continuation lines carry a "#".
-func TestRoadmapOutputTagsStayOnTheBeansOwnLine(t *testing.T) {
+func TestRoadmapOutputTagsStayOnTheItemsOwnLine(t *testing.T) {
 	long := "Refactor payment reconciliation ledger to support multi-currency settlement across regions"
-	ms := &bean.Bean{ID: "beans-ms01", Title: long, Type: "milestone", Status: "todo", Tags: []string{"ledger"}}
+	ms := &item.Item{ID: "beans-ms01", Title: long, Type: "milestone", Status: "todo", Tags: []string{"ledger"}}
 	data := &roadmapData{Milestones: []milestoneGroup{{Milestone: ms}}}
 
 	out := roadmapOutput(data, true, roadmapFormatTTY, 80, true, "", true, ui.FormTree, config.Default())
@@ -121,7 +121,7 @@ func TestRoadmapOutputTagsStayOnTheBeansOwnLine(t *testing.T) {
 // ui/columns.go's tagCell.
 func TestRoadmapOutputTagOverflowKeepsFirstTagVisible(t *testing.T) {
 	many := []string{"alpha", "bravo", "charlie", "delta", "echo", "foxtrot", "golf", "hotel", "india", "juliett", "kilo", "lima"}
-	ms := &bean.Bean{ID: "beans-ms01", Title: "Payments", Type: "milestone", Status: "todo", Tags: many}
+	ms := &item.Item{ID: "beans-ms01", Title: "Payments", Type: "milestone", Status: "todo", Tags: many}
 	data := &roadmapData{Milestones: []milestoneGroup{{Milestone: ms}}}
 
 	out := roadmapOutput(data, true, roadmapFormatTTY, 80, true, "", true, ui.FormTree, config.Default())

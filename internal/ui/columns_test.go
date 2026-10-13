@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/xRiErOS/beans/pkg/bean"
-	"github.com/xRiErOS/beans/pkg/config"
+	"github.com/xRiErOS/lif/pkg/config"
+	"github.com/xRiErOS/lif/pkg/item"
 )
 
 func TestConnectorIsEmptyAtRoot(t *testing.T) {
@@ -84,10 +84,10 @@ func TestRowsFromFlatItemsResetsAncestryOnShallowerDepth(t *testing.T) {
 }
 
 // TestFlatRowsAreAllDepthZero pins down the table form's contract: no tree
-// shape survives, every bean lands at depth 0 in its original order.
+// shape survives, every item lands at depth 0 in its original order.
 func TestFlatRowsAreAllDepthZero(t *testing.T) {
-	beans := []*bean.Bean{{ID: "a"}, {ID: "b"}}
-	rows := FlatRows(beans)
+	items := []*item.Item{{ID: "a"}, {ID: "b"}}
+	rows := FlatRows(items)
 
 	if len(rows) != 2 {
 		t.Fatalf("FlatRows returned %d rows, want 2", len(rows))
@@ -99,7 +99,7 @@ func TestFlatRowsAreAllDepthZero(t *testing.T) {
 		if !r.IsLast {
 			t.Errorf("row %d: IsLast = %v, want true", i, r.IsLast)
 		}
-		if r.Bean != beans[i] {
+		if r.Item != items[i] {
 			t.Errorf("row %d: Bean pointer mismatch", i)
 		}
 	}
@@ -108,7 +108,7 @@ func TestFlatRowsAreAllDepthZero(t *testing.T) {
 func testRows(titles ...string) []Row {
 	rows := make([]Row, 0, len(titles))
 	for _, ti := range titles {
-		rows = append(rows, Row{Bean: &bean.Bean{
+		rows = append(rows, Row{Item: &item.Item{
 			ID: "beans-abcd", Title: ti, Type: "task", Status: "todo", Priority: "normal",
 		}})
 	}
@@ -160,9 +160,9 @@ func TestColumnsNeverExceedTheTerminal(t *testing.T) {
 	// pushed the line past the terminal because nothing had reserved its
 	// width.
 	rows := []Row{
-		{Bean: &bean.Bean{ID: "beans-abcd", Title: strings.Repeat("x", 200), Type: "milestone"},
+		{Item: &item.Item{ID: "beans-abcd", Title: strings.Repeat("x", 200), Type: "milestone"},
 			Progress: &Progress{Done: 3, Total: 10}},
-		{Bean: &bean.Bean{ID: "beans-abcd", Title: "short", Type: "task"}},
+		{Item: &item.Item{ID: "beans-abcd", Title: "short", Type: "task"}},
 	}
 	wantProgress := progressBarWidth + 2 + DisplayWidth(fmt.Sprintf("%d/%d", 3, 10)) // 6 + 2 + 4 = 12
 	for w := 60; w <= 200; w++ {
@@ -197,7 +197,7 @@ func TestFixedCostIsPinnedNotJustBalanced(t *testing.T) {
 	rows := testRows(strings.Repeat("x", 200), "short")
 	c := NewColumns(rows, 200, true, config.Default())
 
-	wantIndent, wantGap, wantID, wantType, wantStatus, wantPrio, wantTags := 0, 2, 10, 10, 11, 8, 24
+	wantIndent, wantGap, wantID, wantType, wantStatus, wantPrio, wantTags := 0, 2, 10, 4, 6, 1, 24
 	if c.Indent != wantIndent {
 		t.Errorf("Indent = %d, want %d", c.Indent, wantIndent)
 	}
@@ -213,8 +213,8 @@ func TestFixedCostIsPinnedNotJustBalanced(t *testing.T) {
 	if c.Status != wantStatus || !c.LongStatus {
 		t.Errorf("Status = %d (long=%v), want %d long", c.Status, c.LongStatus, wantStatus)
 	}
-	if c.Prio != wantPrio || !c.LongPrio {
-		t.Errorf("Prio = %d (long=%v), want %d long", c.Prio, c.LongPrio, wantPrio)
+	if c.Prio != wantPrio || c.LongPrio {
+		t.Errorf("Prio = %d (long=%v), want %d short (no row has a priority)", c.Prio, c.LongPrio, wantPrio)
 	}
 	if c.Tags != wantTags {
 		t.Errorf("Tags = %d, want %d", c.Tags, wantTags)
@@ -242,9 +242,9 @@ func TestTagsGiveWayBeforeTheTitleIsCrushed(t *testing.T) {
 
 func TestIndentFollowsTheDeepestRow(t *testing.T) {
 	rows := []Row{
-		{Bean: &bean.Bean{ID: "a", Title: "root", Type: "epic"}, Depth: 0},
-		{Bean: &bean.Bean{ID: "b", Title: "kid", Type: "task"}, Depth: 1, AncestorsLast: []bool{true}},
-		{Bean: &bean.Bean{ID: "c", Title: "gk", Type: "task"}, Depth: 2, AncestorsLast: []bool{true, true}},
+		{Item: &item.Item{ID: "a", Title: "root", Type: "epic"}, Depth: 0},
+		{Item: &item.Item{ID: "b", Title: "kid", Type: "task"}, Depth: 1, AncestorsLast: []bool{true}},
+		{Item: &item.Item{ID: "c", Title: "gk", Type: "task"}, Depth: 2, AncestorsLast: []bool{true, true}},
 	}
 	c := NewColumns(rows, 110, false, config.Default())
 	if c.Indent != 6 {
@@ -253,7 +253,7 @@ func TestIndentFollowsTheDeepestRow(t *testing.T) {
 }
 
 func TestFlatRowsNeedNoIndent(t *testing.T) {
-	c := NewColumns(FlatRows([]*bean.Bean{{ID: "a", Title: "x", Type: "task"}}), 110, false, config.Default())
+	c := NewColumns(FlatRows([]*item.Item{{ID: "a", Title: "x", Type: "task"}}), 110, false, config.Default())
 	if c.Indent != 0 {
 		t.Errorf("Indent = %d, want 0 for flat rows", c.Indent)
 	}
@@ -265,13 +265,13 @@ func TestCounterWidthIsMeasuredNotAssumed(t *testing.T) {
 	// The n/m counter itself is digits and a slash — always one byte per
 	// cell, so len() and DisplayWidth() can never disagree on it; no fixture
 	// could make that half of this test catch a DisplayWidth-for-len swap.
-	// The same row-scanning loop also measures the bean ID, and IDs are free
+	// The same row-scanning loop also measures the item ID, and IDs are free
 	// text (a slug carrying an umlaut is realistic in this codebase), so
 	// "beans-über" here is what actually exercises DisplayWidth: 11 bytes,
 	// 10 cells, because ü is two UTF-8 bytes but one terminal cell.
 	rows := []Row{
-		{Bean: &bean.Bean{ID: "beans-über", Title: "m", Type: "milestone"}, Progress: &Progress{Done: 131, Total: 139}},
-		{Bean: &bean.Bean{ID: "b", Title: "n", Type: "milestone"}, Progress: &Progress{Done: 0, Total: 5}},
+		{Item: &item.Item{ID: "beans-über", Title: "m", Type: "milestone"}, Progress: &Progress{Done: 131, Total: 139}},
+		{Item: &item.Item{ID: "b", Title: "n", Type: "milestone"}, Progress: &Progress{Done: 0, Total: 5}},
 	}
 	c := NewColumns(rows, 110, false, config.Default())
 	if c.ID != 10 {
@@ -286,7 +286,7 @@ func TestCounterWidthIsMeasuredNotAssumed(t *testing.T) {
 }
 
 func TestTypeTextFollowsTheLongFlag(t *testing.T) {
-	b := &bean.Bean{Type: "milestone"}
+	b := &item.Item{Type: "milestone"}
 	short := Columns{LongType: false}
 	if got := short.TypeText(b); got != "M" {
 		t.Errorf("short type = %q, want %q", got, "M")
@@ -299,20 +299,20 @@ func TestTypeTextFollowsTheLongFlag(t *testing.T) {
 
 func TestPrioTextHidesNormal(t *testing.T) {
 	c := Columns{LongPrio: true}
-	if got := c.PrioText(&bean.Bean{Priority: "normal"}); got != "" {
+	if got := c.PrioText(&item.Item{Priority: "normal"}); got != "" {
 		t.Errorf("normal priority = %q, want empty", got)
 	}
-	if got := c.PrioText(&bean.Bean{Priority: "high"}); got != "high" {
+	if got := c.PrioText(&item.Item{Priority: "high"}); got != "high" {
 		t.Errorf("high priority = %q, want %q", got, "high")
 	}
 	short := Columns{LongPrio: false}
-	if got := short.PrioText(&bean.Bean{Priority: "critical"}); got != "‼" {
+	if got := short.PrioText(&item.Item{Priority: "critical"}); got != "‼" {
 		t.Errorf("short critical = %q, want %q", got, "‼")
 	}
 }
 
 func rowsWithTags(title string, tags []string) []Row {
-	return []Row{{Bean: &bean.Bean{
+	return []Row{{Item: &item.Item{
 		ID: "beans-abcd", Title: title, Type: "task", Status: "todo",
 		Priority: "normal", Tags: tags,
 	}}}
@@ -337,13 +337,13 @@ func TestRebalanceMovesUnusedTitleWidthToTags(t *testing.T) {
 	}
 }
 
-func TestRebalanceDoesNothingWhenATitleClaimsTheWidth(t *testing.T) {
+func TestRebalanceHandsReleasedTagsWidthToAStarvedTitle(t *testing.T) {
 	rows := rowsWithTags(strings.Repeat("x", 300), []string{"tag"})
 	c := NewColumns(rows, 110, true, config.Default())
-	before := c.Title
+	title, tags := c.Title, c.Tags
 	c.Rebalance(rows)
-	if c.Title != before {
-		t.Errorf("title moved from %d to %d though no width was spare", before, c.Title)
+	if c.Title <= title || c.Title+c.Tags != title+tags {
+		t.Errorf("title %d->%d tags %d->%d, want released tags width moved to title", title, c.Title, tags, c.Tags)
 	}
 }
 
@@ -437,9 +437,9 @@ func TestRebalanceNeverGrowsTheColumnTotal(t *testing.T) {
 // below), not just at one width.
 func TestRebalanceNeverExceedsTheTerminal(t *testing.T) {
 	rows := []Row{
-		{Bean: &bean.Bean{ID: "beans-abcd", Title: "short milestone", Type: "milestone"},
+		{Item: &item.Item{ID: "beans-abcd", Title: "short milestone", Type: "milestone"},
 			Progress: &Progress{Done: 3, Total: 10}},
-		{Bean: &bean.Bean{ID: "beans-abcd", Title: "short task", Type: "task", Tags: []string{
+		{Item: &item.Item{ID: "beans-abcd", Title: "short task", Type: "task", Tags: []string{
 			"a-rather-long-tag-name", "second-tag-that-is-long", "third-tag-also-long",
 		}}},
 	}
@@ -482,7 +482,9 @@ func TestHeaderNamesTheShortForms(t *testing.T) {
 }
 
 func TestHeaderNamesTheLongForms(t *testing.T) {
-	c := NewColumns(testRows("x"), 160, true, config.Default())
+	rows := testRows("x")
+	rows[0].Item.Priority = "high"
+	c := NewColumns(rows, 160, true, config.Default())
 	got := stripANSI(c.Header())
 	for _, want := range []string{"TYPE", "STATUS", "PRIORITY"} {
 		if !strings.Contains(got, want) {
@@ -528,7 +530,7 @@ func TestHeaderHasNoTrailingWhitespace(t *testing.T) {
 // PROGRESS is padded, and it is the last cell when tags are off.
 func TestHeaderHasNoTrailingWhitespaceWithProgressNoTags(t *testing.T) {
 	rows := []Row{{
-		Bean:     &bean.Bean{ID: "beans-abcd", Title: "x", Type: "task", Status: "todo", Priority: "normal"},
+		Item:     &item.Item{ID: "beans-abcd", Title: "x", Type: "task", Status: "todo", Priority: "normal"},
 		Progress: &Progress{Done: 3, Total: 10},
 	}}
 	c := NewColumns(rows, 80, false, config.Default())
@@ -557,7 +559,7 @@ func TestHeaderHasNoTrailingWhitespaceWithProgressNoTags(t *testing.T) {
 // would compute idWidth as 11, shift every column after it, and no longer
 // match the literal below.
 func TestHeaderExactLayoutWithMultibyteID(t *testing.T) {
-	rows := []Row{{Bean: &bean.Bean{
+	rows := []Row{{Item: &item.Item{
 		ID: "beans-über", Title: "x", Type: "task", Status: "todo", Priority: "normal",
 	}}}
 	c := NewColumns(rows, 80, true, config.Default())

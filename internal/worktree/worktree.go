@@ -1,4 +1,4 @@
-// Package worktree manages git worktrees associated with beans.
+// Package worktree manages git worktrees associated with items.
 package worktree
 
 import (
@@ -15,16 +15,15 @@ import (
 	"sync"
 	"time"
 
-	"github.com/xRiErOS/beans/internal/gitutil"
-	"github.com/xRiErOS/beans/pkg/bean"
+	"github.com/xRiErOS/lif/internal/gitutil"
+	"github.com/xRiErOS/lif/pkg/config"
+	"github.com/xRiErOS/lif/pkg/item"
 )
 
 // DefaultFetchTimeout is the default timeout for git fetch operations during
 // worktree creation. Set below the HTTP server's WriteTimeout (15s) to prevent
 // the HTTP connection from dying before the fetch completes.
 const DefaultFetchTimeout = 10 * time.Second
-
-const branchPrefix = "beans/"
 
 // SetupStatus represents the state of a worktree's post-creation setup.
 type SetupStatus string
@@ -43,7 +42,7 @@ type Worktree struct {
 	Path         string
 	Name         string      // Human-readable name
 	Description  string      // Auto-generated summary of what this workspace is doing
-	BeanIDs      []string    // Bean IDs detected from changes vs base branch
+	ItemIDs      []string    // Item IDs detected from changes vs base branch
 	Setup        SetupStatus // post-creation setup status (runtime only)
 	SetupError   string      // error message if setup failed
 	LastActiveAt time.Time   // When an agent last completed a turn in this worktree
@@ -56,10 +55,11 @@ type SetupDoneFunc func(worktreeID string, success bool, errMsg string)
 // Manager handles git worktree operations for a repository.
 type Manager struct {
 	repoRoot     string
-	worktreeRoot string // directory where worktrees are created (e.g. ~/.beans/worktrees/<project>/)
+	worktreeRoot string // directory where worktrees are created (e.g. ~/.lif/worktrees/<project>/)
 	baseRef      string
 	setupCommand string        // shell command to run after worktree creation
 	fetchTimeout time.Duration // timeout for git fetch during worktree creation (0 = skip fetch)
+	storeDir     string        // name of the store directory inside a worktree checkout
 	mu           sync.RWMutex
 
 	// setupStatuses tracks runtime setup status for worktrees (not persisted)
@@ -80,7 +80,7 @@ type setupState struct {
 }
 
 // NewManager creates a new worktree manager for the given repository root.
-// worktreeRoot is the directory where worktrees are created (e.g. ~/.beans/worktrees/<project>/).
+// worktreeRoot is the directory where worktrees are created (e.g. ~/.lif/worktrees/<project>/).
 // baseRef is the git ref to use as the starting point for new branches (e.g. "main").
 // setupCommand is an optional shell command to run inside new worktrees after creation.
 // ManagerOption is a functional option for configuring a Manager.
@@ -94,6 +94,15 @@ func WithFetchTimeout(d time.Duration) ManagerOption {
 	}
 }
 
+// WithStoreDir sets the name of the store directory inside a worktree checkout,
+// the same name as the main project's store directory (default: the new
+// default store directory). DetectItemIDs reads item changes under it.
+func WithStoreDir(name string) ManagerOption {
+	return func(m *Manager) {
+		m.storeDir = name
+	}
+}
+
 func NewManager(repoRoot, worktreeRoot, baseRef, setupCommand string, opts ...ManagerOption) *Manager {
 	m := &Manager{
 		repoRoot:      repoRoot,
@@ -101,6 +110,7 @@ func NewManager(repoRoot, worktreeRoot, baseRef, setupCommand string, opts ...Ma
 		baseRef:       baseRef,
 		setupCommand:  setupCommand,
 		fetchTimeout:  DefaultFetchTimeout,
+		storeDir:      config.DefaultStoreDir,
 		setupStatuses: make(map[string]setupState),
 	}
 	for _, opt := range opts {
@@ -117,6 +127,11 @@ func (m *Manager) RepoRoot() string {
 // BaseRef returns the configured base ref for worktree branches.
 func (m *Manager) BaseRef() string {
 	return m.baseRef
+}
+
+// StoreDir returns the name of the store directory inside a worktree checkout.
+func (m *Manager) StoreDir() string {
+	return m.storeDir
 }
 
 // fetchBaseRef fetches the base ref from the remote so that worktrees branch
@@ -198,7 +213,7 @@ func (m *Manager) Unsubscribe(ch chan struct{}) {
 }
 
 // Notify sends a signal to all subscribers. Exported so external watchers
-// (e.g., the worktree bean file watcher) can trigger a refresh.
+// (e.g., the worktree item file watcher) can trigger a refresh.
 func (m *Manager) Notify() {
 	m.notify()
 }
@@ -216,19 +231,43 @@ func (m *Manager) notify() {
 	}
 }
 
-// List returns all active worktrees that were created by beans (branch prefix "beans/").
+// listPorcelain runs `git worktree list --porcelain` in repoRoot.
+func listPorcelain(repoRoot string) (string, error) {
+	cmd := exec.Command("git", "worktree", "list", "--porcelain")
+	cmd.Dir = repoRoot
+	out, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("git worktree list: %w", err)
+	}
+	return string(out), nil
+}
+
+// branchExists reports whether the local branch exists in the repository.
+func (m *Manager) branchExists(branch string) bool {
+	cmd := exec.Command("git", "show-ref", "--verify", "--quiet", "refs/heads/"+branch)
+	cmd.Dir = m.repoRoot
+	return cmd.Run() == nil
+}
+
+// parseWorktrees lists the worktrees of the repository (see parsePorcelain).
+func (m *Manager) parseWorktrees() ([]Worktree, error) {
+	out, err := listPorcelain(m.repoRoot)
+	if err != nil {
+		return nil, err
+	}
+	return parsePorcelain(out, m.worktreeRoot, m.branchExists), nil
+}
+
+// List returns all active worktrees that were created by lif, on a lif/ or a
+// legacy beans/ branch, each with its actual branch.
 func (m *Manager) List() ([]Worktree, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	cmd := exec.Command("git", "worktree", "list", "--porcelain")
-	cmd.Dir = m.repoRoot
-	out, err := cmd.Output()
+	worktrees, err := m.parseWorktrees()
 	if err != nil {
-		return nil, fmt.Errorf("git worktree list: %w", err)
+		return nil, err
 	}
-
-	worktrees := parsePorcelain(string(out), m.worktreeRoot)
 
 	// Enrich with metadata (name, description for standalone worktrees)
 	for i := range worktrees {
@@ -239,7 +278,7 @@ func (m *Manager) List() ([]Worktree, error) {
 				worktrees[i].LastActiveAt = *meta.LastActiveAt
 			}
 		}
-		worktrees[i].BeanIDs = m.DetectBeanIDs(worktrees[i].Path)
+		worktrees[i].ItemIDs = m.DetectItemIDs(worktrees[i].Path)
 		// Attach runtime setup status
 		if st, ok := m.setupStatuses[worktrees[i].ID]; ok {
 			worktrees[i].Setup = st.status
@@ -251,12 +290,41 @@ func (m *Manager) List() ([]Worktree, error) {
 	return worktrees, nil
 }
 
+// worktreeBranchPrefixes are the branch prefixes of a worktree, the prefix of
+// new worktrees first. Every lookup by prefix goes through this list.
+var worktreeBranchPrefixes = []string{config.WorktreeBranchPrefix, config.LegacyWorktreeBranchPrefix}
+
+// worktreeBranchID returns the worktree ID of a worktree branch: the branch
+// name without its lif/ or legacy beans/ prefix. ok is false for any other
+// branch.
+func worktreeBranchID(branch string) (id string, ok bool) {
+	for _, prefix := range worktreeBranchPrefixes {
+		if rest, found := strings.CutPrefix(branch, prefix); found {
+			return rest, true
+		}
+	}
+	return "", false
+}
+
 // parsePorcelain parses `git worktree list --porcelain` output and returns
-// worktrees whose branch starts with the beans prefix.
+// worktrees whose branch starts with the lif/ or the legacy beans/ prefix, each
+// with its actual branch.
 // Entries marked as "prunable" (stale/missing directory) are skipped.
-// worktreesDir is the path to the beans worktrees directory (e.g. "~/.beans/worktrees/<project>/"),
-// used to identify beans-managed worktrees that are temporarily detached (e.g. during rebase).
-func parsePorcelain(output string, worktreesDir string) []Worktree {
+// worktreesDir is the path to the items worktrees directory (e.g. "~/.lif/worktrees/<project>/"),
+// used to identify lif-managed worktrees that are temporarily detached (e.g. during rebase).
+// A detached worktree carries no branch in the output, so branchExists decides
+// which branch it reports: lif/<id> if that exists, else beans/<id>, else
+// none (empty Branch) -- a branch name is never made up. A nil branchExists
+// finds none.
+func parsePorcelain(output string, worktreesDir string, branchExists func(branch string) bool) []Worktree {
+	// git prints resolved paths; a symlinked root (macOS /var -> /private/var)
+	// matches only in its resolved form.
+	resolvedDir := worktreesDir
+	if worktreesDir != "" {
+		if r, err := filepath.EvalSymlinks(worktreesDir); err == nil {
+			resolvedDir = r
+		}
+	}
 	var worktrees []Worktree
 	var currentPath, currentBranch string
 	var prunable, detached bool
@@ -270,20 +338,28 @@ func parsePorcelain(output string, worktreesDir string) []Worktree {
 			return
 		}
 
-		if strings.HasPrefix(currentBranch, branchPrefix) {
-			// Normal case: branch is on a beans/ branch
-			id := strings.TrimPrefix(currentBranch, branchPrefix)
+		if id, ok := worktreeBranchID(currentBranch); ok {
+			// Normal case: branch is on a lif/ or legacy beans/ branch
 			worktrees = append(worktrees, Worktree{
 				ID:     id,
 				Branch: currentBranch,
 				Path:   currentPath,
 			})
-		} else if detached && worktreesDir != "" && strings.HasPrefix(currentPath, worktreesDir) {
+		} else if detached && worktreesDir != "" && strings.HasPrefix(currentPath, resolvedDir) {
 			// Detached HEAD (e.g. during rebase) — identify by path
 			id := filepath.Base(currentPath)
+			branch := ""
+			if branchExists != nil {
+				for _, prefix := range worktreeBranchPrefixes {
+					if branchExists(prefix + id) {
+						branch = prefix + id
+						break
+					}
+				}
+			}
 			worktrees = append(worktrees, Worktree{
 				ID:     id,
-				Branch: branchPrefix + id,
+				Branch: branch,
 				Path:   currentPath,
 			})
 		}
@@ -305,7 +381,7 @@ func parsePorcelain(output string, worktreesDir string) []Worktree {
 			detached = false
 		} else if strings.HasPrefix(line, "branch ") {
 			ref := strings.TrimPrefix(line, "branch ")
-			// ref is like "refs/heads/beans/beans-abc1"
+			// ref is like "refs/heads/lif/item-abc1" (or "refs/heads/beans/beans-abc1")
 			currentBranch = strings.TrimPrefix(ref, "refs/heads/")
 		} else if line == "detached" {
 			detached = true
@@ -322,10 +398,10 @@ func parsePorcelain(output string, worktreesDir string) []Worktree {
 	return worktrees
 }
 
-// DetectBeanIDs returns bean IDs found in the worktree's diff vs the base branch.
-// It filters for .beans/*.md files, excluding dot-prefixed subdirs (like .worktrees/,
+// DetectItemIDs returns item IDs found in the worktree's diff vs the base branch.
+// It filters for <store dir>/*.md files, excluding dot-prefixed subdirs (like .worktrees/,
 // .conversations/) and the archive/ directory.
-func (m *Manager) DetectBeanIDs(worktreePath string) []string {
+func (m *Manager) DetectItemIDs(worktreePath string) []string {
 	changes, err := gitutil.AllChangesVsUpstream(worktreePath, m.baseRef)
 	if err != nil {
 		return nil
@@ -335,8 +411,8 @@ func (m *Manager) DetectBeanIDs(worktreePath string) []string {
 	var ids []string
 
 	for _, change := range changes {
-		// Must be directly under .beans/ and end with .md
-		rest, ok := strings.CutPrefix(change.Path, ".beans/")
+		// Must be directly under the store directory and end with .md
+		rest, ok := strings.CutPrefix(change.Path, m.storeDir+"/")
 		if !ok {
 			continue
 		}
@@ -352,12 +428,12 @@ func (m *Manager) DetectBeanIDs(worktreePath string) []string {
 		}
 
 		// Skip if the file was deleted in the worktree
-		fullPath := filepath.Join(worktreePath, ".beans", rest)
+		fullPath := filepath.Join(worktreePath, m.storeDir, rest)
 		if _, err := os.Stat(fullPath); os.IsNotExist(err) {
 			continue
 		}
 
-		id, _ := bean.ParseFilename(rest)
+		id, _ := item.ParseFilename(rest)
 		if id != "" && !seen[id] {
 			seen[id] = true
 			ids = append(ids, id)
@@ -382,7 +458,7 @@ func (m *Manager) Create(name string) (*Worktree, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	branch := branchPrefix + name
+	branch := config.WorktreeBranchPrefix + name
 	worktreePath := m.WorktreePath(id)
 
 	// Check if the worktree path already exists
@@ -587,14 +663,12 @@ func (m *Manager) Remove(id string) error {
 // by parsing git worktree list output.
 // Must be called with m.mu held.
 func (m *Manager) findWorktreePathByID(id string) (string, error) {
-	cmd := exec.Command("git", "worktree", "list", "--porcelain")
-	cmd.Dir = m.repoRoot
-	out, err := cmd.Output()
+	worktrees, err := m.parseWorktrees()
 	if err != nil {
-		return "", fmt.Errorf("git worktree list: %w", err)
+		return "", err
 	}
 
-	for _, wt := range parsePorcelain(string(out), m.worktreeRoot) {
+	for _, wt := range worktrees {
 		if wt.ID == id {
 			return wt.Path, nil
 		}
@@ -602,9 +676,29 @@ func (m *Manager) findWorktreePathByID(id string) (string, error) {
 	return "", fmt.Errorf("no worktree with id %s", id)
 }
 
+// LegacyBranchWorktrees returns the worktrees of the repository at repoRoot
+// whose branch carries the legacy beans/ prefix, for `lif check`. It makes one
+// `git worktree list --porcelain` call and nothing else: no metadata, no diff
+// scan, and no detached worktree (it has no branch in that output). It returns
+// an error outside a git repository.
+func LegacyBranchWorktrees(repoRoot string) ([]Worktree, error) {
+	out, err := listPorcelain(repoRoot)
+	if err != nil {
+		return nil, err
+	}
+	var legacy []Worktree
+	for _, wt := range parsePorcelain(out, "", nil) {
+		if strings.HasPrefix(wt.Branch, config.LegacyWorktreeBranchPrefix) {
+			legacy = append(legacy, wt)
+		}
+	}
+	return legacy, nil
+}
+
 // WorktreePath returns the filesystem path for a worktree with the given ID.
 // Worktrees are stored outside the main repo, in the configured worktree root
-// (default: ~/.beans/worktrees/<project>/).
+// (default: ~/.lif/worktrees/<project>/, or ~/.beans/worktrees/<project>/ for
+// a project that already has that root).
 func (m *Manager) WorktreePath(id string) string {
 	return filepath.Join(m.worktreeRoot, id)
 }

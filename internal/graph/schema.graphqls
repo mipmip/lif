@@ -1,28 +1,28 @@
-# Beans GraphQL Schema
+# Items GraphQL Schema
 
 scalar Time
 scalar Map
 
 type Query {
   """
-  Get a single bean by ID. Accepts either the full ID (e.g., "beans-abc1") or the short ID without prefix (e.g., "abc1").
+  Get a single item by ID. Accepts either the full ID or the short ID without prefix (e.g., "abc1").
   """
-  bean(id: ID!): Bean
+  item(id: ID!): Item
 
   """
-  List beans with optional filtering
+  List items with optional filtering
   """
-  beans(filter: BeanFilter): [Bean!]!
+  items(filter: ItemFilter): [Item!]!
 
   """
-  List active git worktrees created by beans
+  List active git worktrees created by items
   """
   worktrees: [Worktree!]!
 
   """
   Get the current agent session for a worktree (null if none)
   """
-  agentSession(beanId: ID!): AgentSession
+  agentSession(itemId: ID!): AgentSession
 
   """
   Get file changes for a directory. If path is null, uses the project root.
@@ -55,16 +55,16 @@ type Query {
   branchStatus(path: String): BranchStatus!
 
   """
-  Whether any beans have unsaved runtime changes
+  Whether any items have unsaved runtime changes
   """
-  hasDirtyBeans: Boolean!
+  hasDirtyItems: Boolean!
 
   """
-  Get available agent actions for a bean.
+  Get available agent actions for an item.
   When skipForge is true, forge-dependent actions (PR buttons) are omitted
   for a faster response — useful for the initial render before polling kicks in.
   """
-  agentActions(beanId: ID!, skipForge: Boolean): [AgentAction!]!
+  agentActions(itemId: ID!, skipForge: Boolean): [AgentAction!]!
 
   """
   Human-readable project name from configuration.
@@ -123,9 +123,9 @@ type Query {
 
 type Subscription {
   """
-  Subscribe to bean change events (created, updated, deleted).
+  Subscribe to item change events (created, updated, deleted).
 
-  When includeInitial is true, all existing beans are emitted as a single
+  When includeInitial is true, all existing items are emitted as a single
   INITIAL_SNAPSHOT event containing the full list, followed by real-time
   changes. This eliminates race conditions between loading and subscribing.
 
@@ -133,7 +133,7 @@ type Subscription {
   server has to drop events for a slow subscriber, it sends the full state
   again rather than letting the client build on an incomplete history.
   """
-  beanChanged(includeInitial: Boolean = false): BeanChangeEvent!
+  itemChanged(includeInitial: Boolean = false): ItemChangeEvent!
 
   """
   Subscribe to worktree changes. Emits the full list of active worktrees
@@ -145,7 +145,7 @@ type Subscription {
   Subscribe to agent session updates for a worktree.
   Emits the full session state whenever it changes (new messages, status changes).
   """
-  agentSessionChanged(beanId: ID!): AgentSession!
+  agentSessionChanged(itemId: ID!): AgentSession!
 
   """
   Subscribe to active agent status changes across all sessions.
@@ -162,11 +162,11 @@ type Subscription {
 }
 
 """
-Lightweight status for tracking which beans have running agents
+Lightweight status for tracking which items have running agents
 """
 type ActiveAgentStatus {
-  "Bean ID with an active agent"
-  beanId: ID!
+  "Item ID with an active agent"
+  itemId: ID!
   "Current agent status"
   status: AgentSessionStatus!
 }
@@ -184,24 +184,24 @@ type WorkspaceStatus {
 }
 
 """
-Represents a change to a bean
+Represents a change to an item
 """
-type BeanChangeEvent {
+type ItemChangeEvent {
   "Type of change that occurred"
   type: ChangeType!
-  "The bean that changed (null for INITIAL_SNAPSHOT and DELETED events)"
-  bean: Bean
-  "All beans as a batch (only present for INITIAL_SNAPSHOT events)"
-  beans: [Bean!]
-  "ID of the bean that changed (empty for INITIAL_SNAPSHOT events)"
-  beanId: ID!
+  "The item that changed (null for INITIAL_SNAPSHOT and DELETED events)"
+  item: Item
+  "All items as a batch (only present for INITIAL_SNAPSHOT events)"
+  items: [Item!]
+  "ID of the item that changed (empty for INITIAL_SNAPSHOT events)"
+  itemId: ID!
 }
 
 """
-Type of change that occurred to a bean
+Type of change that occurred to an item
 """
 enum ChangeType {
-  "All existing beans sent as a single batch when subscription starts (emitted when includeInitial=true)"
+  "All existing items sent as a single batch when subscription starts (emitted when includeInitial=true)"
   INITIAL_SNAPSHOT
   CREATED
   UPDATED
@@ -210,44 +210,44 @@ enum ChangeType {
 
 type Mutation {
   """
-  Create a new bean
+  Create a new item
   """
-  createBean(input: CreateBeanInput!): Bean!
+  createItem(input: CreateItemInput!): Item!
 
   """
-  Update an existing bean
+  Update an existing item
   """
-  updateBean(id: ID!, input: UpdateBeanInput!): Bean!
+  updateItem(id: ID!, input: UpdateItemInput!): Item!
 
   """
-  Delete a bean by ID (automatically removes incoming links)
+  Delete an item by ID (automatically removes incoming links)
   """
-  deleteBean(id: ID!): Boolean!
+  deleteItem(id: ID!): Boolean!
 
   """
-  Set or clear the parent of a bean (validates type hierarchy)
+  Set or clear the parent of an item (validates type hierarchy)
   """
-  setParent(id: ID!, parentId: String, ifMatch: String): Bean!
+  setParent(id: ID!, parentId: String, ifMatch: String): Item!
 
   """
-  Add a bean to the blocking list
+  Add an item to the blocking list
   """
-  addBlocking(id: ID!, targetId: ID!, ifMatch: String): Bean!
+  addBlocking(id: ID!, targetId: ID!, ifMatch: String): Item!
 
   """
-  Remove a bean from the blocking list
+  Remove an item from the blocking list
   """
-  removeBlocking(id: ID!, targetId: ID!, ifMatch: String): Bean!
+  removeBlocking(id: ID!, targetId: ID!, ifMatch: String): Item!
 
   """
-  Add a bean to the blocked-by list (this bean is blocked by targetId)
+  Add an item to the blocked-by list (this item is blocked by targetId)
   """
-  addBlockedBy(id: ID!, targetId: ID!, ifMatch: String): Bean!
+  addBlockedBy(id: ID!, targetId: ID!, ifMatch: String): Item!
 
   """
-  Remove a bean from the blocked-by list
+  Remove an item from the blocked-by list
   """
-  removeBlockedBy(id: ID!, targetId: ID!, ifMatch: String): Bean!
+  removeBlockedBy(id: ID!, targetId: ID!, ifMatch: String): Item!
 
   """
   Write input data to an existing terminal session's PTY.
@@ -273,7 +273,7 @@ type Mutation {
   createWorktree(name: String!): Worktree!
 
   """
-  Remove a worktree by its ID (works for both bean-attached and standalone worktrees).
+  Remove a worktree by its ID (works for both item-attached and standalone worktrees).
   """
   removeWorktree(id: ID!): Boolean!
 
@@ -281,66 +281,66 @@ type Mutation {
   Send a message to the agent in a worktree. Starts a session if none exists.
   Optionally attach images (base64-encoded).
   """
-  sendAgentMessage(beanId: ID!, message: String!, images: [ImageInput!], attachments: [FileAttachmentInput!]): Boolean!
+  sendAgentMessage(itemId: ID!, message: String!, images: [ImageInput!], attachments: [FileAttachmentInput!]): Boolean!
 
   """
   Stop the running agent in a worktree.
   """
-  stopAgent(beanId: ID!): Boolean!
+  stopAgent(itemId: ID!): Boolean!
 
   """
   Set plan mode for an agent session. Plan mode makes the agent read-only
   (can explore/analyze but not edit). Kills any running process since the
   permission mode is a startup flag.
   """
-  setAgentPlanMode(beanId: ID!, planMode: Boolean!): Boolean!
+  setAgentPlanMode(itemId: ID!, planMode: Boolean!): Boolean!
 
   """
   Set act mode for an agent session. Act mode makes the agent fully autonomous
   (no permission prompts). Kills any running process since the flag requires respawning.
   """
-  setAgentActMode(beanId: ID!, actMode: Boolean!): Boolean!
+  setAgentActMode(itemId: ID!, actMode: Boolean!): Boolean!
 
   """
   Set the thinking effort level for an agent session. Kills any running process
   since --effort is a startup flag. Use "low", "medium", "high", or "max".
   Empty string clears the override (uses CLI default).
   """
-  setAgentEffort(beanId: ID!, effort: String!): Boolean!
+  setAgentEffort(itemId: ID!, effort: String!): Boolean!
 
   """
   Set a pending interaction on an agent session (creates session if needed).
   Used to simulate blocking tool calls for testing the approval UI.
   """
-  setAgentPendingInteraction(beanId: ID!, type: InteractionType!, planContent: String): Boolean!
+  setAgentPendingInteraction(itemId: ID!, type: InteractionType!, planContent: String): Boolean!
 
   """
-  Clear the agent session for a bean. Stops any running process, removes the
+  Clear the agent session for an item. Stops any running process, removes the
   session from memory, and deletes persisted conversation history.
   """
-  clearAgentSession(beanId: ID!): Boolean!
+  clearAgentSession(itemId: ID!): Boolean!
 
   """
-  Archive a bean by moving it to the archive directory.
-  Only beans with archive-eligible statuses (completed, scrapped) can be archived.
+  Archive an item by moving it to the archive directory.
+  Only items with archive-eligible statuses (completed, scrapped) can be archived.
   """
-  archiveBean(id: ID!): Boolean!
+  archiveItem(id: ID!): Boolean!
 
   """
-  Save all dirty beans to disk. Returns the number of beans saved.
+  Save all dirty items to disk. Returns the number of items saved.
   """
-  saveDirtyBeans: Int!
+  saveDirtyItems: Int!
 
   """
-  Save a specific bean to disk (must be dirty). Returns true if saved.
+  Save a specific item to disk (must be dirty). Returns true if saved.
   """
-  saveBean(id: ID!): Boolean!
+  saveItem(id: ID!): Boolean!
 
   """
   Execute a predefined agent action (e.g., "commit", "review") by injecting
   the corresponding prompt into the agent conversation.
   """
-  executeAgentAction(beanId: ID!, actionId: ID!): Boolean!
+  executeAgentAction(itemId: ID!, actionId: ID!): Boolean!
 
   """
   Discard a file change (restore tracked file or remove untracked file).
@@ -358,12 +358,12 @@ type Mutation {
 }
 
 """
-Input for creating a new bean
+Input for creating a new item
 """
-input CreateBeanInput {
-  "Bean title (required)"
+input CreateItemInput {
+  "Item title (required)"
   title: String!
-  "Bean type (defaults to 'task')"
+  "Item type (defaults to 'task')"
   type: String
   "Status (defaults to 'todo')"
   status: String
@@ -373,20 +373,20 @@ input CreateBeanInput {
   tags: [String!]
   "Markdown body content"
   body: String
-  "Parent bean ID (validated against type hierarchy)"
+  "Parent item ID (validated against type hierarchy)"
   parent: String
-  "Bean IDs this bean is blocking"
+  "Item IDs this item is blocking"
   blocking: [String!]
-  "Bean IDs that are blocking this bean"
+  "Item IDs that are blocking this item"
   blockedBy: [String!]
-  "Custom ID prefix (overrides config prefix for this bean)"
+  "Custom ID prefix (overrides config prefix for this item)"
   prefix: String
 }
 
 """
-Input for updating an existing bean
+Input for updating an existing item
 """
-input UpdateBeanInput {
+input UpdateItemInput {
   "New title"
   title: String
   "New status"
@@ -406,15 +406,15 @@ input UpdateBeanInput {
   "Structured body modifications (mutually exclusive with body)"
   bodyMod: BodyModification
   
-  "Set parent bean ID (null/empty to clear, validates type hierarchy)"
+  "Set parent item ID (null/empty to clear, validates type hierarchy)"
   parent: String
-  "Add beans to blocking list (validates cycles and existence)"
+  "Add items to blocking list (validates cycles and existence)"
   addBlocking: [String!]
-  "Remove beans from blocking list"
+  "Remove items from blocking list"
   removeBlocking: [String!]
-  "Add beans to blocked-by list (validates cycles and existence)"
+  "Add items to blocked-by list (validates cycles and existence)"
   addBlockedBy: [String!]
-  "Remove beans from blocked-by list"
+  "Remove items from blocked-by list"
   removeBlockedBy: [String!]
   
   "Fractional index for manual ordering (used by board drag-and-drop)"
@@ -452,20 +452,20 @@ input ReplaceOperation {
 }
 
 """
-A bean represents an issue/task in the beans tracker
+An item represents an issue/task in the tracker
 """
-type Bean {
+type Item {
   "Unique identifier (NanoID)"
   id: ID!
   "Human-readable slug from filename"
   slug: String
-  "Relative path from .beans/ directory"
+  "Relative path from the store directory"
   path: String!
-  "Bean title"
+  "Item title"
   title: String!
   "Current status (draft, todo, in-progress, completed, scrapped)"
   status: String!
-  "Bean type (milestone, epic, bug, feature, task)"
+  "Item type (milestone, epic, bug, feature, task)"
   type: String!
   "Priority level (critical, high, normal, low, deferred)"
   priority: String!
@@ -483,40 +483,40 @@ type Bean {
   extra: Map
   "Content hash for optimistic concurrency control"
   etag: String!
-  "Whether this bean has unsaved runtime changes (not yet persisted to disk)"
+  "Whether this item has unsaved runtime changes (not yet persisted to disk)"
   isDirty: Boolean!
-  "ID of the worktree this bean is linked to (null if not linked to any worktree)"
+  "ID of the worktree this item is linked to (null if not linked to any worktree)"
   worktreeId: String
 
   # Direct link fields
-  "Parent bean ID (optional, type-restricted)"
+  "Parent item ID (optional, type-restricted)"
   parentId: String
-  "IDs of beans this bean is blocking"
+  "IDs of items this item is blocking"
   blockingIds: [String!]!
-  "IDs of beans that are blocking this bean (direct field)"
+  "IDs of items that are blocking this item (direct field)"
   blockedByIds: [String!]!
 
   # Computed relationship fields
-  "Beans that block this one (incoming blocking links)"
-  blockedBy(filter: BeanFilter): [Bean!]!
-  "Beans this one is blocking (resolved from blockingIds)"
-  blocking(filter: BeanFilter): [Bean!]!
-  "Parent bean (resolved from parentId)"
-  parent: Bean
-  "Child beans (beans with this as parent)"
-  children(filter: BeanFilter): [Bean!]!
+  "Items that block this one (incoming blocking links)"
+  blockedBy(filter: ItemFilter): [Item!]!
+  "Items this one is blocking (resolved from blockingIds)"
+  blocking(filter: ItemFilter): [Item!]!
+  "Parent item (resolved from parentId)"
+  parent: Item
+  "Child items (items with this as parent)"
+  children(filter: ItemFilter): [Item!]!
 
   # Implicit status fields
   "Terminal status (scrapped or completed) inherited from the nearest terminal ancestor, if any"
   implicitStatus: String
-  "ID of the ancestor bean that provides the implicit status"
+  "ID of the ancestor item that provides the implicit status"
   implicitStatusFrom: String
 }
 
 """
-Filter options for querying beans
+Filter options for querying items
 """
-input BeanFilter {
+input ItemFilter {
   """
   Full-text search across slug, title, and body using Bleve query syntax.
 
@@ -533,52 +533,52 @@ input BeanFilter {
   - "body:auth" - search only body field
   """
   search: String
-  "Include only beans with these statuses (OR logic)"
+  "Include only items with these statuses (OR logic)"
   status: [String!]
-  "Exclude beans with these statuses"
+  "Exclude items with these statuses"
   excludeStatus: [String!]
-  "Include only beans with these types (OR logic)"
+  "Include only items with these types (OR logic)"
   type: [String!]
-  "Exclude beans with these types"
+  "Exclude items with these types"
   excludeType: [String!]
-  "Include only beans with these priorities (OR logic)"
+  "Include only items with these priorities (OR logic)"
   priority: [String!]
-  "Exclude beans with these priorities"
+  "Exclude items with these priorities"
   excludePriority: [String!]
-  "Include only beans with any of these tags (OR logic)"
+  "Include only items with any of these tags (OR logic)"
   tags: [String!]
-  "Exclude beans with any of these tags"
+  "Exclude items with any of these tags"
   excludeTags: [String!]
-  "Include only beans with a parent"
+  "Include only items with a parent"
   hasParent: Boolean
-  "Include only beans with this specific parent ID"
+  "Include only items with this specific parent ID"
   parentId: String
-  "Include only beans that are blocking other beans"
+  "Include only items that are blocking other items"
   hasBlocking: Boolean
-  "Include only beans that are blocking this specific bean ID"
+  "Include only items that are blocking this specific item ID"
   blockingId: String
-  "Include beans that are blocked — explicitly (direct blockers) or implicitly (ancestor is blocked)"
+  "Include items that are blocked — explicitly (direct blockers) or implicitly (ancestor is blocked)"
   isBlocked: Boolean
-  "Filter beans that are explicitly blocked (have direct active blockers)"
+  "Filter items that are explicitly blocked (have direct active blockers)"
   isExplicitlyBlocked: Boolean
-  "Filter beans that are implicitly blocked (an ancestor in the parent chain is blocked)"
+  "Filter items that are implicitly blocked (an ancestor in the parent chain is blocked)"
   isImplicitlyBlocked: Boolean
-  "Include only beans that have explicit blocked-by entries"
+  "Include only items that have explicit blocked-by entries"
   hasBlockedBy: Boolean
-  "Include only beans blocked by this specific bean ID (via blocked_by field)"
+  "Include only items blocked by this specific item ID (via blocked_by field)"
   blockedById: String
-  "Exclude beans that have a parent"
+  "Exclude items that have a parent"
   noParent: Boolean
-  "Exclude beans that are blocking other beans"
+  "Exclude items that are blocking other items"
   noBlocking: Boolean
-  "Exclude beans that have explicit blocked-by entries"
+  "Exclude items that have explicit blocked-by entries"
   noBlockedBy: Boolean
-  "Exclude beans that inherit a terminal status (scrapped or completed) from an ancestor"
+  "Exclude items that inherit a terminal status (scrapped or completed) from an ancestor"
   excludeImplicitTerminal: Boolean
 }
 
 """
-A git worktree, either associated with a bean or standalone
+A git worktree, either associated with an item or standalone
 """
 type Worktree {
   "Unique worktree identifier"
@@ -591,8 +591,8 @@ type Worktree {
   branch: String!
   "Filesystem path to the worktree"
   path: String!
-  "Beans detected from changes in this worktree vs the base branch"
-  beans: [Bean!]!
+  "Items detected from changes in this worktree vs the base branch"
+  items: [Item!]!
   "Whether the worktree has uncommitted changes or untracked files"
   hasChanges: Boolean!
   "Whether the worktree has commits not yet merged into the base branch"
@@ -670,8 +670,8 @@ type FileChange {
 An agent chat session within a worktree
 """
 type AgentSession {
-  "Bean ID (worktree identifier)"
-  beanId: ID!
+  "Item ID (worktree identifier)"
+  itemId: ID!
   "Agent type (e.g., 'claude')"
   agentType: String!
   "Current session status"

@@ -4,7 +4,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/xRiErOS/beans/pkg/bean"
+	"github.com/xRiErOS/lif/pkg/item"
 )
 
 // TestIndex_ReadOnly_ExclusiveAndInMemoryAreWritable proves the negative
@@ -37,7 +37,7 @@ func TestIndex_ReadOnly_ExclusiveAndInMemoryAreWritable(t *testing.T) {
 
 // TestIndex_ReadOnly_TrueForSharedPersisted proves the positive half: a
 // real persisted index obtained through OpenRead reports ReadOnly() ==
-// true, which is exactly the signal pkg/beancore's upgrade path relies on.
+// true, which is exactly the signal pkg/itemcore's upgrade path relies on.
 func TestIndex_ReadOnly_TrueForSharedPersisted(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "idx")
 
@@ -45,7 +45,7 @@ func TestIndex_ReadOnly_TrueForSharedPersisted(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Open() (seed) error = %v", err)
 	}
-	if err := seed.IndexBean(beanWith("seed1", "Seed", "x")); err != nil {
+	if err := seed.IndexItem(itemWith("seed1", "Seed", "x")); err != nil {
 		t.Fatalf("IndexBean() (seed) error = %v", err)
 	}
 	if err := seed.Close(); err != nil {
@@ -92,50 +92,50 @@ func TestIndex_ReadOnly_InMemoryFallbackFromOpenReadIsWritable(t *testing.T) {
 }
 
 // TestIndex_NeedsSync proves NeedsSync answers exactly what a later Sync
-// with the same beans would do, without mutating the index or its etags:
-// unchanged beans report no work, and an added, edited, or removed bean
+// with the same items would do, without mutating the index or its etags:
+// unchanged items report no work, and an added, edited, or removed item
 // each report work is needed.
 func TestIndex_NeedsSync(t *testing.T) {
 	idx := setupTestIndex(t)
 
-	a := beanWith("aaa1", "Alpha", "x")
-	b := beanWith("bbb2", "Beta", "y")
+	a := itemWith("aaa1", "Alpha", "x")
+	b := itemWith("bbb2", "Beta", "y")
 
-	if !idx.NeedsSync([]*bean.Bean{a, b}) {
+	if !idx.NeedsSync([]*item.Item{a, b}) {
 		t.Fatal("NeedsSync() = false on a never-synced index with beans present; want true")
 	}
 
-	if err := idx.Sync([]*bean.Bean{a, b}); err != nil {
+	if err := idx.Sync([]*item.Item{a, b}); err != nil {
 		t.Fatalf("Sync() error = %v", err)
 	}
 
-	if idx.NeedsSync([]*bean.Bean{a, b}) {
+	if idx.NeedsSync([]*item.Item{a, b}) {
 		t.Fatal("NeedsSync() = true immediately after Sync() with the same beans; want false")
 	}
 
-	// Editing a bean's body changes its ETag, and therefore its staleKey.
-	edited := beanWith("aaa1", "Alpha", "x-edited")
-	if !idx.NeedsSync([]*bean.Bean{edited, b}) {
+	// Editing an item's body changes its ETag, and therefore its staleKey.
+	edited := itemWith("aaa1", "Alpha", "x-edited")
+	if !idx.NeedsSync([]*item.Item{edited, b}) {
 		t.Fatal("NeedsSync() = false after editing a bean's body; want true")
 	}
 
-	// A new bean not yet indexed.
-	c := beanWith("ccc3", "Gamma", "z")
-	if !idx.NeedsSync([]*bean.Bean{a, b, c}) {
+	// A new item not yet indexed.
+	c := itemWith("ccc3", "Gamma", "z")
+	if !idx.NeedsSync([]*item.Item{a, b, c}) {
 		t.Fatal("NeedsSync() = false with a bean added since the last Sync; want true")
 	}
 
-	// A bean removed since the last Sync.
-	if !idx.NeedsSync([]*bean.Bean{a}) {
+	// An item removed since the last Sync.
+	if !idx.NeedsSync([]*item.Item{a}) {
 		t.Fatal("NeedsSync() = false with a bean removed since the last Sync; want true")
 	}
 
 	// NeedsSync must not have mutated idx.etags: a real Sync afterwards
 	// still has work to do for the same diff.
-	if err := idx.Sync([]*bean.Bean{a}); err != nil {
+	if err := idx.Sync([]*item.Item{a}); err != nil {
 		t.Fatalf("Sync() (after NeedsSync probes) error = %v", err)
 	}
-	if idx.NeedsSync([]*bean.Bean{a}) {
+	if idx.NeedsSync([]*item.Item{a}) {
 		t.Fatal("NeedsSync() = true after Sync() caught up to the probed state; want false")
 	}
 }

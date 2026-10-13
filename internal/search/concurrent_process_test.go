@@ -17,12 +17,12 @@ import (
 // instead of hoping two independently started processes overlap (see
 // beans-rciy's Finding F-19: eight rounds of "start both together" measured
 // zero observable overlap). It holds the persisted index's flock itself --
-// exactly as a second beans process holding it would, and exactly as
+// exactly as a second lif process holding it would, and exactly as
 // TestOpen_FallsBackWhenLockContended already does for the single-process
 // case -- and observes that held state BEFORE running the measurement: a
 // real child PROCESS (not goroutine; flock is a cross-process primitive
 // in-process contention cannot exercise) that performs an actual indexing
-// operation (IndexBean) while the lock is held. The sidecar file's mtime and
+// operation (IndexItem) while the lock is held. The sidecar file's mtime and
 // size, read before and after the child runs, are the objective measurement
 // that the lock loser wrote nothing to the shared persistent state -- not a
 // property the child could truthfully self-report, since a corrupted
@@ -44,7 +44,7 @@ func TestOpen_LockLoserSkipsSidecarWrite(t *testing.T) {
 	if !seed.persistent {
 		t.Fatal("Open() on a fresh, uncontended directory should have acquired the persistent index")
 	}
-	if err := seed.IndexBean(beanWith("seed1", "Seed", "x")); err != nil {
+	if err := seed.IndexItem(itemWith("seed1", "Seed", "x")); err != nil {
 		t.Fatalf("IndexBean() (seed) error = %v", err)
 	}
 	if err := seed.Close(); err != nil {
@@ -104,7 +104,7 @@ func TestOpen_LockLoserSkipsSidecarWrite(t *testing.T) {
 	if !resumed.persistent {
 		t.Fatal("Open() after the external lock was released should have acquired the persistent index")
 	}
-	if err := resumed.IndexBean(beanWith("resumed1", "Resumed", "x")); err != nil {
+	if err := resumed.IndexItem(itemWith("resumed1", "Resumed", "x")); err != nil {
 		t.Fatalf("IndexBean() (resumed) error = %v", err)
 	}
 	if err := resumed.Close(); err != nil {
@@ -186,7 +186,7 @@ func TestHelperChildIndexUnderLock(t *testing.T) {
 		t.Fatal("Open() returned a persistent index while the parent held the lock")
 	}
 
-	if err := idx.IndexBean(beanWith("child1", "Child Indexed While Contended", "x")); err != nil {
+	if err := idx.IndexItem(itemWith("child1", "Child Indexed While Contended", "x")); err != nil {
 		t.Fatalf("IndexBean() on the fallback index error = %v", err)
 	}
 	results, err := idx.Search("Child", 0)

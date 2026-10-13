@@ -4,11 +4,11 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/xRiErOS/beans/internal/output"
-	"github.com/xRiErOS/beans/internal/ui"
-	"github.com/xRiErOS/beans/pkg/bean"
-	"github.com/xRiErOS/beans/pkg/beangraph"
 	"github.com/spf13/cobra"
+	"github.com/xRiErOS/lif/internal/output"
+	"github.com/xRiErOS/lif/internal/ui"
+	"github.com/xRiErOS/lif/pkg/item"
+	"github.com/xRiErOS/lif/pkg/itemgraph"
 )
 
 var (
@@ -21,26 +21,26 @@ var (
 
 var orderCmd = &cobra.Command{
 	Use:   "order <id>",
-	Short: "Place a bean relative to its siblings",
-	Long: `Sets a bean's manual order key relative to its siblings under the same
+	Short: "Place an item relative to its siblings",
+	Long: `Sets an item's manual order key relative to its siblings under the same
 parent, using a fractional index. This means a move only ever writes the one
-bean file being placed, never the neighbours around it.`,
+item file being placed, never the neighbours around it.`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
-		resolver := &beangraph.CoreResolver{Core: core}
+		resolver := &itemgraph.CoreResolver{Core: core}
 
 		if !orderFirst && !orderLast && orderAfter == "" && orderBefore == "" {
 			return cmdError(orderJSON, output.ErrValidation,
 				"one of --after, --before, --first, or --last is required")
 		}
 
-		b, err := resolver.Bean(ctx, args[0])
+		b, err := resolver.Item(ctx, args[0])
 		if err != nil {
-			return cmdError(orderJSON, output.ErrNotFound, "failed to find bean: %v", err)
+			return cmdError(orderJSON, output.ErrNotFound, "failed to find item: %v", err)
 		}
 		if b == nil {
-			return cmdError(orderJSON, output.ErrNotFound, "bean not found: %s", args[0])
+			return cmdError(orderJSON, output.ErrNotFound, "item not found: %s", args[0])
 		}
 
 		siblings, err := orderSiblingsOf(resolver, ctx, b)
@@ -53,12 +53,12 @@ bean file being placed, never the neighbours around it.`,
 			return cmdError(orderJSON, output.ErrValidation, "%s", err)
 		}
 
-		// Pass the bean's own etag as ifMatch instead of nil: nil bypasses
+		// Pass the item's own etag as ifMatch instead of nil: nil bypasses
 		// optimistic concurrency control entirely -- silently ignored under a
 		// normal config, and under require_if_match:true it makes the write
-		// fail outright. b was loaded via resolver.Bean/Core.Load, so its
+		// fail outright. b was loaded via resolver.Item/Core.Load, so its
 		// ETag() is the etag of the bytes actually on disk (cached at parse
-		// time), not a re-render of the in-memory struct -- see bean.ETag.
+		// time), not a re-render of the in-memory struct -- see item.ETag.
 		etag := b.ETag()
 		b.Order = newOrder
 		if err := core.Update(b, &etag); err != nil {
@@ -75,16 +75,16 @@ bean file being placed, never the neighbours around it.`,
 
 // orderSiblingsOf returns b's siblings (same Parent, b itself excluded),
 // sorted by their current Order. Filtering happens manually rather than via
-// model.BeanFilter.ParentID because that filter treats an empty ParentID as
-// "no filter" — which would return every bean instead of just the top-level
-// ones for a parent-less bean.
-func orderSiblingsOf(resolver *beangraph.CoreResolver, ctx context.Context, b *bean.Bean) ([]*bean.Bean, error) {
-	all, err := resolver.Beans(ctx, nil)
+// model.ItemFilter.ParentID because that filter treats an empty ParentID as
+// "no filter" — which would return every item instead of just the top-level
+// ones for a parent-less item.
+func orderSiblingsOf(resolver *itemgraph.CoreResolver, ctx context.Context, b *item.Item) ([]*item.Item, error) {
+	all, err := resolver.Items(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	var siblings []*bean.Bean
+	var siblings []*item.Item
 	for _, s := range all {
 		if s.ID == b.ID {
 			continue
@@ -93,26 +93,26 @@ func orderSiblingsOf(resolver *beangraph.CoreResolver, ctx context.Context, b *b
 			siblings = append(siblings, s)
 		}
 	}
-	bean.SortByOrder(siblings)
+	item.SortByOrder(siblings)
 	return siblings, nil
 }
 
 // computeOrderPlacement resolves the requested placement flag into a
 // concrete fractional-index Order value for b, given its sorted siblings.
-func computeOrderPlacement(resolver *beangraph.CoreResolver, ctx context.Context, b *bean.Bean, siblings []*bean.Bean) (string, error) {
+func computeOrderPlacement(resolver *itemgraph.CoreResolver, ctx context.Context, b *item.Item, siblings []*item.Item) (string, error) {
 	switch {
 	case orderFirst:
 		if len(siblings) == 0 {
-			return bean.OrderBetween("", ""), nil
+			return item.OrderBetween("", ""), nil
 		}
-		return bean.OrderBetween("", siblings[0].Order), nil
+		return item.OrderBetween("", siblings[0].Order), nil
 
 	case orderLast:
 		last := lastOrderedSibling(siblings)
 		if last == "" && len(siblings) > 0 {
-			return "", fmt.Errorf("--last needs at least one sibling with an order to anchor on, and none has one yet; order the siblings in the wanted sequence first (e.g. `beans order <id> --first`, then `--after`), then use --last")
+			return "", fmt.Errorf("--last needs at least one sibling with an order to anchor on, and none has one yet; order the siblings in the wanted sequence first (e.g. `lif order <id> --first`, then `--after`), then use --last")
 		}
-		return bean.OrderBetween(last, ""), nil
+		return item.OrderBetween(last, ""), nil
 
 	case orderAfter != "":
 		return orderRelativeTo(resolver, ctx, b, siblings, orderAfter, true)
@@ -133,7 +133,7 @@ func computeOrderPlacement(resolver *beangraph.CoreResolver, ctx context.Context
 // before this feature existed), it silently picks an Order-less sibling and
 // yields "" as if there were no ordered siblings at all yet, which is wrong
 // once at least one actually has an Order.
-func lastOrderedSibling(siblings []*bean.Bean) string {
+func lastOrderedSibling(siblings []*item.Item) string {
 	for i := len(siblings) - 1; i >= 0; i-- {
 		if siblings[i].Order != "" {
 			return siblings[i].Order
@@ -146,22 +146,22 @@ func lastOrderedSibling(siblings []*bean.Bean) string {
 // validates it shares b's parent (R-12: order is scoped per parent), and
 // returns a key between that sibling and its neighbour on the requested
 // side.
-func orderRelativeTo(resolver *beangraph.CoreResolver, ctx context.Context, b *bean.Bean, siblings []*bean.Bean, refID string, after bool) (string, error) {
-	ref, err := resolver.Bean(ctx, refID)
+func orderRelativeTo(resolver *itemgraph.CoreResolver, ctx context.Context, b *item.Item, siblings []*item.Item, refID string, after bool) (string, error) {
+	ref, err := resolver.Item(ctx, refID)
 	if err != nil {
-		return "", fmt.Errorf("failed to find bean %s: %w", refID, err)
+		return "", fmt.Errorf("failed to find item %s: %w", refID, err)
 	}
 	if ref == nil {
-		return "", fmt.Errorf("bean not found: %s", refID)
+		return "", fmt.Errorf("item not found: %s", refID)
 	}
 	if ref.ID == b.ID {
-		return "", fmt.Errorf("cannot place a bean relative to itself")
+		return "", fmt.Errorf("cannot place an item relative to itself")
 	}
 	if ref.Parent != b.Parent {
 		return "", fmt.Errorf("order is scoped per parent: %s has a different parent than %s", ref.ID, b.ID)
 	}
 	if ref.Order == "" {
-		return "", fmt.Errorf("bean %s has no explicit order yet; place it first (e.g. `beans order %s --last`) before placing another bean relative to it", ref.ID, ref.ID)
+		return "", fmt.Errorf("item %s has no explicit order yet; place it first (e.g. `lif order %s --last`) before placing another item relative to it", ref.ID, ref.ID)
 	}
 
 	idx := -1
@@ -172,7 +172,7 @@ func orderRelativeTo(resolver *beangraph.CoreResolver, ctx context.Context, b *b
 		}
 	}
 	if idx == -1 {
-		return "", fmt.Errorf("bean not found: %s", refID)
+		return "", fmt.Errorf("item not found: %s", refID)
 	}
 
 	if after {
@@ -180,14 +180,14 @@ func orderRelativeTo(resolver *beangraph.CoreResolver, ctx context.Context, b *b
 		if idx+1 < len(siblings) {
 			next = siblings[idx+1].Order
 		}
-		return bean.OrderBetween(ref.Order, next), nil
+		return item.OrderBetween(ref.Order, next), nil
 	}
 
 	prev := ""
 	if idx > 0 {
 		prev = siblings[idx-1].Order
 	}
-	return bean.OrderBetween(prev, ref.Order), nil
+	return item.OrderBetween(prev, ref.Order), nil
 }
 
 // RegisterOrderCmd adds the order command to root. Flag registration is
@@ -198,8 +198,8 @@ func orderRelativeTo(resolver *beangraph.CoreResolver, ctx context.Context, b *b
 // a second flag definition.
 func RegisterOrderCmd(root *cobra.Command) {
 	if orderCmd.Flags().Lookup("after") == nil {
-		orderCmd.Flags().StringVar(&orderAfter, "after", "", "Place after this sibling bean")
-		orderCmd.Flags().StringVar(&orderBefore, "before", "", "Place before this sibling bean")
+		orderCmd.Flags().StringVar(&orderAfter, "after", "", "Place after this sibling item")
+		orderCmd.Flags().StringVar(&orderBefore, "before", "", "Place before this sibling item")
 		orderCmd.Flags().BoolVar(&orderFirst, "first", false, "Place before all siblings")
 		orderCmd.Flags().BoolVar(&orderLast, "last", false, "Place after all siblings (needs at least one sibling that already has an order)")
 		orderCmd.Flags().BoolVar(&orderJSON, "json", false, "Output as JSON")

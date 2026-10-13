@@ -13,10 +13,10 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/glamour"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/xRiErOS/beans/pkg/bean"
-	"github.com/xRiErOS/beans/pkg/config"
-	"github.com/xRiErOS/beans/pkg/beangraph"
-	"github.com/xRiErOS/beans/internal/ui"
+	"github.com/xRiErOS/lif/internal/ui"
+	"github.com/xRiErOS/lif/pkg/config"
+	"github.com/xRiErOS/lif/pkg/item"
+	"github.com/xRiErOS/lif/pkg/itemgraph"
 )
 
 // Cached glamour renderer - initialized once per width
@@ -41,25 +41,27 @@ func getGlamourRenderer() *glamour.TermRenderer {
 // backToListMsg signals navigation back to the list
 type backToListMsg struct{}
 
-// resolvedLink represents a link with the target bean resolved
+// resolvedLink represents a link with the target item resolved
 type resolvedLink struct {
 	linkType string
-	bean     *bean.Bean
-	incoming bool // true if another bean links TO this one
+	item     *item.Item
+	incoming bool // true if another item links TO this one
 }
 
 // linkItem wraps a resolvedLink to implement list.Item
 type linkItem struct {
-	link   resolvedLink
-	cfg    *config.Config
-	width  int
-	cols   ui.ResponsiveColumns
-	label  string // pre-computed label like "Blocks:" or "Blocked by:"
+	link  resolvedLink
+	cfg   *config.Config
+	width int
+	cols  ui.ResponsiveColumns
+	label string // pre-computed label like "Blocks:" or "Blocked by:"
 }
 
-func (i linkItem) Title() string       { return i.link.bean.Title }
-func (i linkItem) Description() string { return i.link.bean.ID }
-func (i linkItem) FilterValue() string { return i.link.bean.Title + " " + i.link.bean.ID + " " + i.label }
+func (i linkItem) Title() string       { return i.link.item.Title }
+func (i linkItem) Description() string { return i.link.item.ID }
+func (i linkItem) FilterValue() string {
+	return i.link.item.Title + " " + i.link.item.ID + " " + i.label
+}
 
 // linkDelegate handles rendering of link list items
 type linkDelegate struct {
@@ -90,7 +92,7 @@ func (d linkDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 	labelCol := lipgloss.NewStyle().Width(12).Render(ui.Muted.Render(item.label + ":"))
 
 	// Get colors from config
-	colors := d.cfg.GetBeanColors(link.bean.Status, link.bean.Type, link.bean.Priority)
+	colors := d.cfg.GetItemColors(link.item.Status, link.item.Type, link.item.Priority)
 
 	// Calculate max title width using responsive columns
 	baseWidth := d.cols.ID + d.cols.Status + d.cols.Type + 12 + 4 // label + cursor + padding
@@ -99,22 +101,22 @@ func (d linkDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 	}
 	maxTitleWidth := max(10, d.width-baseWidth-8) // 8 for border padding
 
-	// Use shared bean row rendering (without cursor, we handle it separately)
-	row := ui.RenderBeanRow(
-		link.bean.ID,
-		link.bean.Status,
-		link.bean.Type,
-		link.bean.Title,
-		ui.BeanRowConfig{
+	// Use shared item row rendering (without cursor, we handle it separately)
+	row := ui.RenderItemRow(
+		link.item.ID,
+		link.item.Status,
+		link.item.Type,
+		link.item.Title,
+		ui.ItemRowConfig{
 			StatusColor:   colors.StatusColor,
 			TypeColor:     colors.TypeColor,
 			PriorityColor: colors.PriorityColor,
-			Priority:      link.bean.Priority,
+			Priority:      link.item.Priority,
 			IsArchive:     colors.IsArchive,
 			MaxTitleWidth: maxTitleWidth,
 			ShowCursor:    false,
 			IsSelected:    false,
-			Tags:          link.bean.Tags,
+			Tags:          link.item.Tags,
 			ShowTags:      d.cols.ShowTags,
 			TagsColWidth:  d.cols.Tags,
 			MaxTags:       d.cols.MaxTags,
@@ -125,11 +127,11 @@ func (d linkDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 	fmt.Fprint(w, cursor+labelCol+row)
 }
 
-// detailModel displays a single bean's details
+// detailModel displays a single item's details
 type detailModel struct {
 	viewport      viewport.Model
-	bean          *bean.Bean
-	resolver      *beangraph.CoreResolver
+	item          *item.Item
+	resolver      *itemgraph.CoreResolver
 	config        *config.Config
 	width         int
 	height        int
@@ -141,9 +143,9 @@ type detailModel struct {
 	statusMessage string               // Status message to display in footer
 }
 
-func newDetailModel(b *bean.Bean, resolver *beangraph.CoreResolver, cfg *config.Config, width, height int) detailModel {
+func newDetailModel(b *item.Item, resolver *itemgraph.CoreResolver, cfg *config.Config, width, height int) detailModel {
 	m := detailModel{
-		bean:        b,
+		item:        b,
 		resolver:    resolver,
 		config:      cfg,
 		width:       width,
@@ -155,10 +157,10 @@ func newDetailModel(b *bean.Bean, resolver *beangraph.CoreResolver, cfg *config.
 	// Resolve all links
 	m.links = m.resolveAllLinks()
 
-	// Check if any linked beans have tags
+	// Check if any linked items have tags
 	hasTags := false
 	for _, link := range m.links {
-		if len(link.bean.Tags) > 0 {
+		if len(link.item.Tags) > 0 {
 			hasTags = true
 			break
 		}
@@ -215,7 +217,7 @@ func (m detailModel) createLinkList() list.Model {
 	listHeight := min(len(m.links), maxHeight) + 2
 
 	l := list.New(items, delegate, m.width-8, listHeight)
-	l.Title = "Linked Beans"
+	l.Title = "Linked Items"
 	l.SetShowStatusBar(false)
 	l.SetShowHelp(false)
 	l.SetShowPagination(false)
@@ -251,7 +253,7 @@ func (m detailModel) Update(msg tea.Msg) (detailModel, tea.Cmd) {
 		// Recalculate responsive columns for links
 		hasTags := false
 		for _, link := range m.links {
-			if len(link.bean.Tags) > 0 {
+			if len(link.item.Tags) > 0 {
 				hasTags = true
 				break
 			}
@@ -312,9 +314,9 @@ func (m detailModel) Update(msg tea.Msg) (detailModel, tea.Cmd) {
 			// Navigate to selected link
 			if m.linksActive {
 				if item, ok := m.linkList.SelectedItem().(linkItem); ok {
-					targetBean := item.link.bean
+					targetItem := item.link.item
 					return m, func() tea.Msg {
-						return selectBeanMsg{bean: targetBean}
+						return selectItemMsg{item: targetItem}
 					}
 				}
 			}
@@ -323,10 +325,10 @@ func (m detailModel) Update(msg tea.Msg) (detailModel, tea.Cmd) {
 			// Open parent picker
 			return m, func() tea.Msg {
 				return openParentPickerMsg{
-					beanIDs:       []string{m.bean.ID},
-					beanTitle:     m.bean.Title,
-					beanTypes:     []string{m.bean.Type},
-					currentParent: m.bean.Parent,
+					itemIDs:       []string{m.item.ID},
+					itemTitle:     m.item.Title,
+					itemTypes:     []string{m.item.Type},
+					currentParent: m.item.Parent,
 				}
 			}
 
@@ -334,9 +336,9 @@ func (m detailModel) Update(msg tea.Msg) (detailModel, tea.Cmd) {
 			// Open status picker
 			return m, func() tea.Msg {
 				return openStatusPickerMsg{
-					beanIDs:       []string{m.bean.ID},
-					beanTitle:     m.bean.Title,
-					currentStatus: m.bean.Status,
+					itemIDs:       []string{m.item.ID},
+					itemTitle:     m.item.Title,
+					currentStatus: m.item.Status,
 				}
 			}
 
@@ -344,9 +346,9 @@ func (m detailModel) Update(msg tea.Msg) (detailModel, tea.Cmd) {
 			// Open type picker
 			return m, func() tea.Msg {
 				return openTypePickerMsg{
-					beanIDs:     []string{m.bean.ID},
-					beanTitle:   m.bean.Title,
-					currentType: m.bean.Type,
+					itemIDs:     []string{m.item.ID},
+					itemTitle:   m.item.Title,
+					currentType: m.item.Type,
 				}
 			}
 
@@ -354,9 +356,9 @@ func (m detailModel) Update(msg tea.Msg) (detailModel, tea.Cmd) {
 			// Open priority picker
 			return m, func() tea.Msg {
 				return openPriorityPickerMsg{
-					beanIDs:         []string{m.bean.ID},
-					beanTitle:       m.bean.Title,
-					currentPriority: m.bean.Priority,
+					itemIDs:         []string{m.item.ID},
+					itemTitle:       m.item.Title,
+					currentPriority: m.item.Priority,
 				}
 			}
 
@@ -364,25 +366,25 @@ func (m detailModel) Update(msg tea.Msg) (detailModel, tea.Cmd) {
 			// Open blocking picker
 			return m, func() tea.Msg {
 				return openBlockingPickerMsg{
-					beanID:          m.bean.ID,
-					beanTitle:       m.bean.Title,
-					currentBlocking: m.bean.Blocking,
+					itemID:          m.item.ID,
+					itemTitle:       m.item.Title,
+					currentBlocking: m.item.Blocking,
 				}
 			}
 
 		case "e":
-			// Open editor for this bean
+			// Open editor for this item
 			return m, func() tea.Msg {
 				return openEditorMsg{
-					beanID:   m.bean.ID,
-					beanPath: m.bean.Path,
+					itemID:   m.item.ID,
+					itemPath: m.item.Path,
 				}
 			}
 
 		case "y":
-			// Copy bean ID to clipboard
+			// Copy item ID to clipboard
 			return m, func() tea.Msg {
-				return copyBeanIDMsg{ids: []string{m.bean.ID}}
+				return copyItemIDMsg{ids: []string{m.item.ID}}
 			}
 		}
 	}
@@ -414,7 +416,7 @@ func (m detailModel) View() string {
 		return "Loading..."
 	}
 
-	// Header (bean info only, no links)
+	// Header (item info only, no links)
 	header := m.renderHeader()
 
 	// Links section (if any)
@@ -491,19 +493,19 @@ func (m detailModel) calculateHeaderHeight() int {
 
 func (m detailModel) renderHeader() string {
 	// Title
-	title := detailTitleStyle.Render(m.bean.Title)
+	title := detailTitleStyle.Render(m.item.Title)
 
 	// ID
-	id := ui.ID.Render(m.bean.ID)
+	id := ui.ID.Render(m.item.ID)
 
 	// Status badge
-	statusCfg := m.config.GetStatus(m.bean.Status)
+	statusCfg := m.config.GetStatus(m.item.Status)
 	statusColor := "gray"
 	if statusCfg != nil {
 		statusColor = statusCfg.Color
 	}
-	isArchive := m.config.IsArchiveStatus(m.bean.Status)
-	status := ui.RenderStatusWithColor(m.bean.Status, statusColor, isArchive)
+	isArchive := m.config.IsArchiveStatus(m.item.Status)
+	status := ui.RenderStatusWithColor(m.item.Status, statusColor, isArchive)
 
 	// Build header content
 	var headerContent strings.Builder
@@ -512,9 +514,9 @@ func (m detailModel) renderHeader() string {
 	headerContent.WriteString(id + "  " + status)
 
 	// Add tags if present
-	if len(m.bean.Tags) > 0 {
+	if len(m.item.Tags) > 0 {
 		headerContent.WriteString("  ")
-		headerContent.WriteString(ui.RenderTags(m.bean.Tags))
+		headerContent.WriteString(ui.RenderTags(m.item.Tags))
 	}
 
 	// Header box style - always muted border (not focused, links section is separate)
@@ -555,29 +557,29 @@ func (m detailModel) resolveAllLinks() []resolvedLink {
 	var links []resolvedLink
 	ctx := context.Background()
 	// Resolve outgoing links via core resolver
-	if blocking, _ := m.resolver.BeanBlocking(ctx, m.bean, nil); blocking != nil {
+	if blocking, _ := m.resolver.ItemBlocking(ctx, m.item, nil); blocking != nil {
 		for _, b := range blocking {
-			links = append(links, resolvedLink{linkType: "blocking", bean: b, incoming: false})
+			links = append(links, resolvedLink{linkType: "blocking", item: b, incoming: false})
 		}
 	}
-	if parent, _ := m.resolver.BeanParent(ctx, m.bean); parent != nil {
-		links = append(links, resolvedLink{linkType: "parent", bean: parent, incoming: false})
+	if parent, _ := m.resolver.ItemParent(ctx, m.item); parent != nil {
+		links = append(links, resolvedLink{linkType: "parent", item: parent, incoming: false})
 	}
 
 	// Resolve incoming links via core resolver
-	if blockedBy, _ := m.resolver.BeanBlockedBy(ctx, m.bean, nil); blockedBy != nil {
+	if blockedBy, _ := m.resolver.ItemBlockedBy(ctx, m.item, nil); blockedBy != nil {
 		for _, b := range blockedBy {
-			links = append(links, resolvedLink{linkType: "blocking", bean: b, incoming: true})
+			links = append(links, resolvedLink{linkType: "blocking", item: b, incoming: true})
 		}
 	}
-	if children, _ := m.resolver.BeanChildren(ctx, m.bean, nil); children != nil {
+	if children, _ := m.resolver.ItemChildren(ctx, m.item, nil); children != nil {
 		for _, b := range children {
-			links = append(links, resolvedLink{linkType: "parent", bean: b, incoming: true})
+			links = append(links, resolvedLink{linkType: "parent", item: b, incoming: true})
 		}
 	}
 
-	// Sort all links by link type label first, then by bean status/type/title
-	// This keeps link categories together while ordering beans consistently with the main list
+	// Sort all links by link type label first, then by item status/type/title
+	// This keeps link categories together while ordering items consistently with the main list
 	statusNames := m.config.StatusNames()
 	typeNames := m.config.TypeNames()
 	sort.Slice(links, func(i, j int) bool {
@@ -589,14 +591,14 @@ func (m detailModel) resolveAllLinks() []resolvedLink {
 		}
 		// Within same link type: sort by status, priority, type, then title
 		priorityNames := m.config.PriorityNames()
-		return compareBeansByStatusPriorityAndType(links[i].bean, links[j].bean, statusNames, priorityNames, typeNames)
+		return compareItemsByStatusPriorityAndType(links[i].item, links[j].item, statusNames, priorityNames, typeNames)
 	})
 
 	return links
 }
 
-// compareBeansByStatusPriorityAndType compares two beans using the same ordering as bean.SortByStatusPriorityAndType.
-func compareBeansByStatusPriorityAndType(a, b *bean.Bean, statusNames, priorityNames, typeNames []string) bool {
+// compareItemsByStatusPriorityAndType compares two items using the same ordering as item.SortByStatusPriorityAndType.
+func compareItemsByStatusPriorityAndType(a, b *item.Item, statusNames, priorityNames, typeNames []string) bool {
 	// Build order maps
 	statusOrder := make(map[string]int)
 	for i, s := range statusNames {
@@ -611,7 +613,7 @@ func compareBeansByStatusPriorityAndType(a, b *bean.Bean, statusNames, priorityN
 		typeOrder[t] = i
 	}
 
-	// Find the index of "normal" priority for beans without priority set
+	// Find the index of "normal" priority for items without priority set
 	normalPriorityOrder := len(priorityNames)
 	for i, p := range priorityNames {
 		if p == "normal" {
@@ -662,9 +664,8 @@ func compareBeansByStatusPriorityAndType(a, b *bean.Bean, statusNames, priorityN
 	return strings.ToLower(a.Title) < strings.ToLower(b.Title)
 }
 
-
 func (m detailModel) renderBody(_ int) string {
-	if m.bean.Body == "" {
+	if m.item.Body == "" {
 		return lipgloss.NewStyle().
 			Foreground(ui.ColorMuted).
 			Padding(0, 1).
@@ -673,12 +674,12 @@ func (m detailModel) renderBody(_ int) string {
 
 	renderer := getGlamourRenderer()
 	if renderer == nil {
-		return m.bean.Body
+		return m.item.Body
 	}
 
-	rendered, err := renderer.Render(m.bean.Body)
+	rendered, err := renderer.Render(m.item.Body)
 	if err != nil {
-		return m.bean.Body
+		return m.item.Body
 	}
 
 	return strings.TrimSpace(rendered)

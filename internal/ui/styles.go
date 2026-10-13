@@ -139,7 +139,7 @@ var legacyColorAliases = map[string]string{
 }
 
 // Chrome colours: the roles the UI itself needs, as opposed to the semantic
-// colours a bean carries. Declared without initializers - and kept as vars,
+// colours an item carries. Declared without initializers - and kept as vars,
 // not consts - so the TUI's existing call sites (internal/tui) keep
 // compiling while following the theme through SetTheme. Their values come
 // from chromeColorTones via applyChromeColors, the single place each
@@ -460,7 +460,7 @@ func RenderPriorityText(priority, color string) string {
 	return style.Render(priority)
 }
 
-// ShortType returns the single-character code for a bean type, from the
+// ShortType returns the single-character code for an item type, from the
 // process-wide table (see SetTypeShorts). Falls back to "?" for a type the
 // table doesn't carry.
 func ShortType(t string) string {
@@ -470,7 +470,7 @@ func ShortType(t string) string {
 	return "?"
 }
 
-// ShortStatus returns a single-character code for the bean status, from the
+// ShortStatus returns a single-character code for the item status, from the
 // process-wide table (see SetStatusShorts). Falls back to "?" for a status
 // the table doesn't carry — same convention as ShortType.
 func ShortStatus(s string) string {
@@ -503,8 +503,8 @@ func RenderPrioritySymbol(priority, color string) string {
 	return style.Render(symbol)
 }
 
-// BeanRowConfig holds configuration for rendering a bean row
-type BeanRowConfig struct {
+// ItemRowConfig holds configuration for rendering an item row
+type ItemRowConfig struct {
 	StatusColor   string
 	TypeColor     string
 	PriorityColor string
@@ -519,13 +519,13 @@ type BeanRowConfig struct {
 	TagsColWidth  int      // Width of tags column (0 = default)
 	MaxTags       int      // Max tags to show (0 = default of 1)
 	TreePrefix      string   // Tree prefix (e.g., "├─" or "  └─") to prepend to ID
-	Dimmed          bool     // Render row dimmed (for unmatched ancestor beans in tree)
+	Dimmed          bool     // Render row dimmed (for unmatched ancestor items in tree)
 	IDColWidth      int      // Width of ID column (0 = default of ColWidthID)
 	UseFullNames    bool     // Use full type/status names instead of single-char abbreviations
 	ImplicitStatus string   // Implicit terminal status from an ancestor (e.g., "scrapped")
 }
 
-// Base column widths for bean lists (minimum sizes)
+// Base column widths for item lists (minimum sizes)
 const (
 	ColWidthID     = 12
 	ColWidthStatus = 3
@@ -615,8 +615,8 @@ func CalculateResponsiveColumns(totalWidth int, hasTags bool) ResponsiveColumns 
 	return cols
 }
 
-// RenderBeanRow renders a bean as a single row with ID, Type, Status, Tags (optional), Title
-func RenderBeanRow(id, status, typeName, title string, cfg BeanRowConfig) string {
+// RenderItemRow renders an item as a single row with ID, Type, Status, Tags (optional), Title
+func RenderItemRow(id, status, typeName, title string, cfg ItemRowConfig) string {
 	// Column styles - use responsive widths if provided
 	idColWidth := ColWidthID
 	if cfg.IDColWidth > 0 {

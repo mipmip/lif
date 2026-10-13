@@ -5,12 +5,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/xRiErOS/beans/pkg/bean"
-	"github.com/xRiErOS/beans/pkg/config"
+	"github.com/xRiErOS/lif/pkg/config"
+	"github.com/xRiErOS/lif/pkg/item"
 )
 
 func TestTaskCarriesNoColour(t *testing.T) {
-	s := styleFor(&bean.Bean{Type: "task"}, config.Default())
+	s := styleFor(&item.Item{Type: "task"}, config.Default())
 	if s.hasColor {
 		t.Error("task should stay in the terminal's own text colour")
 	}
@@ -21,12 +21,12 @@ func TestTaskCarriesNoColour(t *testing.T) {
 
 func TestContainersAreEmphasised(t *testing.T) {
 	for _, typ := range []string{"milestone", "epic"} {
-		if !styleFor(&bean.Bean{Type: typ}, config.Default()).bold {
+		if !styleFor(&item.Item{Type: typ}, config.Default()).bold {
 			t.Errorf("%s should be emphasised", typ)
 		}
 	}
 	for _, typ := range []string{"feature", "bug"} {
-		if styleFor(&bean.Bean{Type: typ}, config.Default()).bold {
+		if styleFor(&item.Item{Type: typ}, config.Default()).bold {
 			t.Errorf("%s should not be emphasised", typ)
 		}
 	}
@@ -36,7 +36,7 @@ func TestEveryColouredTypeTintsItsTitle(t *testing.T) {
 	// The title is the same thing as the type word; feature and bug went
 	// uncoloured once because tinting was tied to emphasis.
 	for _, typ := range []string{"milestone", "epic", "feature", "bug"} {
-		s := styleFor(&bean.Bean{Type: typ}, config.Default())
+		s := styleFor(&item.Item{Type: typ}, config.Default())
 		if !s.hasColor {
 			t.Errorf("%s title should carry the type colour", typ)
 		}
@@ -110,8 +110,8 @@ func TestCellStyleRenderCarriesColourOnlyWhenResolved(t *testing.T) {
 	// feature is coloured but not emphasised (unlike epic/milestone, which
 	// are both) — isolating the two lets this test catch a bug that drops
 	// the foreground while bold still leaves its own escape code behind.
-	coloured := styleFor(&bean.Bean{Type: "feature"}, config.Default())
-	plain := styleFor(&bean.Bean{Type: "task"}, config.Default())
+	coloured := styleFor(&item.Item{Type: "feature"}, config.Default())
+	plain := styleFor(&item.Item{Type: "task"}, config.Default())
 
 	got := coloured.render("feature-42")
 	if stripANSI(got) == got {
@@ -127,7 +127,7 @@ func TestStatusCellColoursVaryByStatus(t *testing.T) {
 	cfg := config.Default()
 	c := Columns{Status: 11}
 	codeFor := func(status string) string {
-		out := statusCell(&bean.Bean{Status: status}, c, cfg)
+		out := statusCell(&item.Item{Status: status}, c, cfg)
 		codes := ansiEscape.FindAllString(out, -1)
 		if len(codes) == 0 {
 			t.Fatalf("status cell for %q carries no ANSI colour under a true-colour profile: %q", status, out)
@@ -143,7 +143,7 @@ func TestPrioCellHidesNormalPriority(t *testing.T) {
 	// The density decision from the design: normal repeats on nearly every
 	// row in the table, so it earns no ink there (unlike the detail view).
 	c := Columns{Prio: 3}
-	got := prioCell(&bean.Bean{Priority: "normal"}, c, config.Default())
+	got := prioCell(&item.Item{Priority: "normal"}, c, config.Default())
 	if stripANSI(got) != "   " {
 		t.Errorf("normal priority = %q, want a blank cell", stripANSI(got))
 	}
@@ -154,7 +154,7 @@ func TestPrioCellColoursVaryByPriority(t *testing.T) {
 	cfg := config.Default()
 	c := Columns{Prio: 3}
 	codeFor := func(pri string) string {
-		out := prioCell(&bean.Bean{Priority: pri}, c, cfg)
+		out := prioCell(&item.Item{Priority: pri}, c, cfg)
 		codes := ansiEscape.FindAllString(out, -1)
 		if len(codes) == 0 {
 			t.Fatalf("prio cell for %q carries no ANSI colour under a true-colour profile: %q", pri, out)
@@ -170,15 +170,15 @@ func TestPrioCellColoursVaryByPriority(t *testing.T) {
 }
 
 func demoRows() []Row {
-	m := &bean.Bean{ID: "beans-fexy", Title: "0.5 Output alignment", Type: "milestone", Status: "in-progress", Priority: "normal", Tags: []string{"release"}}
-	e := &bean.Bean{ID: "beans-9m0d", Title: "Shared presentation vocabulary", Type: "epic", Status: "in-progress", Priority: "normal", Tags: []string{"ui", "accepted"}}
-	t1 := &bean.Bean{ID: "beans-9zpz", Title: "Extract the colour resolution into one place", Type: "task", Status: "in-progress", Priority: "high"}
-	b1 := &bean.Bean{ID: "beans-wa9y", Title: "Status column drifts by one cell when tags are on", Type: "bug", Status: "todo", Priority: "critical", Tags: []string{"regression"}}
+	m := &item.Item{ID: "beans-fexy", Title: "0.5 Output alignment", Type: "milestone", Status: "in-progress", Priority: "normal", Tags: []string{"release"}}
+	e := &item.Item{ID: "beans-9m0d", Title: "Shared presentation vocabulary", Type: "epic", Status: "in-progress", Priority: "normal", Tags: []string{"ui", "accepted"}}
+	t1 := &item.Item{ID: "beans-9zpz", Title: "Extract the colour resolution into one place", Type: "task", Status: "in-progress", Priority: "high"}
+	b1 := &item.Item{ID: "beans-wa9y", Title: "Status column drifts by one cell when tags are on", Type: "bug", Status: "todo", Priority: "critical", Tags: []string{"regression"}}
 	return []Row{
-		{Bean: m, Depth: 0, IsLast: false},
-		{Bean: e, Depth: 1, AncestorsLast: []bool{false}, IsLast: false},
-		{Bean: t1, Depth: 2, AncestorsLast: []bool{false, false}, IsLast: false},
-		{Bean: b1, Depth: 2, AncestorsLast: []bool{false, false}, IsLast: true},
+		{Item: m, Depth: 0, IsLast: false},
+		{Item: e, Depth: 1, AncestorsLast: []bool{false}, IsLast: false},
+		{Item: t1, Depth: 2, AncestorsLast: []bool{false, false}, IsLast: false},
+		{Item: b1, Depth: 2, AncestorsLast: []bool{false, false}, IsLast: true},
 	}
 }
 
@@ -271,10 +271,10 @@ func TestTreeFormRunsTheConnectorIntoTheTypeWord(t *testing.T) {
 
 func TestWrappedTitlesKeepTheVerticalLines(t *testing.T) {
 	rows := []Row{
-		{Bean: &bean.Bean{ID: "a", Title: "root", Type: "epic", Status: "todo"}, Depth: 0, IsLast: false},
-		{Bean: &bean.Bean{ID: "b", Title: strings.Repeat("word ", 30), Type: "task", Status: "todo"},
+		{Item: &item.Item{ID: "a", Title: "root", Type: "epic", Status: "todo"}, Depth: 0, IsLast: false},
+		{Item: &item.Item{ID: "b", Title: strings.Repeat("word ", 30), Type: "task", Status: "todo"},
 			Depth: 1, AncestorsLast: []bool{false}, IsLast: false},
-		{Bean: &bean.Bean{ID: "c", Title: "after", Type: "task", Status: "todo"},
+		{Item: &item.Item{ID: "c", Title: "after", Type: "task", Status: "todo"},
 			Depth: 1, AncestorsLast: []bool{false}, IsLast: true},
 	}
 	out := stripANSI(Render(rows, FormTree, "Demo", 80, false, config.Default()))
@@ -300,7 +300,7 @@ func TestWrappedTitlesKeepTheVerticalLines(t *testing.T) {
 func TestColourSurvivesAWrappedTitleInBothForms(t *testing.T) {
 	withTrueColor(t)
 	rows := []Row{
-		{Bean: &bean.Bean{ID: "beans-x", Title: strings.Repeat("word ", 30), Type: "epic", Status: "todo"}, Depth: 0, IsLast: true},
+		{Item: &item.Item{ID: "beans-x", Title: strings.Repeat("word ", 30), Type: "epic", Status: "todo"}, Depth: 0, IsLast: true},
 	}
 	colourBefore := func(t *testing.T, line, target string) string {
 		t.Helper()
@@ -363,16 +363,16 @@ func TestParseForm(t *testing.T) {
 func richRows() []Row {
 	long := "Canary-Instanz sproutling-test — Staged-Rollout & Dogfood auf NAS"
 	return []Row{
-		{Bean: &bean.Bean{ID: "SPF-fexy", Title: "v0.5.0 — Kind-Administration", Type: "milestone",
+		{Item: &item.Item{ID: "SPF-fexy", Title: "v0.5.0 — Kind-Administration", Type: "milestone",
 			Status: "draft", Priority: "normal", Tags: []string{"rel-0-5-0"}},
 			Depth: 0, IsLast: false, Progress: &Progress{Done: 131, Total: 139}},
-		{Bean: &bean.Bean{ID: "SPF-9m0d", Title: long, Type: "epic", Status: "in-progress",
+		{Item: &item.Item{ID: "SPF-9m0d", Title: long, Type: "epic", Status: "in-progress",
 			Priority: "high", Tags: []string{"note-intern", "slug-tailwind-upgrade"}},
 			Depth: 1, AncestorsLast: []bool{false}, IsLast: false},
-		{Bean: &bean.Bean{ID: "SPF-wa9y", Title: "Status column drifts by one cell when tags are on",
+		{Item: &item.Item{ID: "SPF-wa9y", Title: "Status column drifts by one cell when tags are on",
 			Type: "bug", Status: "todo", Priority: "critical", Tags: []string{"regression"}},
 			Depth: 2, AncestorsLast: []bool{false, false}, IsLast: true},
-		{Bean: &bean.Bean{ID: "SPF-635g", Title: "short", Type: "task", Status: "completed",
+		{Item: &item.Item{ID: "SPF-635g", Title: "short", Type: "task", Status: "completed",
 			Priority: "deferred"}, Depth: 1, AncestorsLast: []bool{false}, IsLast: true},
 	}
 }
@@ -413,7 +413,7 @@ func TestNoLineEverExceedsItsTerminal(t *testing.T) {
 func tableColumnsFor(rows []Row, width int, showTags bool, cfg *config.Config) Columns {
 	flat := make([]Row, 0, len(rows))
 	for _, r := range rows {
-		flat = append(flat, Row{Bean: r.Bean, Depth: 0, IsLast: true, Section: r.Section, Progress: r.Progress})
+		flat = append(flat, Row{Item: r.Item, Depth: 0, IsLast: true, Section: r.Section, Progress: r.Progress})
 	}
 	return NewColumns(flat, width, showTags, cfg)
 }
@@ -468,7 +468,7 @@ func TestProgressCounterNeverWraps(t *testing.T) {
 // TestTagCellIsAlwaysASingleLine carries what the brief's
 // TestLongTagsNeverBreakMidWord was aiming at, in the form the current
 // implementation makes provable. The defect it guards was real: against the
-// 759-bean store, tags were torn mid-word across three lines. That is
+// 759-item store, tags were torn mid-word across three lines. That is
 // impossible now for a structural reason — tagCell truncates and never
 // wraps — and this test pins exactly that structure, so a future switch to
 // WrapText inside the cell is caught here rather than in someone's terminal.
@@ -506,19 +506,19 @@ func TestTagCellIsAlwaysASingleLine(t *testing.T) {
 
 // TestTreeIDColumnIsPaddedLikeTheTable pins a misalignment found in the
 // final review: renderTree charged the title budget c.ID -- the widest ID in
-// the set -- but rendered the cell as st.render(r.Bean.ID) with no PadRight,
+// the set -- but rendered the cell as st.render(r.Item.ID) with no PadRight,
 // while renderTable padded it correctly. With IDs of differing width in one
 // set (this workspace has SPF-, beans- and prefix-less legacy IDs at once)
 // everything to the right of a short ID shifted left, and the width was
 // still taken from the title rather than used by the ID.
 //
-// Mutation: drop the PadRight around r.Bean.ID in renderTree and this goes
+// Mutation: drop the PadRight around r.Item.ID in renderTree and this goes
 // red; the table stays green, which is the asymmetry that hid the defect.
 func TestTreeIDColumnIsPaddedLikeTheTable(t *testing.T) {
 	rows := []Row{
-		{Bean: &bean.Bean{ID: "beans-wa9y", Title: "long identifier", Type: "epic",
+		{Item: &item.Item{ID: "beans-wa9y", Title: "long identifier", Type: "epic",
 			Status: "todo", Tags: []string{"alpha"}}, Depth: 0, IsLast: false},
-		{Bean: &bean.Bean{ID: "old1", Title: "short identifier", Type: "task",
+		{Item: &item.Item{ID: "old1", Title: "short identifier", Type: "task",
 			Status: "todo", Tags: []string{"beta"}}, Depth: 1, AncestorsLast: []bool{false}, IsLast: true},
 	}
 	out := stripANSI(Render(rows, FormTree, "T", 110, true, config.Default()))

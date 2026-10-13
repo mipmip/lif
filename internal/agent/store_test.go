@@ -3,23 +3,24 @@ package agent
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
 func TestNewStore_CreatesDirectory(t *testing.T) {
 	dir := t.TempDir()
-	beansDir := filepath.Join(dir, ".beans")
-	if err := os.MkdirAll(beansDir, 0o755); err != nil {
+	itemsDir := filepath.Join(dir, ".beans")
+	if err := os.MkdirAll(itemsDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
 
-	s, err := newStore(beansDir)
+	s, err := newStore(itemsDir)
 	if err != nil {
 		t.Fatalf("newStore: %v", err)
 	}
 
 	// Conversations dir should exist
-	convDir := filepath.Join(beansDir, ".conversations")
+	convDir := filepath.Join(itemsDir, ".conversations")
 	if info, err := os.Stat(convDir); err != nil || !info.IsDir() {
 		t.Fatalf(".conversations dir not created")
 	}
@@ -34,10 +35,10 @@ func TestStoreRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	beanID := "bean-abc"
+	itemID := "bean-abc"
 
 	// Initially empty
-	msgs, sessionID, err := s.load(beanID)
+	msgs, sessionID, err := s.load(itemID)
 	if err != nil {
 		t.Fatalf("load empty: %v", err)
 	}
@@ -46,18 +47,18 @@ func TestStoreRoundTrip(t *testing.T) {
 	}
 
 	// Append messages
-	if err := s.appendMessage(beanID, Message{Role: RoleUser, Content: "hello"}); err != nil {
+	if err := s.appendMessage(itemID, Message{Role: RoleUser, Content: "hello"}); err != nil {
 		t.Fatalf("append user: %v", err)
 	}
-	if err := s.appendMessage(beanID, Message{Role: RoleAssistant, Content: "Hi there!"}); err != nil {
+	if err := s.appendMessage(itemID, Message{Role: RoleAssistant, Content: "Hi there!"}); err != nil {
 		t.Fatalf("append assistant: %v", err)
 	}
-	if err := s.saveSessionID(beanID, "session-123"); err != nil {
+	if err := s.saveSessionID(itemID, "session-123"); err != nil {
 		t.Fatalf("save session id: %v", err)
 	}
 
 	// Load back
-	msgs, sessionID, err = s.load(beanID)
+	msgs, sessionID, err = s.load(itemID)
 	if err != nil {
 		t.Fatalf("load: %v", err)
 	}
@@ -82,13 +83,13 @@ func TestStoreSessionIDUpdates(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	beanID := "bean-xyz"
+	itemID := "bean-xyz"
 
 	// Save two different session IDs — last one wins on load
-	s.saveSessionID(beanID, "old-session")
-	s.saveSessionID(beanID, "new-session")
+	s.saveSessionID(itemID, "old-session")
+	s.saveSessionID(itemID, "new-session")
 
-	_, sessionID, _ := s.load(beanID)
+	_, sessionID, _ := s.load(itemID)
 	if sessionID != "new-session" {
 		t.Errorf("sessionID = %q, want %q", sessionID, "new-session")
 	}
@@ -101,17 +102,17 @@ func TestStoreSkipsMalformedLines(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	beanID := "bean-bad"
+	itemID := "bean-bad"
 
 	// Write a valid message, then garbage, then another valid message
-	p, _ := s.path(beanID)
+	p, _ := s.path(itemID)
 	f, _ := os.Create(p)
 	f.WriteString(`{"type":"message","role":"user","content":"hello"}` + "\n")
 	f.WriteString("not json\n")
 	f.WriteString(`{"type":"message","role":"assistant","content":"world"}` + "\n")
 	f.Close()
 
-	msgs, _, err := s.load(beanID)
+	msgs, _, err := s.load(itemID)
 	if err != nil {
 		t.Fatalf("load: %v", err)
 	}
@@ -127,18 +128,18 @@ func TestToolMessagePersistsWithSummary(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	beanID := "bean-tool"
+	itemID := "bean-tool"
 
 	// Simulate what readOutput now does: persist tool message with summary included
-	s.appendMessage(beanID, Message{Role: RoleUser, Content: "build the project"})
-	s.appendMessage(beanID, Message{Role: RoleAssistant, Content: "I'll build it."})
+	s.appendMessage(itemID, Message{Role: RoleUser, Content: "build the project"})
+	s.appendMessage(itemID, Message{Role: RoleAssistant, Content: "I'll build it."})
 	// Tool message persisted AFTER summary was extracted (deferred persistence)
-	s.appendMessage(beanID, Message{Role: RoleTool, Content: "Bash: Build beans binary"})
-	s.appendMessage(beanID, Message{Role: RoleTool, Content: "Glob: **/main.go"})
-	s.appendMessage(beanID, Message{Role: RoleAssistant, Content: "Done!"})
+	s.appendMessage(itemID, Message{Role: RoleTool, Content: "Bash: Build beans binary"})
+	s.appendMessage(itemID, Message{Role: RoleTool, Content: "Glob: **/main.go"})
+	s.appendMessage(itemID, Message{Role: RoleAssistant, Content: "Done!"})
 
 	// Reload and verify summaries survive
-	msgs, _, err := s.load(beanID)
+	msgs, _, err := s.load(itemID)
 	if err != nil {
 		t.Fatalf("load: %v", err)
 	}
@@ -179,6 +180,33 @@ func TestStoreRejectsPathTraversal(t *testing.T) {
 	}
 }
 
+// AC3: a malformed item ID is rejected with a text that names the noun as
+// item, on every path that validates the ID.
+func TestStoreRejectionsNameItem(t *testing.T) {
+	s, err := newStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, pathErr := s.path("../x")
+	_, dirErr := s.attachmentDir("../x")
+	_, attErr := s.attachmentPath("../x", "img")
+	cleanErr := s.clearAttachments("../x")
+	pruneErr := s.pruneAttachments("../x", nil)
+
+	for want, err := range map[string]error{
+		"invalid item ID for conversation path":  pathErr,
+		"invalid item ID for attachment dir":     dirErr,
+		"invalid item ID for attachment:":        attErr,
+		"invalid item ID for attachment cleanup": cleanErr,
+		"invalid item ID for attachment prune":   pruneErr,
+	} {
+		if err == nil || !strings.Contains(err.Error(), want) {
+			t.Errorf("error = %v, want it to contain %q", err, want)
+		}
+	}
+}
+
 func TestStoreImageSaveAndPath(t *testing.T) {
 	dir := t.TempDir()
 	s, err := newStore(dir)
@@ -186,11 +214,11 @@ func TestStoreImageSaveAndPath(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	beanID := "bean-img"
+	itemID := "bean-img"
 	data := []byte("fake-png-data")
 
 	// Save an image
-	ref, err := s.saveImage(beanID, "image/png", data)
+	ref, err := s.saveImage(itemID, "image/png", data)
 	if err != nil {
 		t.Fatalf("saveImage: %v", err)
 	}
@@ -202,7 +230,7 @@ func TestStoreImageSaveAndPath(t *testing.T) {
 	}
 
 	// Verify file exists on disk
-	path, err := s.attachmentPath(beanID, ref.ID)
+	path, err := s.attachmentPath(itemID, ref.ID)
 	if err != nil {
 		t.Fatalf("attachmentPath: %v", err)
 	}
@@ -243,8 +271,8 @@ func TestStoreImageRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	beanID := "bean-imgrt"
-	ref, err := s.saveImage(beanID, "image/jpeg", []byte("jpeg-data"))
+	itemID := "bean-imgrt"
+	ref, err := s.saveImage(itemID, "image/jpeg", []byte("jpeg-data"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -255,12 +283,12 @@ func TestStoreImageRoundTrip(t *testing.T) {
 		Content: "look at this",
 		Images:  []ImageRef{ref},
 	}
-	if err := s.appendMessage(beanID, msg); err != nil {
+	if err := s.appendMessage(itemID, msg); err != nil {
 		t.Fatal(err)
 	}
 
 	// Load back
-	msgs, _, err := s.load(beanID)
+	msgs, _, err := s.load(itemID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -285,18 +313,18 @@ func TestStoreClearRemovesAttachments(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	beanID := "bean-clr"
-	ref, err := s.saveImage(beanID, "image/png", []byte("img"))
+	itemID := "bean-clr"
+	ref, err := s.saveImage(itemID, "image/png", []byte("img"))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	path, _ := s.attachmentPath(beanID, ref.ID)
+	path, _ := s.attachmentPath(itemID, ref.ID)
 	if _, err := os.Stat(path); err != nil {
 		t.Fatalf("image file should exist before clear")
 	}
 
-	if err := s.clear(beanID); err != nil {
+	if err := s.clear(itemID); err != nil {
 		t.Fatal(err)
 	}
 
@@ -312,23 +340,23 @@ func TestStorePruneAttachments(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	beanID := "bean-prune"
-	keep, _ := s.saveImage(beanID, "image/png", []byte("keep"))
-	orphan, _ := s.saveImage(beanID, "image/png", []byte("orphan"))
+	itemID := "bean-prune"
+	keep, _ := s.saveImage(itemID, "image/png", []byte("keep"))
+	orphan, _ := s.saveImage(itemID, "image/png", []byte("orphan"))
 
 	// Prune, keeping only the first image
-	if err := s.pruneAttachments(beanID, []string{keep.ID}); err != nil {
+	if err := s.pruneAttachments(itemID, []string{keep.ID}); err != nil {
 		t.Fatal(err)
 	}
 
 	// keep should still exist
-	keepPath, _ := s.attachmentPath(beanID, keep.ID)
+	keepPath, _ := s.attachmentPath(itemID, keep.ID)
 	if _, err := os.Stat(keepPath); err != nil {
 		t.Error("kept image should still exist")
 	}
 
 	// orphan should be deleted
-	orphanPath, _ := s.attachmentPath(beanID, orphan.ID)
+	orphanPath, _ := s.attachmentPath(itemID, orphan.ID)
 	if _, err := os.Stat(orphanPath); !os.IsNotExist(err) {
 		t.Error("orphaned image should be deleted")
 	}

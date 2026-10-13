@@ -4,8 +4,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/xRiErOS/beans/pkg/bean"
-	"github.com/xRiErOS/beans/pkg/config"
+	"github.com/xRiErOS/lif/pkg/config"
+	"github.com/xRiErOS/lif/pkg/item"
 )
 
 // TestContainerTypeNamesMatchesTypesAtRank pins beans-v2ox's shared
@@ -33,7 +33,7 @@ func TestContainerTypeNamesMatchesTypesAtRank(t *testing.T) {
 }
 
 // TestIsContainerRankFalseForLeafRank pins the behavioral half of
-// beans-v2ox: a bean whose type sits at config.LeafRank is never a
+// beans-v2ox: an item whose type sits at config.LeafRank is never a
 // container, regardless of the exact bound isContainerRank now reads from
 // config.MaxContainerRank instead of a repeated literal.
 func TestIsContainerRankFalseForLeafRank(t *testing.T) {
@@ -52,7 +52,7 @@ func TestIsContainerRankFalseForLeafRank(t *testing.T) {
 		t.Fatal("expected the default config to have a leaf-rank type")
 	}
 
-	b := &bean.Bean{Type: leafType}
+	b := &item.Item{Type: leafType}
 	if isContainerRank(b) {
 		t.Errorf("isContainerRank(%q) = true, want false", leafType)
 	}

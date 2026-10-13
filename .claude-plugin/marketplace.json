@@ -1,14 +1,14 @@
 {
-  "name": "beans",
+  "name": "lif",
   "owner": {
-    "name": "Beans - The CLI Issue Tracker for Humans and Robots",
+    "name": "Lif - A file-based issue tracker for AI-first workflows",
     "email": "hendrik@mans.de"
   },
   "plugins": [
     {
-      "name": "beans-prime",
-      "source": "./extras/claude/plugins/beans-prime",
-      "description": "Configure Claude Code to track work using Beans.",
+      "name": "lif-prime",
+      "source": "./extras/claude/plugins/lif-prime",
+      "description": "Configure Claude Code to track work using Lif.",
       "version": "1.0.0"
     }
   ]

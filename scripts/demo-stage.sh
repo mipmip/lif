@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Interaktive tmux-Bühne für die CLI-Oberfläche von beans (beans-ejxf).
+# Interaktive tmux-Bühne für die CLI-Oberfläche von lif (beans-ejxf).
 #
 # Baut das aktuelle Binary, legt einen Wegwerf-Store mit realistischem
 # Status-Mix an und startet eine zsh mit geladener Vervollständigung.
 #
-# Das `beans` in der Sitzung ist ein Wrapper mit fest verdrahtetem
-# --beans-path: aus KEINEM Arbeitsverzeichnis kann es den echten Store
+# Das `lif` in der Sitzung ist ein Wrapper mit fest verdrahtetem
+# --lif-path: aus KEINEM Arbeitsverzeichnis kann es den echten Store
 # treffen. Das ist der Punkt der Bühne — hier wird Fehlbedienung geübt.
 set -euo pipefail
 
@@ -23,13 +23,13 @@ rm -rf "$root"
 mkdir -p "$root/bin" "$root/zdot"
 
 echo "==> Binary bauen"
-go build -o "$root/bin/beans-real" "$repo/cmd/beans"
+go build -o "$root/bin/lif-real" "$repo/cmd/lif"
 
 # HOME erst JETZT umlenken, nach dem Build. `beans-6y60` persistiert den
-# Suchindex nach `~/.beans/index/<hash der Store-Wurzel>`
-# (`pkg/beancore/search_index.go`, über `os.UserHomeDir()`) — also AUSSERHALB
+# Suchindex nach `~/.lif/index/<hash der Store-Wurzel>`
+# (`pkg/itemcore/search_index.go`, über `os.UserHomeDir()`) — also AUSSERHALB
 # von $root. Ohne Umlenkung hinterlässt jeder Bühnenlauf ein Verzeichnis im
-# echten `~/.beans`, das `just demo-stop` nicht wegräumen kann, weil es nur
+# echten `~/.lif`, das `just demo-stop` nicht wegräumen kann, weil es nur
 # $root löscht. Auf der alten Basis war das unsichtbar, weil es dort noch
 # keine Persistenz gab.
 #
@@ -37,23 +37,23 @@ go build -o "$root/bin/beans-real" "$repo/cmd/beans"
 # Umlenkung `$root/home/go` zum GOPATH, und Go legt dort 443 MB Modulcache mit
 # Nur-Lese-Rechten ab — `rm -rf $root` scheitert dann mit `Permission denied`,
 # und `demo-stop` bricht seine Zusage. Nach dem Build enthält `$root/home`
-# nur noch `.beans/`.
+# nur noch `.lif/`.
 export HOME="$root/home"
 mkdir -p "$HOME"
 
-# Ab hier IM Demo-Verzeichnis arbeiten und `init` ohne --beans-path laufen
-# lassen: nur dann schreibt es eine eigene .beans.yml und der Store wird
-# selbstständig. Mit --beans-path aus dem Repo heraus käme der Store aus dem
-# Flag, die KONFIGURATION aber weiter aus der .beans.yml des Repos — die
-# Beans hießen dann `beans-…` und lägen auf `draft` statt `todo`. Dieselbe
+# Ab hier IM Demo-Verzeichnis arbeiten und `init` ohne --lif-path laufen
+# lassen: nur dann schreibt es eine eigene .lif.yml und der Store wird
+# selbstständig. Mit --lif-path aus dem Repo heraus käme der Store aus dem
+# Flag, die KONFIGURATION aber weiter aus der .lif.yml des Repos — die
+# Items hießen dann `beans-…` und lägen auf `draft` statt `todo`. Dieselbe
 # Art Auseinanderentwicklung zwischen Store- und Config-Auflösung hat
-# beans-9jtq für den `__complete`-Pfad synchronisiert (--beans-path UND
+# beans-9jtq für den `__complete`-Pfad synchronisiert (--lif-path UND
 # --config folgen dort jetzt derselben Präzedenz wie im regulären Pfad).
 cd "$root"
-store="$root/.beans"
+store="$root/.lif"
 
 echo "==> Wegwerf-Store anlegen"
-"$root/bin/beans-real" init >/dev/null
+"$root/bin/lif-real" init >/dev/null
 
 # Gar kein ID-Präfix. Mit einem Präfix — auch einem kurzen — teilen sich
 # ALLE IDs einen gemeinsamen Anfang, und das erste TAB ergänzt nur diesen,
@@ -62,13 +62,13 @@ echo "==> Wegwerf-Store anlegen"
 # `sed -i ''` ist BSD-Syntax und bricht unter GNU sed; das Skript liegt im
 # veröffentlichten Fork und muss auf Linux/CI laufen.
 tmp="$(mktemp)"
-sed 's/^    prefix: .*/    prefix: ""/' "$root/.beans.yml" >"$tmp"
-mv "$tmp" "$root/.beans.yml"
+sed 's/^    prefix: .*/    prefix: ""/' "$root/.lif.yml" >"$tmp"
+mv "$tmp" "$root/.lif.yml"
 
-bake() { "$root/bin/beans-real" "$@"; }
+bake() { "$root/bin/lif-real" "$@"; }
 new_id() { bake create "$1" "${@:2}" | awk '{print $2}'; }
 
-# Offene Beans: was ein Nutzer per TAB tatsächlich sucht.
+# Offene Items: was ein Nutzer per TAB tatsächlich sucht.
 bake create "Login-Maske zeigt keinen Fehler" --type bug --priority high >/dev/null
 bake create "Suchfeld in der Kopfzeile" --type feature >/dev/null
 bake create "Abhaengigkeiten aktualisieren" --type task >/dev/null
@@ -86,15 +86,15 @@ for i in $(seq 1 6); do
 done
 
 # Wrapper: bindet den Store ans Kommando, nicht ans Verzeichnis.
-cat >"$root/bin/beans" <<EOF
+cat >"$root/bin/lif" <<EOF
 #!/bin/sh
-exec "$root/bin/beans-real" --beans-path "$store" "\$@"
+exec "$root/bin/lif-real" --lif-path "$store" "\$@"
 EOF
-chmod +x "$root/bin/beans"
+chmod +x "$root/bin/lif"
 
-"$root/bin/beans-real" completion zsh >"$root/completion.zsh"
+"$root/bin/lif-real" completion zsh >"$root/completion.zsh"
 
-# Die Completion ist auf den Kommandonamen `beans` registriert, deshalb
+# Die Completion ist auf den Kommandonamen `lif` registriert, deshalb
 # muss der Wrapper über PATH gefunden werden — ein Aufruf über den vollen
 # Pfad umgeht compdef und TAB ergänzt dann Dateinamen.
 cat >"$root/zdot/.zshrc" <<EOF
@@ -103,16 +103,16 @@ export HOME="$root/home"
 autoload -Uz compinit && compinit -u
 source "$root/completion.zsh"
 cd "$root"
-PS1='beans-demo%% '
+PS1='lif-demo%% '
 cat <<'BANNER'
 
-  beans-Demo — Wegwerf-Store, der echte Store ist nicht erreichbar.
+  lif-Demo — Wegwerf-Store, der echte Store ist nicht erreichbar.
 
-    beans list                      Bestand ansehen
-    beans show <TAB>                IDs mit Titel und Status
-    beans complete <id> <TAB>       Kandidaten auch auf Position 2
-    beans list junk                 Fehlbedienung: Exit 1
-    beans archive <id>              Fehlbedienung: bricht ab, archiviert nichts
+    lif list                        Bestand ansehen
+    lif show <TAB>                  IDs mit Titel und Status
+    lif complete <id> <TAB>         Kandidaten auch auf Position 2
+    lif list junk                   Fehlbedienung: Exit 1
+    lif archive <id>                Fehlbedienung: bricht ab, archiviert nichts
 
 BANNER
 EOF
@@ -124,7 +124,7 @@ tmux new-session -d -s "$session" -x 140 -y 40 "ZDOTDIR=$root/zdot zsh -i"
 # compinit durch ist und der Prompt steht.
 ready=0
 for _ in $(seq 1 40); do
-	if tmux capture-pane -p -t "$session" 2>/dev/null | grep -q 'beans-demo%'; then
+	if tmux capture-pane -p -t "$session" 2>/dev/null | grep -q 'lif-demo%'; then
 		ready=1
 		break
 	fi

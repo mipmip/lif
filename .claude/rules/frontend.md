@@ -12,8 +12,8 @@ paths:
 
 The frontend is a single-page app with two main views:
 
-- **Planning view** (`/planning`, `/planning/board`) — backlog list and kanban board for managing beans
-- **Workspace view** (`/workspace/[worktreeId]`) — agent chat, file changes, terminal, and bean detail for a specific worktree
+- **Planning view** (`/planning`, `/planning/board`) — backlog list and kanban board for managing items
+- **Workspace view** (`/workspace/[worktreeId]`) — agent chat, file changes, terminal, and item detail for a specific worktree
 
 ### Routing
 
@@ -23,11 +23,11 @@ Routes live in `src/routes/`. The root `+page.ts` redirects to `/planning`. Work
 
 State is managed through **singleton store classes** using Svelte 5 runes, instantiated as module-level exports:
 
-- `beansStore` (`beans.svelte.ts`) — all beans, fed by `beanChanged` subscription with `includeInitial: true`
+- `itemsStore` (`items.svelte.ts`) — all items, fed by `itemChanged` subscription with `includeInitial: true`
 - `worktreeStore` (`worktrees.svelte.ts`) — active worktrees, fed by `worktreesChanged` subscription
 - `agentStatusesStore` (`agentStatuses.svelte.ts`) — which agents are running, fed by `activeAgentStatuses` subscription
 - `configStore` (`config.svelte.ts`) — project config, loaded once via query
-- `ui` (`uiState.svelte.ts`) — UI state (active view, selected bean, panel visibility), synced with URL and localStorage
+- `ui` (`uiState.svelte.ts`) — UI state (active view, selected item, panel visibility), synced with URL and localStorage
 - `changesStore` (`changes.svelte.ts`) — file changes for the active worktree, polled
 
 Per-workspace stores like `AgentChatStore` are instantiated per component (one per `WorkspaceView`), not as singletons.
@@ -54,7 +54,7 @@ Some stores use polling intervals (e.g., worktree statuses every 3 seconds, file
 
 - Use **Svelte 5** with runes (`$state`, `$derived`, `$props`, `$effect`, etc.). Do not use legacy Svelte 4 patterns (`export let`, `$:`, stores via `writable`/`readable`).
 - **Prefer `$derived` over `$effect`** for computing values from reactive state. Only use `$effect` for true side effects (DOM manipulation, external state, subscriptions). If a value can be expressed as a derivation, use `$derived` or `$derived.by`.
-- Use `SvelteMap` from `svelte/reactivity` instead of plain `Map` when the map is reactive state (e.g., `beansStore.beans`).
+- Use `SvelteMap` from `svelte/reactivity` instead of plain `Map` when the map is reactive state (e.g., `itemsStore.items`).
 - Use Svelte 5 snippet blocks (`{#snippet name()}...{/snippet}`) for passing content to components like `SplitPane`, not slot-based patterns.
 
 ## SvelteKit SSR/Prerender Pitfalls
@@ -91,7 +91,7 @@ Icons use `@iconify/tailwind4` — reference icons as `icon-[set--name]` Tailwin
 
 ### Reusable UI Classes
 
-`layout.css` defines shared button/badge classes: `btn-primary`, `btn-icon`, `btn-tab`, `btn-tab-sm`, `btn-toggle`, `badge`, `badge-sm`, `bean-link`. Use these instead of duplicating button styles.
+`layout.css` defines shared button/badge classes: `btn-primary`, `btn-icon`, `btn-tab`, `btn-tab-sm`, `btn-toggle`, `badge`, `badge-sm`, `item-link`. Use these instead of duplicating button styles.
 
 ### Other Styling Rules
 
@@ -111,8 +111,8 @@ Icons use `@iconify/tailwind4` — reference icons as `icon-[set--name]` Tailwin
 
 - Shiki is initialized lazily with `preloadHighlighter()` called at app start
 - Only explicitly imported language grammars are supported — see `BUNDLED_LANGS` in `markdown.ts`
-- Bean IDs (e.g., `beans-s1m0`) are auto-linked via a custom Marked extension and rendered with the `.bean-link` CSS class
-- All rendered HTML is sanitized through DOMPurify with `data-bean-id` whitelisted
+- Item IDs (e.g., `beans-s1m0`) are auto-linked via a custom Marked extension and rendered with the `.item-link` CSS class
+- All rendered HTML is sanitized through DOMPurify with `data-item-id` whitelisted
 - Rendered markdown goes inside a `<div class="prose">` container, styled in `layout.css`
 
 ## E2E Testing
@@ -124,8 +124,8 @@ Icons use `@iconify/tailwind4` — reference icons as `icon-[set--name]` Tailwin
 
 ### Agent Chat E2E Testing
 
-- **Never spawn Claude Code in e2e tests.** To test agent chat functionality, seed conversation data by writing JSONL files directly to `<beansPath>/.conversations/<beanId>.jsonl`. The agent manager lazily loads from disk when a subscription connects with no in-memory session.
-- The central agent chat uses beanId `__central__`.
+- **Never spawn Claude Code in e2e tests.** To test agent chat functionality, seed conversation data by writing JSONL files directly to `<lifPath>/.conversations/<itemId>.jsonl`. The agent manager lazily loads from disk when a subscription connects with no in-memory session.
+- The central agent chat uses itemId `__central__`.
 - See `e2e/agent-chat.spec.ts` for the pattern.
 
 ## Build Warnings

@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/xRiErOS/beans/pkg/bean"
-	"github.com/xRiErOS/beans/pkg/beancore"
-	"github.com/xRiErOS/beans/pkg/config"
+	"github.com/xRiErOS/lif/pkg/config"
+	"github.com/xRiErOS/lif/pkg/item"
+	"github.com/xRiErOS/lif/pkg/itemcore"
 )
 
 // setupNextTest installs a throwaway core and default config into the
@@ -18,13 +18,13 @@ import (
 func setupNextTest(t *testing.T) {
 	t.Helper()
 	tmpDir := t.TempDir()
-	beansDir := filepath.Join(tmpDir, ".beans")
-	if err := os.MkdirAll(beansDir, 0755); err != nil {
+	itemsDir := filepath.Join(tmpDir, ".beans")
+	if err := os.MkdirAll(itemsDir, 0755); err != nil {
 		t.Fatalf("failed to create test .beans dir: %v", err)
 	}
 
 	testCfg := config.Default()
-	testCore := beancore.New(beansDir, testCfg)
+	testCore := itemcore.New(itemsDir, testCfg)
 	if err := testCore.Load(); err != nil {
 		t.Fatalf("failed to load core: %v", err)
 	}
@@ -73,23 +73,23 @@ func captureNextStdout(t *testing.T, fn func()) []byte {
 	return data
 }
 
-// TestNextReturnsHighestPriorityReady verifies that beans next picks the
-// highest-priority ready (todo, not blocked) bean and displays it.
+// TestNextReturnsHighestPriorityReady verifies that lif next picks the
+// highest-priority ready (todo, not blocked) item and displays it.
 func TestNextReturnsHighestPriorityReady(t *testing.T) {
 	setupNextTest(t)
 	resetNextFlags(t)
 
-	low := &bean.Bean{
+	low := &item.Item{
 		ID:       "beans-low1",
-		Slug:     bean.Slugify("Low priority task"),
+		Slug:     item.Slugify("Low priority task"),
 		Title:    "Low priority task",
 		Status:   "todo",
 		Type:     "task",
 		Priority: "low",
 	}
-	high := &bean.Bean{
+	high := &item.Item{
 		ID:       "beans-high1",
-		Slug:     bean.Slugify("High priority task"),
+		Slug:     item.Slugify("High priority task"),
 		Title:    "High priority task",
 		Status:   "todo",
 		Type:     "task",
@@ -117,18 +117,18 @@ func TestNextReturnsHighestPriorityReady(t *testing.T) {
 	}
 }
 
-// TestNextRespectsBlockedExclusion verifies that a blocked todo bean is
+// TestNextRespectsBlockedExclusion verifies that a blocked todo item is
 // skipped in favor of an unblocked one.
 func TestNextRespectsBlockedExclusion(t *testing.T) {
 	setupNextTest(t)
 	resetNextFlags(t)
 
-	// blocker is itself a valid ready bean (low priority), so it must lose
-	// the pick to the higher-priority unblocked bean below — this also
+	// blocker is itself a valid ready item (low priority), so it must lose
+	// the pick to the higher-priority unblocked item below — this also
 	// proves the winner isn't just an artifact of ID tie-breaking.
-	blocker := &bean.Bean{
+	blocker := &item.Item{
 		ID:       "beans-blk1",
-		Slug:     bean.Slugify("Blocker"),
+		Slug:     item.Slugify("Blocker"),
 		Title:    "Blocker",
 		Status:   "todo",
 		Type:     "task",
@@ -140,9 +140,9 @@ func TestNextRespectsBlockedExclusion(t *testing.T) {
 
 	// blocked carries the highest priority of the three but must be
 	// excluded entirely because it is blocked by an active (todo) blocker.
-	blocked := &bean.Bean{
+	blocked := &item.Item{
 		ID:        "beans-blkd1",
-		Slug:      bean.Slugify("Blocked high priority"),
+		Slug:      item.Slugify("Blocked high priority"),
 		Title:     "Blocked high priority",
 		Status:    "todo",
 		Type:      "task",
@@ -153,9 +153,9 @@ func TestNextRespectsBlockedExclusion(t *testing.T) {
 		t.Fatalf("core.Create(blocked) error = %v", err)
 	}
 
-	unblocked := &bean.Bean{
+	unblocked := &item.Item{
 		ID:       "beans-unbl1",
-		Slug:     bean.Slugify("Unblocked high priority"),
+		Slug:     item.Slugify("Unblocked high priority"),
 		Title:    "Unblocked high priority",
 		Status:   "todo",
 		Type:     "task",
@@ -183,7 +183,7 @@ func TestNextRespectsBlockedExclusion(t *testing.T) {
 	}
 }
 
-// TestNextReportsNoneReady verifies that with no ready beans, next reports
+// TestNextReportsNoneReady verifies that with no ready items, next reports
 // this without erroring, both in plain and --json mode.
 func TestNextReportsNoneReady(t *testing.T) {
 	t.Run("plain", func(t *testing.T) {
@@ -197,8 +197,10 @@ func TestNextReportsNoneReady(t *testing.T) {
 		})
 
 		got := string(out)
-		if !strings.Contains(got, "beans list") {
-			t.Errorf("expected suggestion to run beans list, output = %q", got)
+		for _, want := range []string{"No ready items found.", "lif list --is-blocked", "lif list for what's outstanding."} {
+			if !strings.Contains(got, want) {
+				t.Errorf("empty-result message lacks %q, output = %q", want, got)
+			}
 		}
 	})
 
@@ -223,21 +225,21 @@ func TestNextReportsNoneReady(t *testing.T) {
 		if !resp.Success {
 			t.Errorf("expected success=true for empty-result JSON, got %+v; output = %s", resp, out)
 		}
-		if resp.Message == "" {
-			t.Errorf("expected a non-empty message for empty-result JSON, got %+v; output = %s", resp, out)
+		if resp.Message != "no ready items found" {
+			t.Errorf("message = %q, want %q", resp.Message, "no ready items found")
 		}
 	})
 }
 
-// mkReadyBean creates a ready (todo) bean in the test store and returns it.
-func mkReadyBean(t *testing.T, id, title, beanType, priority string, tags []string, parent string) *bean.Bean {
+// mkReadyItem creates a ready (todo) item in the test store and returns it.
+func mkReadyItem(t *testing.T, id, title, itemType, priority string, tags []string, parent string) *item.Item {
 	t.Helper()
-	b := &bean.Bean{
+	b := &item.Item{
 		ID:       id,
-		Slug:     bean.Slugify(title),
+		Slug:     item.Slugify(title),
 		Title:    title,
 		Status:   "todo",
-		Type:     beanType,
+		Type:     itemType,
 		Priority: priority,
 		Tags:     tags,
 		Parent:   parent,
@@ -256,8 +258,8 @@ func TestNextFiltersByType(t *testing.T) {
 
 	// The bug carries lower priority, so without the filter the task would
 	// win — the filter has to beat the sort order, not merely agree with it.
-	task := mkReadyBean(t, "beans-ft01", "High priority task", "task", "high", nil, "")
-	bug := mkReadyBean(t, "beans-fb01", "Low priority bug", "bug", "low", nil, "")
+	task := mkReadyItem(t, "beans-ft01", "High priority task", "task", "high", nil, "")
+	bug := mkReadyItem(t, "beans-fb01", "Low priority bug", "bug", "low", nil, "")
 
 	nextType = []string{"bug"}
 
@@ -280,8 +282,8 @@ func TestNextFiltersByTag(t *testing.T) {
 	setupNextTest(t)
 	resetNextFlags(t)
 
-	untagged := mkReadyBean(t, "beans-gu01", "High priority untagged", "task", "high", nil, "")
-	tagged := mkReadyBean(t, "beans-gt01", "Low priority tagged", "task", "low", []string{"cli"}, "")
+	untagged := mkReadyItem(t, "beans-gu01", "High priority untagged", "task", "high", nil, "")
+	tagged := mkReadyItem(t, "beans-gt01", "Low priority tagged", "task", "low", []string{"cli"}, "")
 
 	nextTag = []string{"cli"}
 
@@ -304,9 +306,9 @@ func TestNextFiltersByParent(t *testing.T) {
 	setupNextTest(t)
 	resetNextFlags(t)
 
-	epic := mkReadyBean(t, "beans-pe01", "Epic", "epic", "normal", nil, "")
-	outside := mkReadyBean(t, "beans-po01", "High priority outside", "task", "high", nil, "")
-	inside := mkReadyBean(t, "beans-pi01", "Low priority inside", "task", "low", nil, epic.ID)
+	epic := mkReadyItem(t, "beans-pe01", "Epic", "epic", "normal", nil, "")
+	outside := mkReadyItem(t, "beans-po01", "High priority outside", "task", "high", nil, "")
+	inside := mkReadyItem(t, "beans-pi01", "Low priority inside", "task", "low", nil, epic.ID)
 
 	nextParent = epic.ID
 
@@ -330,12 +332,12 @@ func TestNextCombinesFiltersWithReadySemantics(t *testing.T) {
 	setupNextTest(t)
 	resetNextFlags(t)
 
-	epic := mkReadyBean(t, "beans-ce01", "Epic", "epic", "normal", nil, "")
+	epic := mkReadyItem(t, "beans-ce01", "Epic", "epic", "normal", nil, "")
 	// Matches every filter and outranks the winner on priority, but is
 	// in-progress and therefore not ready.
-	inProgress := &bean.Bean{
+	inProgress := &item.Item{
 		ID:       "beans-cp01",
-		Slug:     bean.Slugify("In progress match"),
+		Slug:     item.Slugify("In progress match"),
 		Title:    "In progress match",
 		Status:   "in-progress",
 		Type:     "bug",
@@ -347,8 +349,8 @@ func TestNextCombinesFiltersWithReadySemantics(t *testing.T) {
 		t.Fatalf("core.Create(inProgress) error = %v", err)
 	}
 	// Matches type and tag but hangs under no parent.
-	wrongParent := mkReadyBean(t, "beans-cw01", "Wrong parent", "bug", "high", []string{"cli"}, "")
-	want := mkReadyBean(t, "beans-cm01", "Full match", "bug", "low", []string{"cli"}, epic.ID)
+	wrongParent := mkReadyItem(t, "beans-cw01", "Wrong parent", "bug", "high", []string{"cli"}, "")
+	want := mkReadyItem(t, "beans-cm01", "Full match", "bug", "low", []string{"cli"}, epic.ID)
 
 	nextType = []string{"bug"}
 	nextTag = []string{"cli"}
@@ -363,23 +365,23 @@ func TestNextCombinesFiltersWithReadySemantics(t *testing.T) {
 	if !strings.Contains(out, want.ID) {
 		t.Errorf("output does not contain the fully matching bean %q, output = %q", want.ID, out)
 	}
-	for _, unwanted := range []*bean.Bean{inProgress, wrongParent} {
+	for _, unwanted := range []*item.Item{inProgress, wrongParent} {
 		if strings.Contains(out, unwanted.ID) {
 			t.Errorf("output unexpectedly contains %q, output = %q", unwanted.ID, out)
 		}
 	}
 }
 
-// TestNextSortPicksByRequestedField verifies that --sort changes which bean
+// TestNextSortPicksByRequestedField verifies that --sort changes which item
 // next hands back, rather than being accepted and ignored.
 func TestNextSortPicksByRequestedField(t *testing.T) {
 	setupNextTest(t)
 	resetNextFlags(t)
 
-	// Priority order and ID order disagree, so whichever bean comes back
+	// Priority order and ID order disagree, so whichever item comes back
 	// identifies which ordering actually ran.
-	first := mkReadyBean(t, "beans-aaa1", "Alphabetically first, low priority", "task", "low", nil, "")
-	high := mkReadyBean(t, "beans-zzz1", "Alphabetically last, high priority", "task", "high", nil, "")
+	first := mkReadyItem(t, "beans-aaa1", "Alphabetically first, low priority", "task", "low", nil, "")
+	high := mkReadyItem(t, "beans-zzz1", "Alphabetically last, high priority", "task", "high", nil, "")
 
 	nextSort = "id"
 
@@ -403,8 +405,8 @@ func TestNextDescReversesSelection(t *testing.T) {
 	setupNextTest(t)
 	resetNextFlags(t)
 
-	first := mkReadyBean(t, "beans-aaa2", "Alphabetically first", "task", "normal", nil, "")
-	last := mkReadyBean(t, "beans-zzz2", "Alphabetically last", "task", "normal", nil, "")
+	first := mkReadyItem(t, "beans-aaa2", "Alphabetically first", "task", "normal", nil, "")
+	last := mkReadyItem(t, "beans-zzz2", "Alphabetically last", "task", "normal", nil, "")
 
 	nextSort = "id"
 	nextDesc = true
@@ -430,7 +432,7 @@ func TestNextReportsNoneReadyWithFilters(t *testing.T) {
 	t.Run("plain", func(t *testing.T) {
 		setupNextTest(t)
 		resetNextFlags(t)
-		mkReadyBean(t, "beans-nf01", "A ready task", "task", "high", nil, "")
+		mkReadyItem(t, "beans-nf01", "A ready task", "task", "high", nil, "")
 
 		nextType = []string{"bug"}
 
@@ -440,15 +442,17 @@ func TestNextReportsNoneReadyWithFilters(t *testing.T) {
 			}
 		}))
 
-		if !strings.Contains(out, "--type bug") {
-			t.Errorf("empty-result message does not name the active filter, output = %q", out)
+		for _, want := range []string{"No ready items found matching --type bug.", "lif list --type bug"} {
+			if !strings.Contains(out, want) {
+				t.Errorf("empty-result message lacks %q, output = %q", want, out)
+			}
 		}
 	})
 
 	t.Run("json", func(t *testing.T) {
 		setupNextTest(t)
 		resetNextFlags(t)
-		mkReadyBean(t, "beans-nf02", "A ready task", "task", "high", nil, "")
+		mkReadyItem(t, "beans-nf02", "A ready task", "task", "high", nil, "")
 
 		nextType = []string{"bug"}
 		nextJSON = true
@@ -469,8 +473,8 @@ func TestNextReportsNoneReadyWithFilters(t *testing.T) {
 		if !resp.Success {
 			t.Errorf("expected success=true, got %+v; output = %s", resp, out)
 		}
-		if !strings.Contains(resp.Message, "--type bug") {
-			t.Errorf("JSON message does not name the active filter, got %q", resp.Message)
+		if want := "no ready items found matching --type bug"; resp.Message != want {
+			t.Errorf("JSON message = %q, want %q", resp.Message, want)
 		}
 	})
 }

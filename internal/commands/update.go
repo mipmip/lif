@@ -6,14 +6,14 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/xRiErOS/beans/pkg/bean"
-	"github.com/xRiErOS/beans/pkg/beancore"
-	"github.com/xRiErOS/beans/pkg/beangraph"
-	"github.com/xRiErOS/beans/pkg/beangraph/model"
-	"github.com/xRiErOS/beans/pkg/candidates"
-	"github.com/xRiErOS/beans/internal/output"
-	"github.com/xRiErOS/beans/internal/ui"
 	"github.com/spf13/cobra"
+	"github.com/xRiErOS/lif/internal/output"
+	"github.com/xRiErOS/lif/internal/ui"
+	"github.com/xRiErOS/lif/pkg/candidates"
+	"github.com/xRiErOS/lif/pkg/item"
+	"github.com/xRiErOS/lif/pkg/itemcore"
+	"github.com/xRiErOS/lif/pkg/itemgraph"
+	"github.com/xRiErOS/lif/pkg/itemgraph/model"
 )
 
 var (
@@ -43,17 +43,17 @@ var (
 var updateCmd = &cobra.Command{
 	Use:     "update <id> [id...]",
 	Aliases: []string{"u"},
-	Short:   "Update the properties of one or more beans",
-	Long: `Updates one or more properties of one or more existing beans.
+	Short:   "Update the properties of one or more items",
+	Long: `Updates one or more properties of one or more existing items.
 
-Every flag applies to every bean named in the call. Every ID is resolved, and
+Every flag applies to every item named in the call. Every ID is resolved, and
 --status's required fields and --parent's type and cycle rules are checked for
-every bean, before the first bean is written. --if-match carries one bean's
+every item, before the first item is written. --if-match carries one item's
 etag, so it accepts exactly one ID.`,
 	Args: cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
-		resolver := &beangraph.CoreResolver{Core: core}
+		resolver := &itemgraph.CoreResolver{Core: core}
 
 		if err := validateExtraKeys(updateSet, updateUnset); err != nil {
 			return cmdError(updateJSON, output.ErrValidation, "%s", err)
@@ -65,7 +65,7 @@ etag, so it accepts exactly one ID.`,
 		updateSet = normalizedSet
 
 		if updateIfMatch != "" && len(args) > 1 {
-			return cmdError(updateJSON, output.ErrValidation, "--if-match takes one bean's etag, got %d ids", len(args))
+			return cmdError(updateJSON, output.ErrValidation, "--if-match takes one item's etag, got %d ids", len(args))
 		}
 
 		targets, code, err := resolveBatchTargets(ctx, resolver, args)
@@ -96,7 +96,7 @@ etag, so it accepts exactly one ID.`,
 			return cmdError(updateJSON, output.ErrValidation, "%s", err)
 		}
 
-		// Rules that depend on the bean are checked for every target before
+		// Rules that depend on the item are checked for every target before
 		// the first write, so a violation leaves the store untouched.
 		if input.Status != nil {
 			if err := preflightStatusPolicy(targets, *input.Status, setMap); err != nil {
@@ -107,31 +107,31 @@ etag, so it accepts exactly one ID.`,
 			return mutationError(updateJSON, err)
 		}
 
-		// Each bean lands in a single UpdateBean mutation -- field updates,
+		// Each item lands in a single UpdateItem mutation -- field updates,
 		// body modifications, relationship changes, and extra front matter
 		// keys all under one etag, so a status change and the extra fields a
 		// status policy demands (e.g. commit) can't be split across writes.
-		done := make([]*bean.Bean, 0, len(targets))
+		done := make([]*item.Item, 0, len(targets))
 		for _, target := range targets {
-			b, err := resolver.UpdateBean(ctx, target.ID, input, beancore.WithExtraOps(setMap, updateUnset))
+			b, err := resolver.UpdateItem(ctx, target.ID, input, itemcore.WithExtraOps(setMap, updateUnset))
 			if err != nil {
 				return emitBatchFailure(updateJSON, done, err)
 			}
 			done = append(done, b)
 		}
 
-		// --json returns the resulting bean directly (same schema as
-		// `beans show --json`), not a {success,bean,message} envelope
+		// --json returns the resulting item directly (same schema as
+		// `lif show --json`), not a {success,item,message} envelope
 		// (beans-13ae); several IDs give an array.
-		return emitBatchSuccess(updateJSON, done, output.SuccessSingle, func(b *bean.Bean) string {
+		return emitBatchSuccess(updateJSON, done, output.SuccessSingle, func(b *item.Item) string {
 			return ui.Success.Render("Updated ") + ui.ID.Render(b.ID) + " " + ui.Muted.Render(b.Path)
 		})
 	},
 }
 
 // buildUpdateInput constructs the GraphQL input from flags and returns which fields changed.
-func buildUpdateInput(cmd *cobra.Command) (model.UpdateBeanInput, []string, error) {
-	var input model.UpdateBeanInput
+func buildUpdateInput(cmd *cobra.Command) (model.UpdateItemInput, []string, error) {
+	var input model.UpdateItemInput
 	var changes []string
 
 	if cmd.Flags().Changed("status") {
@@ -180,8 +180,8 @@ func buildUpdateInput(cmd *cobra.Command) (model.UpdateBeanInput, []string, erro
 			// --body-replace-old requires --body-replace-new (enforced by MarkFlagsRequiredTogether)
 			bodyMod.Replace = []*model.ReplaceOperation{
 				{
-					Old: bean.UnescapeBody(updateBodyReplaceOld),
-					New: bean.UnescapeBody(updateBodyReplaceNew),
+					Old: item.UnescapeBody(updateBodyReplaceOld),
+					New: item.UnescapeBody(updateBodyReplaceNew),
 				},
 			}
 		}
@@ -242,9 +242,9 @@ func buildUpdateInput(cmd *cobra.Command) (model.UpdateBeanInput, []string, erro
 }
 
 // preflightParent runs, for every target and before the first write, the
-// parent check UpdateBean runs per bean: a batch whose beans differ in type
+// parent check UpdateItem runs per item: a batch whose items differ in type
 // can pass for one and fail for the next.
-func preflightParent(resolver *beangraph.CoreResolver, targets []*bean.Bean, input model.UpdateBeanInput) error {
+func preflightParent(resolver *itemgraph.CoreResolver, targets []*item.Item, input model.UpdateItemInput) error {
 	if input.Parent == nil {
 		return nil
 	}
@@ -262,20 +262,20 @@ func preflightParent(resolver *beangraph.CoreResolver, targets []*bean.Bean, inp
 
 // isConflictError returns true if the error is an ETag-related conflict error.
 func isConflictError(err error) bool {
-	var mismatchErr *beancore.ETagMismatchError
-	var requiredErr *beancore.ETagRequiredError
+	var mismatchErr *itemcore.ETagMismatchError
+	var requiredErr *itemcore.ETagRequiredError
 	return errors.As(err, &mismatchErr) || errors.As(err, &requiredErr)
 }
 
 // mutationErrorCode maps a write-path error to the output error code that
 // describes it. Split out of mutationError so that the batch verbs, which
-// have to report a failure alongside the beans already written, classify it
+// have to report a failure alongside the items already written, classify it
 // exactly the same way.
 func mutationErrorCode(err error) string {
 	if isConflictError(err) {
 		return output.ErrConflict
 	}
-	var policyErr *beancore.PolicyViolationError
+	var policyErr *itemcore.PolicyViolationError
 	if errors.As(err, &policyErr) {
 		return output.ErrPolicy
 	}
@@ -307,12 +307,12 @@ func RegisterUpdateCmd(root *cobra.Command) {
 	updateCmd.Flags().StringVar(&updateBodyReplaceOld, "body-replace-old", "", "Text to find and replace (requires --body-replace-new)")
 	updateCmd.Flags().StringVar(&updateBodyReplaceNew, "body-replace-new", "", "Replacement text (requires --body-replace-old)")
 	updateCmd.Flags().StringVar(&updateBodyAppend, "body-append", "", "Text to append to body (use '-' for stdin)")
-	updateCmd.Flags().StringVar(&updateParent, "parent", "", "Set parent bean ID")
+	updateCmd.Flags().StringVar(&updateParent, "parent", "", "Set parent item ID")
 	updateCmd.Flags().BoolVar(&updateRemoveParent, "remove-parent", false, "Remove parent")
-	updateCmd.Flags().StringArrayVar(&updateBlocking, "blocking", nil, "ID of bean this blocks (can be repeated)")
-	updateCmd.Flags().StringArrayVar(&updateRemoveBlocking, "remove-blocking", nil, "ID of bean to unblock (can be repeated)")
-	updateCmd.Flags().StringArrayVar(&updateBlockedBy, "blocked-by", nil, "ID of bean that blocks this one (can be repeated)")
-	updateCmd.Flags().StringArrayVar(&updateRemoveBlockedBy, "remove-blocked-by", nil, "ID of blocker bean to remove (can be repeated)")
+	updateCmd.Flags().StringArrayVar(&updateBlocking, "blocking", nil, "ID of item this blocks (can be repeated)")
+	updateCmd.Flags().StringArrayVar(&updateRemoveBlocking, "remove-blocking", nil, "ID of item to unblock (can be repeated)")
+	updateCmd.Flags().StringArrayVar(&updateBlockedBy, "blocked-by", nil, "ID of item that blocks this one (can be repeated)")
+	updateCmd.Flags().StringArrayVar(&updateRemoveBlockedBy, "remove-blocked-by", nil, "ID of blocker item to remove (can be repeated)")
 	updateCmd.Flags().StringArrayVar(&updateTag, "tag", nil, "Add tag (can be repeated)")
 	updateCmd.Flags().StringArrayVar(&updateRemoveTag, "remove-tag", nil, "Remove tag (can be repeated)")
 	updateCmd.Flags().StringArrayVar(&updateSet, "set", nil, "Set an extra front matter key as key=value (can be repeated)")
@@ -358,32 +358,32 @@ func priorityFlagCompletion(cmd *cobra.Command, args []string, toComplete string
 // (beans-v725) -- beans-pkq3 AC-03. Shared by create/update/list/tag's
 // --tag.
 func tagFlagCompletion(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-	resolver := &beangraph.CoreResolver{Core: core}
+	resolver := &itemgraph.CoreResolver{Core: core}
 	tags, err := candidates.TagCandidates(context.Background(), resolver)
 	if err != nil {
 		return nil, completionDirective
 	}
 	out := make([]string, 0, len(tags))
 	for _, t := range tags {
-		out = append(out, fmt.Sprintf("%s\t%d bean(s)", t.Tag, t.Count))
+		out = append(out, fmt.Sprintf("%s\t%d item(s)", t.Tag, t.Count))
 	}
 	return out, completionDirective
 }
 
-// beanFlagCandidates formats an already-filtered bean list as
+// itemFlagCandidates formats an already-filtered item list as
 // shell-completion candidates ("id\ttype title"), mirroring completion.go's
-// beanIDCandidates shape for a caller that holds its own pkg/candidates
-// result rather than every bean in the store.
-func beanFlagCandidates(beans []*bean.Bean) []string {
-	out := make([]string, 0, len(beans))
-	for _, b := range beans {
+// itemIDCandidates shape for a caller that holds its own pkg/candidates
+// result rather than every item in the store.
+func itemFlagCandidates(items []*item.Item) []string {
+	out := make([]string, 0, len(items))
+	for _, b := range items {
 		out = append(out, b.ID+"\t"+b.Type+" "+b.Title)
 	}
 	return out
 }
 
-// updateParentFlagCompletion offers update --parent candidates: beans whose
-// type is a valid parent for every bean update's positional arguments name,
+// updateParentFlagCompletion offers update --parent candidates: items whose
+// type is a valid parent for every item update's positional arguments name,
 // excluding them and their descendants (candidates.ParentCandidates,
 // beans-v725) -- beans-pkq3 AC-04.
 func updateParentFlagCompletion(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
@@ -400,16 +400,16 @@ func updateParentFlagCompletion(cmd *cobra.Command, args []string, toComplete st
 		ids = append(ids, b.ID)
 		types = append(types, b.Type)
 	}
-	resolver := &beangraph.CoreResolver{Core: core}
+	resolver := &itemgraph.CoreResolver{Core: core}
 	eligible, err := candidates.ParentCandidates(context.Background(), resolver, cfg, ids, types)
 	if err != nil {
 		return nil, completionDirective
 	}
-	return beanFlagCandidates(eligible), completionDirective
+	return itemFlagCandidates(eligible), completionDirective
 }
 
 // blockedByFlagCompletion and blockingFlagCompletion both offer every other
-// bean in the store (candidates.BlockingCandidates, beans-v725) -- neither
+// item in the store (candidates.BlockingCandidates, beans-v725) -- neither
 // edge direction excludes descendants (beans-pkq3 AC-04; see pkg/candidates'
 // BlockingCandidates doc comment).
 func blockedByFlagCompletion(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
@@ -421,17 +421,17 @@ func blockingFlagCompletion(cmd *cobra.Command, args []string, toComplete string
 }
 
 // blockingLikeFlagCompletion is blockedByFlagCompletion's and
-// blockingFlagCompletion's shared body: args[0], when present, is the bean
+// blockingFlagCompletion's shared body: args[0], when present, is the item
 // being updated, excluded from its own candidate list.
 func blockingLikeFlagCompletion(args []string) ([]string, cobra.ShellCompDirective) {
-	var beanID string
+	var itemID string
 	if len(args) > 0 {
-		beanID = args[0]
+		itemID = args[0]
 	}
-	resolver := &beangraph.CoreResolver{Core: core}
-	eligible, err := candidates.BlockingCandidates(context.Background(), resolver, cfg, beanID)
+	resolver := &itemgraph.CoreResolver{Core: core}
+	eligible, err := candidates.BlockingCandidates(context.Background(), resolver, cfg, itemID)
 	if err != nil {
 		return nil, completionDirective
 	}
-	return beanFlagCandidates(eligible), completionDirective
+	return itemFlagCandidates(eligible), completionDirective
 }

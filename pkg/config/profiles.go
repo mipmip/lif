@@ -7,12 +7,12 @@ import "sort"
 // already exists in config.go (used by Default) and is reused here.
 func intPtr(i int) *int { return &i }
 
-// profiles holds the type sets `beans init --profile` writes out. The list is
+// profiles holds the type sets `lif init --profile` writes out. The list is
 // expanded into the .beans.yml at init time rather than referenced by name:
 // a later change to a profile definition must not silently move the types of
 // an existing project.
 //
-// Task 9 fix round 2/3: `beans init --profile` also sets
+// Task 9 fix round 2/3: `lif init --profile` also sets
 // Config.TypesExclusive, which switches TypeList() off from merging onto
 // DefaultTypes. With no defaults underneath, every entry here has to be
 // self-sufficient - it is the whole rendered type, not an override layered
@@ -28,14 +28,14 @@ func intPtr(i int) *int { return &i }
 // without a colour.
 var profiles = map[string][]TypeOverride{
 	// classic reproduces the built-in set. It is what an existing store runs
-	// on, so beans init --profile classic must be indistinguishable from
-	// beans init: same ranks, same colours, same emphasis, same descriptions
+	// on, so lif init --profile classic must be indistinguishable from
+	// lif init: same ranks, same colours, same emphasis, same descriptions
 	// as DefaultTypes.
 	"classic": {
 		{Name: "milestone", Rank: intPtr(1), Short: "M", Color: "mauve", Emphasis: boolPtr(true),
 			Description: "A target release or checkpoint; group work that should ship together"},
 		{Name: "epic", Rank: intPtr(2), Short: "E", Color: "blue", Emphasis: boolPtr(true),
-			Description: "A thematic container for related work; should have child beans, not be worked on directly"},
+			Description: "A thematic container for related work; should have child items, not be worked on directly"},
 		{Name: "feature", Rank: intPtr(3), Short: "F", Color: "sapphire",
 			Description: "A user-facing capability or enhancement"},
 		{Name: "bug", Rank: intPtr(LeafRank), Short: "B", Color: "maroon",
@@ -56,7 +56,7 @@ var profiles = map[string][]TypeOverride{
 		{Name: "bucket", Rank: intPtr(1), Short: "K", Roadmap: boolPtr(false),
 			Description: "A parking lot for topics that might be picked up some day; carries work like a milestone but stays out of the roadmap and the milestone list"},
 		{Name: "epic", Rank: intPtr(2), Short: "E", Color: "blue", Emphasis: boolPtr(true),
-			Description: "A thematic container for related work; should have child beans, not be worked on directly"},
+			Description: "A thematic container for related work; should have child items, not be worked on directly"},
 		{Name: "feature", Rank: intPtr(2), Short: "F", Color: "sapphire",
 			Description: "A user-facing capability or enhancement"},
 		{Name: "bug", Rank: intPtr(LeafRank), Short: "B", Color: "maroon",

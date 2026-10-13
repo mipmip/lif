@@ -1,0 +1,20 @@
+package main
+
+import (
+	"os"
+
+	"github.com/xRiErOS/lif/internal/commands"
+)
+
+func main() {
+	root := commands.NewRootCmd()
+	root.Use = "lif-tui"
+	commands.RegisterTuiCmd(root)
+
+	// Default to "tui" when no subcommand is given
+	if len(os.Args) < 2 || os.Args[1][0] == '-' {
+		os.Args = append([]string{os.Args[0], "tui"}, os.Args[1:]...)
+	}
+
+	commands.Execute(root)
+}

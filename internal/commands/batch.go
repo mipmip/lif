@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/xRiErOS/beans/internal/output"
-	"github.com/xRiErOS/beans/pkg/bean"
-	"github.com/xRiErOS/beans/pkg/beancore"
-	"github.com/xRiErOS/beans/pkg/beangraph"
+	"github.com/xRiErOS/lif/internal/output"
+	"github.com/xRiErOS/lif/pkg/item"
+	"github.com/xRiErOS/lif/pkg/itemcore"
+	"github.com/xRiErOS/lif/pkg/itemgraph"
 )
 
 // resolveBatchTargets resolves every ID a batch verb was given before any of
@@ -16,28 +16,28 @@ import (
 // ID anywhere in the call means nothing is mutated at all.
 //
 // IDs are normalized first, so that "abc" and "beans-abc" are recognized as
-// the same bean. Naming one bean twice is rejected rather than deduplicated:
+// the same item. Naming one item twice is rejected rather than deduplicated:
 // the verbs append body sections, and silently collapsing the repeat would
-// hide a typo that changed which beans the caller thought they were touching.
+// hide a typo that changed which items the caller thought they were touching.
 //
 // The returned code is the output.Err* constant the caller passes to cmdError.
-func resolveBatchTargets(ctx context.Context, resolver *beangraph.CoreResolver, ids []string) ([]*bean.Bean, string, error) {
-	targets := make([]*bean.Bean, 0, len(ids))
+func resolveBatchTargets(ctx context.Context, resolver *itemgraph.CoreResolver, ids []string) ([]*item.Item, string, error) {
+	targets := make([]*item.Item, 0, len(ids))
 	seen := make(map[string]string, len(ids))
 
 	for _, id := range ids {
 		fullID, _ := core.NormalizeID(id)
 		if first, dup := seen[fullID]; dup {
-			return nil, output.ErrValidation, fmt.Errorf("bean %s named more than once (as %q and %q)", fullID, first, id)
+			return nil, output.ErrValidation, fmt.Errorf("item %s named more than once (as %q and %q)", fullID, first, id)
 		}
 		seen[fullID] = id
 
-		b, err := resolver.Bean(ctx, id)
+		b, err := resolver.Item(ctx, id)
 		if err != nil {
-			return nil, output.ErrNotFound, fmt.Errorf("failed to find bean: %v", err)
+			return nil, output.ErrNotFound, fmt.Errorf("failed to find item: %v", err)
 		}
 		if b == nil {
-			return nil, output.ErrNotFound, fmt.Errorf("bean not found: %s", id)
+			return nil, output.ErrNotFound, fmt.Errorf("item not found: %s", id)
 		}
 		targets = append(targets, b)
 	}
@@ -46,11 +46,11 @@ func resolveBatchTargets(ctx context.Context, resolver *beangraph.CoreResolver, 
 }
 
 // preflightStatusPolicy answers, without writing, the question the write path
-// asks in beancore: would moving these beans into newStatus leave a required
+// asks in itemcore: would moving these items into newStatus leave a required
 // front matter field unset? It mirrors two conditions of that check — the
 // policy only applies on a real status change, and the fields contributed by
 // --commit/--set count towards satisfying it.
-func preflightStatusPolicy(targets []*bean.Bean, newStatus string, setMap map[string]any) error {
+func preflightStatusPolicy(targets []*item.Item, newStatus string, setMap map[string]any) error {
 	fields := cfg.RequiredFieldsFor(newStatus)
 	if len(fields) == 0 {
 		return nil
@@ -68,17 +68,17 @@ func preflightStatusPolicy(targets []*bean.Bean, newStatus string, setMap map[st
 		for k, v := range setMap {
 			probe.Extra[k] = v
 		}
-		if missing := beancore.MissingRequiredFields(&probe, fields); len(missing) > 0 {
-			return &beancore.PolicyViolationError{BeanID: b.ID, Status: newStatus, Missing: missing}
+		if missing := itemcore.MissingRequiredFields(&probe, fields); len(missing) > 0 {
+			return &itemcore.PolicyViolationError{ItemID: b.ID, Status: newStatus, Missing: missing}
 		}
 	}
 	return nil
 }
 
 // emitBatchSuccess renders the result of a batch mutation. With a single ID
-// the caller's established single-bean shape is kept, so an existing
+// the caller's established single-item shape is kept, so an existing
 // invocation sees byte-identical output; several IDs give one bare array.
-func emitBatchSuccess(jsonMode bool, done []*bean.Bean, single func(*bean.Bean) error, line func(*bean.Bean) string) error {
+func emitBatchSuccess(jsonMode bool, done []*item.Item, single func(*item.Item) error, line func(*item.Item) string) error {
 	if jsonMode {
 		if len(done) == 1 {
 			return single(done[0])
@@ -93,18 +93,18 @@ func emitBatchSuccess(jsonMode bool, done []*bean.Bean, single func(*bean.Bean) 
 
 // emitBatchFailure reports a failure that struck partway through the write
 // loop. The preflight rules out unresolvable IDs and policy violations, so
-// what remains here is an I/O error — and by then some beans are already
+// what remains here is an I/O error — and by then some items are already
 // written. No etag conflict can occur: batch verbs deliberately set no
-// IfMatch (an etag belongs to one bean, so `update --if-match` takes one ID;
+// IfMatch (an etag belongs to one item, so `update --if-match` takes one ID;
 // a batch has no per-target etag to pass), and last write wins. Under
-// require_if_match, beancore rejects the batch at the first target, before
+// require_if_match, itemcore rejects the batch at the first target, before
 // any write. Unlike delete, which discards the written list on its way out,
-// the beans that made it through are named, because an agent's next move
+// the items that made it through are named, because an agent's next move
 // depends on knowing which half of the batch happened.
-func emitBatchFailure(jsonMode bool, done []*bean.Bean, err error) error {
+func emitBatchFailure(jsonMode bool, done []*item.Item, err error) error {
 	if jsonMode {
 		// A bare array cannot carry the failure, so the error case keeps the
-		// envelope — one document, with the beans already written inside it.
+		// envelope — one document, with the items already written inside it.
 		// PartialFailure returns that document's *emittedError marker (like
 		// output.Error), so it is returned as-is: discarding it here and
 		// returning a plain error instead would leave reportExecutionError

@@ -8,26 +8,26 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/xRiErOS/beans/pkg/bean"
-	"github.com/xRiErOS/beans/pkg/beancore"
-	"github.com/xRiErOS/beans/pkg/config"
 	"github.com/spf13/cobra"
+	"github.com/xRiErOS/lif/pkg/config"
+	"github.com/xRiErOS/lif/pkg/item"
+	"github.com/xRiErOS/lif/pkg/itemcore"
 )
 
 // setupOrderTest installs a throwaway core and default config into the
-// package globals orderCmd.RunE reads, creates a parent bean plus n
+// package globals orderCmd.RunE reads, creates a parent item plus n
 // children (in order, with ascending single-letter Order keys "A".."?"),
 // and returns the parent and its children.
-func setupOrderTest(t *testing.T, n int) (parent *bean.Bean, children []*bean.Bean) {
+func setupOrderTest(t *testing.T, n int) (parent *item.Item, children []*item.Item) {
 	t.Helper()
 	tmpDir := t.TempDir()
-	beansDir := filepath.Join(tmpDir, ".beans")
-	if err := os.MkdirAll(beansDir, 0755); err != nil {
+	itemsDir := filepath.Join(tmpDir, ".beans")
+	if err := os.MkdirAll(itemsDir, 0755); err != nil {
 		t.Fatalf("failed to create test .beans dir: %v", err)
 	}
 
 	testCfg := config.Default()
-	testCore := beancore.New(beansDir, testCfg)
+	testCore := itemcore.New(itemsDir, testCfg)
 	if err := testCore.Load(); err != nil {
 		t.Fatalf("failed to load core: %v", err)
 	}
@@ -36,9 +36,9 @@ func setupOrderTest(t *testing.T, n int) (parent *bean.Bean, children []*bean.Be
 	core, cfg = testCore, testCfg
 	t.Cleanup(func() { core, cfg = oldCore, oldCfg })
 
-	parent = &bean.Bean{
+	parent = &item.Item{
 		ID:     "beans-parent",
-		Slug:   bean.Slugify("Parent"),
+		Slug:   item.Slugify("Parent"),
 		Title:  "Parent",
 		Status: "todo",
 		Type:   "epic",
@@ -49,9 +49,9 @@ func setupOrderTest(t *testing.T, n int) (parent *bean.Bean, children []*bean.Be
 
 	letters := "ABCDEFGHIJ"
 	for i := 0; i < n; i++ {
-		c := &bean.Bean{
+		c := &item.Item{
 			ID:     "beans-child" + string(letters[i]),
-			Slug:   bean.Slugify("Child " + string(letters[i])),
+			Slug:   item.Slugify("Child " + string(letters[i])),
 			Title:  "Child " + string(letters[i]),
 			Status: "todo",
 			Type:   "task",
@@ -77,9 +77,9 @@ func resetOrderFlags(t *testing.T) {
 	})
 }
 
-// D05/D12: `order --json` returns the bare bean document directly, not a
-// {success,bean,message} envelope -- same shape as `show`/`update`/`tag`.
-func TestOrderCmdJSONReturnsBareBean(t *testing.T) {
+// D05/D12: `order --json` returns the bare item document directly, not a
+// {success,item,message} envelope -- same shape as `show`/`update`/`tag`.
+func TestOrderCmdJSONReturnsBareItem(t *testing.T) {
 	_, children := setupOrderTest(t, 3) // A, B, C
 	resetOrderFlags(t)
 	orderFirst = true
@@ -95,7 +95,7 @@ func TestOrderCmdJSONReturnsBareBean(t *testing.T) {
 	if err := json.Unmarshal(out, &got); err != nil {
 		t.Fatalf("decoding JSON: %v; output = %s", err, out)
 	}
-	for _, envelopeKey := range []string{"success", "message", "bean"} {
+	for _, envelopeKey := range []string{"success", "message", "item"} {
 		if _, ok := got[envelopeKey]; ok {
 			t.Errorf("captured JSON has envelope key %q; want the raw bean", envelopeKey)
 		}
@@ -127,10 +127,10 @@ func captureOrderStdout(t *testing.T, fn func()) []byte {
 	return data
 }
 
-// allBeanFileContents walks the beans dir and returns a map of relative path
+// allItemFileContents walks the items dir and returns a map of relative path
 // to file content, so tests can diff "what changed on disk" without relying
 // on mtime resolution.
-func allBeanFileContents(t *testing.T, root string) map[string]string {
+func allItemFileContents(t *testing.T, root string) map[string]string {
 	t.Helper()
 	out := make(map[string]string)
 	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
@@ -157,7 +157,7 @@ func allBeanFileContents(t *testing.T, root string) map[string]string {
 	return out
 }
 
-// AC1: --after places the bean strictly between that sibling and its
+// AC1: --after places the item strictly between that sibling and its
 // successor.
 func TestOrderCmdAfterSetsBetweenSiblings(t *testing.T) {
 	_, children := setupOrderTest(t, 3) // A, B, C
@@ -178,7 +178,7 @@ func TestOrderCmdAfterSetsBetweenSiblings(t *testing.T) {
 	}
 }
 
-// AC2: --before places the bean strictly between that sibling and its
+// AC2: --before places the item strictly between that sibling and its
 // predecessor.
 func TestOrderCmdBeforeSetsBetweenSiblings(t *testing.T) {
 	_, children := setupOrderTest(t, 3) // A, B, C
@@ -248,7 +248,7 @@ func TestOrderCmdWritesExactlyOneFile(t *testing.T) {
 	_, children := setupOrderTest(t, 6) // A..F
 	resetOrderFlags(t)
 
-	before := allBeanFileContents(t, core.Root())
+	before := allItemFileContents(t, core.Root())
 
 	orderAfter = children[0].ID // A
 
@@ -256,7 +256,7 @@ func TestOrderCmdWritesExactlyOneFile(t *testing.T) {
 		t.Fatalf("orderCmd.RunE() error = %v", err)
 	}
 
-	after := allBeanFileContents(t, core.Root())
+	after := allItemFileContents(t, core.Root())
 
 	changed := 0
 	var changedPath string
@@ -279,7 +279,7 @@ func TestOrderCmdWritesExactlyOneFile(t *testing.T) {
 		t.Fatalf("core.Get(parent) error = %v", err)
 	}
 	_ = all
-	siblings := make([]*bean.Bean, 0, 6)
+	siblings := make([]*item.Item, 0, 6)
 	for _, c := range children {
 		got, err := core.Get(c.ID)
 		if err != nil {
@@ -287,7 +287,7 @@ func TestOrderCmdWritesExactlyOneFile(t *testing.T) {
 		}
 		siblings = append(siblings, got)
 	}
-	bean.SortByOrder(siblings)
+	item.SortByOrder(siblings)
 
 	wantSeq := []string{children[0].ID, children[4].ID, children[1].ID, children[2].ID, children[3].ID, children[5].ID}
 	for i, id := range wantSeq {
@@ -297,21 +297,21 @@ func TestOrderCmdWritesExactlyOneFile(t *testing.T) {
 	}
 }
 
-// AC6: --after/--before naming a bean under a different parent is scoped
+// AC6: --after/--before naming an item under a different parent is scoped
 // per parent and fails.
 func TestOrderCmdDifferentParentFails(t *testing.T) {
 	parent, children := setupOrderTest(t, 2)
 	resetOrderFlags(t)
 
 	// A sibling epic with its own child, unrelated to `parent`.
-	otherParent := &bean.Bean{
-		ID: "beans-other", Slug: bean.Slugify("Other"), Title: "Other", Status: "todo", Type: "epic",
+	otherParent := &item.Item{
+		ID: "beans-other", Slug: item.Slugify("Other"), Title: "Other", Status: "todo", Type: "epic",
 	}
 	if err := core.Create(otherParent); err != nil {
 		t.Fatalf("core.Create(otherParent) error = %v", err)
 	}
-	outsider := &bean.Bean{
-		ID: "beans-outsider", Slug: bean.Slugify("Outsider"), Title: "Outsider",
+	outsider := &item.Item{
+		ID: "beans-outsider", Slug: item.Slugify("Outsider"), Title: "Outsider",
 		Status: "todo", Type: "task", Parent: otherParent.ID, Order: "A",
 	}
 	if err := core.Create(outsider); err != nil {
@@ -362,20 +362,20 @@ func TestOrderCmdRequiresAPlacementFlag(t *testing.T) {
 
 // setupOrderTestUnordered is setupOrderTest, but the children carry no Order
 // at all — the state every real store starts in, since nothing before this
-// epic ever wrote to Bean.Order. setupOrderTest's fixture (every child
+// epic ever wrote to Item.Order. setupOrderTest's fixture (every child
 // pre-seeded with a letter) can't see B01: SortByOrder always puts
 // Order-having siblings first, so picking siblings[0]/siblings[len-1]
 // happens to be correct whenever every sibling already has an Order.
-func setupOrderTestUnordered(t *testing.T, n int) (parent *bean.Bean, children []*bean.Bean) {
+func setupOrderTestUnordered(t *testing.T, n int) (parent *item.Item, children []*item.Item) {
 	t.Helper()
 	tmpDir := t.TempDir()
-	beansDir := filepath.Join(tmpDir, ".beans")
-	if err := os.MkdirAll(beansDir, 0755); err != nil {
+	itemsDir := filepath.Join(tmpDir, ".beans")
+	if err := os.MkdirAll(itemsDir, 0755); err != nil {
 		t.Fatalf("failed to create test .beans dir: %v", err)
 	}
 
 	testCfg := config.Default()
-	testCore := beancore.New(beansDir, testCfg)
+	testCore := itemcore.New(itemsDir, testCfg)
 	if err := testCore.Load(); err != nil {
 		t.Fatalf("failed to load core: %v", err)
 	}
@@ -384,9 +384,9 @@ func setupOrderTestUnordered(t *testing.T, n int) (parent *bean.Bean, children [
 	core, cfg = testCore, testCfg
 	t.Cleanup(func() { core, cfg = oldCore, oldCfg })
 
-	parent = &bean.Bean{
+	parent = &item.Item{
 		ID:     "beans-parent",
-		Slug:   bean.Slugify("Parent"),
+		Slug:   item.Slugify("Parent"),
 		Title:  "Parent",
 		Status: "todo",
 		Type:   "epic",
@@ -397,9 +397,9 @@ func setupOrderTestUnordered(t *testing.T, n int) (parent *bean.Bean, children [
 
 	letters := "abcdefghij"
 	for i := 0; i < n; i++ {
-		c := &bean.Bean{
+		c := &item.Item{
 			ID:     "beans-child" + string(letters[i]),
-			Slug:   bean.Slugify("Child " + string(letters[i])),
+			Slug:   item.Slugify("Child " + string(letters[i])),
 			Title:  "Child " + string(letters[i]),
 			Status: "todo",
 			Type:   "task",
@@ -416,10 +416,10 @@ func setupOrderTestUnordered(t *testing.T, n int) (parent *bean.Bean, children [
 
 // B01 regression: on a fresh store where no sibling has an Order yet (the
 // normal starting state), --last used to read siblings[len(siblings)-1].Order
-// — always "" here, since SortByOrder sorts Order-less beans to the end by
+// — always "" here, since SortByOrder sorts Order-less items to the end by
 // title, not to the front — so every --last call computed
 // OrderBetween("", "") and got the same constant "V" back, regardless of how
-// many beans had already been placed last.
+// many items had already been placed last.
 func TestOrderCmdLastOnUnorderedSiblingsProducesDistinctKeys(t *testing.T) {
 	_, children := setupOrderTestUnordered(t, 3)
 	resetOrderFlags(t)
@@ -460,7 +460,7 @@ func TestOrderCmdLastOnUnorderedSiblingsProducesDistinctKeys(t *testing.T) {
 
 // beans-7zfw: with siblings but none ordered, --last has no anchor and used
 // to fall back to the first position silently. It must fail and leave the
-// bean untouched.
+// item untouched.
 func TestOrderCmdLastWithNoOrderedSiblingFails(t *testing.T) {
 	_, children := setupOrderTestUnordered(t, 3)
 	resetOrderFlags(t)
@@ -479,7 +479,7 @@ func TestOrderCmdLastWithNoOrderedSiblingFails(t *testing.T) {
 	}
 }
 
-// A bean without siblings has no position to get wrong; --last stays valid.
+// An item without siblings has no position to get wrong; --last stays valid.
 func TestOrderCmdLastWithoutSiblingsSucceeds(t *testing.T) {
 	_, children := setupOrderTestUnordered(t, 1)
 	resetOrderFlags(t)
@@ -519,17 +519,17 @@ func TestOrderCmdAfterUnorderedRefFails(t *testing.T) {
 
 // B02 regression: order.go's core.Update(b, nil) bypassed ETag concurrency
 // control the same way create.go's did before its own B01 fix — under
-// require_if_match:true this makes `beans order` fail outright on every
+// require_if_match:true this makes `lif order` fail outright on every
 // call, since nil never satisfies a required if-match.
 func TestOrderCmdSucceedsUnderRequireIfMatch(t *testing.T) {
 	tmpDir := t.TempDir()
-	beansDir := filepath.Join(tmpDir, ".beans")
-	if err := os.MkdirAll(beansDir, 0755); err != nil {
+	itemsDir := filepath.Join(tmpDir, ".beans")
+	if err := os.MkdirAll(itemsDir, 0755); err != nil {
 		t.Fatalf("failed to create test .beans dir: %v", err)
 	}
 	testCfg := config.Default()
-	testCfg.Beans.RequireIfMatch = true
-	testCore := beancore.New(beansDir, testCfg)
+	testCfg.Items.RequireIfMatch = true
+	testCore := itemcore.New(itemsDir, testCfg)
 	if err := testCore.Load(); err != nil {
 		t.Fatalf("failed to load core: %v", err)
 	}
@@ -537,15 +537,15 @@ func TestOrderCmdSucceedsUnderRequireIfMatch(t *testing.T) {
 	core, cfg = testCore, testCfg
 	t.Cleanup(func() { core, cfg = oldCore, oldCfg })
 
-	parent := &bean.Bean{ID: "beans-parent", Slug: bean.Slugify("Parent"), Title: "Parent", Status: "todo", Type: "epic"}
+	parent := &item.Item{ID: "beans-parent", Slug: item.Slugify("Parent"), Title: "Parent", Status: "todo", Type: "epic"}
 	if err := core.Create(parent); err != nil {
 		t.Fatalf("core.Create(parent) error = %v", err)
 	}
-	a := &bean.Bean{ID: "beans-childA", Slug: bean.Slugify("Child A"), Title: "Child A", Status: "todo", Type: "task", Parent: parent.ID, Order: "A"}
+	a := &item.Item{ID: "beans-childA", Slug: item.Slugify("Child A"), Title: "Child A", Status: "todo", Type: "task", Parent: parent.ID, Order: "A"}
 	if err := core.Create(a); err != nil {
 		t.Fatalf("core.Create(a) error = %v", err)
 	}
-	b := &bean.Bean{ID: "beans-childB", Slug: bean.Slugify("Child B"), Title: "Child B", Status: "todo", Type: "task", Parent: parent.ID}
+	b := &item.Item{ID: "beans-childB", Slug: item.Slugify("Child B"), Title: "Child B", Status: "todo", Type: "task", Parent: parent.ID}
 	if err := core.Create(b); err != nil {
 		t.Fatalf("core.Create(b) error = %v", err)
 	}
@@ -558,49 +558,49 @@ func TestOrderCmdSucceedsUnderRequireIfMatch(t *testing.T) {
 	}
 }
 
-// B05 regression: every real `beans order` invocation is its own OS process,
-// so the bean it operates on was loaded fresh via Core.Load() -- which
+// B05 regression: every real `lif order` invocation is its own OS process,
+// so the item it operates on was loaded fresh via Core.Load() -- which
 // defaults empty Priority to "normal" and empty Type to "task" in memory
-// (core.go: "Apply defaults for GraphQL non-nullable fields"). A bean
+// (core.go: "Apply defaults for GraphQL non-nullable fields"). An item
 // created without -p/-t (the common case) has neither field on disk, so
-// Render()-ing the freshly loaded, now-defaulted bean produces bytes that
+// Render()-ing the freshly loaded, now-defaulted item produces bytes that
 // differ from the file Core.Update reads and hashes for its own etag check.
-// Using bean.ETag() as the auto-captured ifMatch (mirroring create.go's
-// pattern) therefore makes `beans order` fail with a false etag mismatch on
-// essentially every ordinary bean. setupOrderTest/setupOrderTestUnordered
-// can't see this: they create beans and operate on them in the same process
-// with the same Core, so the in-memory bean IS the exact object Render()
+// Using item.ETag() as the auto-captured ifMatch (mirroring create.go's
+// pattern) therefore makes `lif order` fail with a false etag mismatch on
+// essentially every ordinary item. setupOrderTest/setupOrderTestUnordered
+// can't see this: they create items and operate on them in the same process
+// with the same Core, so the in-memory item IS the exact object Render()
 // already wrote to disk -- no reload, no defaulting, no discrepancy.
-func TestOrderCmdSucceedsOnBeanLoadedFreshFromDisk(t *testing.T) {
+func TestOrderCmdSucceedsOnItemLoadedFreshFromDisk(t *testing.T) {
 	tmpDir := t.TempDir()
-	beansDir := filepath.Join(tmpDir, ".beans")
-	if err := os.MkdirAll(beansDir, 0755); err != nil {
+	itemsDir := filepath.Join(tmpDir, ".beans")
+	if err := os.MkdirAll(itemsDir, 0755); err != nil {
 		t.Fatalf("failed to create test .beans dir: %v", err)
 	}
 	testCfg := config.Default()
 
 	// First "process": write parent + two children with no priority/type
-	// set, exactly as `beans create` without -p/-t leaves them.
-	writerCore := beancore.New(beansDir, testCfg)
+	// set, exactly as `lif create` without -p/-t leaves them.
+	writerCore := itemcore.New(itemsDir, testCfg)
 	if err := writerCore.Load(); err != nil {
 		t.Fatalf("failed to load writer core: %v", err)
 	}
-	parent := &bean.Bean{ID: "beans-parent", Slug: bean.Slugify("Parent"), Title: "Parent", Status: "todo", Type: "epic"}
+	parent := &item.Item{ID: "beans-parent", Slug: item.Slugify("Parent"), Title: "Parent", Status: "todo", Type: "epic"}
 	if err := writerCore.Create(parent); err != nil {
 		t.Fatalf("core.Create(parent) error = %v", err)
 	}
-	a := &bean.Bean{ID: "beans-childA", Slug: bean.Slugify("Child A"), Title: "Child A", Status: "todo", Parent: parent.ID}
+	a := &item.Item{ID: "beans-childA", Slug: item.Slugify("Child A"), Title: "Child A", Status: "todo", Parent: parent.ID}
 	if err := writerCore.Create(a); err != nil {
 		t.Fatalf("core.Create(a) error = %v", err)
 	}
-	c2 := &bean.Bean{ID: "beans-childB", Slug: bean.Slugify("Child B"), Title: "Child B", Status: "todo", Parent: parent.ID}
+	c2 := &item.Item{ID: "beans-childB", Slug: item.Slugify("Child B"), Title: "Child B", Status: "todo", Parent: parent.ID}
 	if err := writerCore.Create(c2); err != nil {
 		t.Fatalf("core.Create(c2) error = %v", err)
 	}
 
 	// Second "process": a fresh Core reloads the same directory from disk --
-	// what every real `beans order` invocation does.
-	freshCore := beancore.New(beansDir, testCfg)
+	// what every real `lif order` invocation does.
+	freshCore := itemcore.New(itemsDir, testCfg)
 	if err := freshCore.Load(); err != nil {
 		t.Fatalf("failed to load fresh core: %v", err)
 	}
@@ -619,3 +619,33 @@ func TestOrderCmdSucceedsOnBeanLoadedFreshFromDisk(t *testing.T) {
 type nopWriter struct{}
 
 func (nopWriter) Write(p []byte) (int, error) { return len(p), nil }
+
+// AC3: order's lookup and placement errors name the noun as item and quote
+// the lif command.
+func TestOrderErrorsNameItems(t *testing.T) {
+	_, children := setupOrderTestUnordered(t, 3)
+	a, b := children[0].ID, children[1].ID
+
+	for _, tc := range []struct {
+		name string
+		set  func()
+		args []string
+		want string
+	}{
+		{"unknown item", func() { orderFirst = true }, []string{"beans-nope"}, "item not found: beans-nope"},
+		{"unknown reference", func() { orderAfter = "beans-nope" }, []string{a}, "item not found: beans-nope"},
+		{"reference is the item", func() { orderAfter = a }, []string{a}, "cannot place an item relative to itself"},
+		{"unordered reference", func() { orderAfter = a }, []string{b},
+			"item " + a + " has no explicit order yet; place it first (e.g. `lif order " + a + " --last`) before placing another item relative to it"},
+		{"last without an ordered sibling", func() { orderLast = true }, []string{a}, "(e.g. `lif order <id> --first`, then `--after`)"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			resetOrderFlags(t)
+			tc.set()
+			err := orderCmd.RunE(orderCmd, tc.args)
+			if err == nil || !strings.Contains(err.Error(), tc.want) {
+				t.Errorf("error = %v, want it to contain %q", err, tc.want)
+			}
+		})
+	}
+}

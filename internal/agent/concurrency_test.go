@@ -16,7 +16,7 @@ func TestManagerConcurrentSessionAccess(t *testing.T) {
 	m := NewManager("", nil)
 	defer m.Shutdown()
 
-	const beanID = "bean-concurrent"
+	const itemID = "bean-concurrent"
 	const rounds = 50
 
 	var wg sync.WaitGroup
@@ -33,18 +33,18 @@ func TestManagerConcurrentSessionAccess(t *testing.T) {
 		}()
 	}
 
-	worker(func(i int) { m.AddInfoMessage(beanID, fmt.Sprintf("info-%d", i)) })
-	worker(func(i int) { _ = m.SetPlanMode(beanID, i%2 == 0) })
-	worker(func(i int) { _ = m.SetEffort(beanID, "medium") })
-	worker(func(int) { _ = m.GetSession(beanID) })
+	worker(func(i int) { m.AddInfoMessage(itemID, fmt.Sprintf("info-%d", i)) })
+	worker(func(i int) { _ = m.SetPlanMode(itemID, i%2 == 0) })
+	worker(func(i int) { _ = m.SetEffort(itemID, "medium") })
+	worker(func(int) { _ = m.GetSession(itemID) })
 	worker(func(int) { _ = m.ListRunningSessions() })
 	worker(func(int) {
-		ch := m.Subscribe(beanID)
-		m.Unsubscribe(beanID, ch)
+		ch := m.Subscribe(itemID)
+		m.Unsubscribe(itemID, ch)
 	})
 	worker(func(i int) {
 		if i%10 == 0 {
-			_ = m.ClearSession(beanID)
+			_ = m.ClearSession(itemID)
 		}
 	})
 
@@ -53,7 +53,7 @@ func TestManagerConcurrentSessionAccess(t *testing.T) {
 
 	// The session must still be coherent: readable, with no message left
 	// half-written by a concurrent append.
-	if s := m.GetSession(beanID); s != nil {
+	if s := m.GetSession(itemID); s != nil {
 		for _, msg := range s.Messages {
 			if msg.Role == "" {
 				t.Fatalf("session holds a message with no role: %+v", msg)
@@ -68,7 +68,7 @@ func TestManagerConcurrentSubscribeNotify(t *testing.T) {
 	m := NewManager("", nil)
 	defer m.Shutdown()
 
-	const beanID = "bean-subs"
+	const itemID = "bean-subs"
 	var wg sync.WaitGroup
 
 	for range 8 {
@@ -76,10 +76,10 @@ func TestManagerConcurrentSubscribeNotify(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			for range 25 {
-				ch := m.Subscribe(beanID)
+				ch := m.Subscribe(itemID)
 				global := m.SubscribeGlobal()
-				m.AddInfoMessage(beanID, "ping")
-				m.Unsubscribe(beanID, ch)
+				m.AddInfoMessage(itemID, "ping")
+				m.Unsubscribe(itemID, ch)
 				m.UnsubscribeGlobal(global)
 			}
 		}()

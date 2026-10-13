@@ -1,34 +1,34 @@
 <script lang="ts">
   import { pointerClick } from '$lib/actions/pointerClick';
-  import { beansStore } from '$lib/beans.svelte';
+  import { itemsStore } from '$lib/items.svelte';
   import { ui } from '$lib/uiState.svelte';
 
   let { planningView }: { planningView: 'backlog' | 'board' } = $props();
   import { backlogDrag } from '$lib/backlogDrag.svelte';
   import { matchesFilter } from '$lib/filter';
-  import BeanItem from '$lib/components/BeanItem.svelte';
+  import ItemRow from '$lib/components/ItemRow.svelte';
   import BoardView from '$lib/components/BoardView.svelte';
-  import BeanPane from '$lib/components/BeanPane.svelte';
+  import ItemPane from '$lib/components/ItemPane.svelte';
   import SplitPane from '$lib/components/SplitPane.svelte';
   import FilterInput from '$lib/components/FilterInput.svelte';
   import ViewToolbar from '$lib/components/ViewToolbar.svelte';
 
   let filterInput = $state<FilterInput | null>(null);
 
-  const topLevelBeans = $derived(beansStore.all.filter((b) => !b.parentId));
+  const topLevelItems = $derived(itemsStore.all.filter((b) => !b.parentId));
 
-  function filterBeans(beans: typeof topLevelBeans) {
+  function filterItems(items: typeof topLevelItems) {
     const text = ui.filterText;
-    if (!text) return beans;
-    return beans.filter((bean) => {
-      if (matchesFilter(bean, text)) return true;
-      return beansStore.children(bean.id).some((child) => matchesFilter(child, text));
+    if (!text) return items;
+    return items.filter((item) => {
+      if (matchesFilter(item, text)) return true;
+      return itemsStore.children(item.id).some((child) => matchesFilter(child, text));
     });
   }
 
-  const filteredTodoBeans = $derived(filterBeans(topLevelBeans.filter((b) => b.status === 'todo')));
-  const filteredDraftBeans = $derived(
-    filterBeans(topLevelBeans.filter((b) => b.status === 'draft'))
+  const filteredTodoItems = $derived(filterItems(topLevelItems.filter((b) => b.status === 'todo')));
+  const filteredDraftItems = $derived(
+    filterItems(topLevelItems.filter((b) => b.status === 'draft'))
   );
 
   function handleKeydown(e: KeyboardEvent) {
@@ -37,7 +37,7 @@
       filterInput?.focus();
       return;
     }
-    if (e.key === 'Escape' && ui.currentBean && !ui.showForm) {
+    if (e.key === 'Escape' && ui.currentItem && !ui.showForm) {
       ui.clearSelection();
     }
   }
@@ -77,7 +77,7 @@
       <FilterInput bind:this={filterInput} />
     </div>
     {#snippet right()}
-      <button class="btn-primary" onclick={() => ui.openCreateForm()}>+ New Bean</button>
+      <button class="btn-primary" onclick={() => ui.openCreateForm()}>+ New Item</button>
     {/snippet}
   </ViewToolbar>
 
@@ -87,38 +87,38 @@
           {#if planningView === 'backlog'}
             <!-- Clicking empty space clears the selection; Escape does the same. -->
             <div class="min-h-0 flex-1 overflow-auto bg-surface-alt" use:pointerClick={handlePlanningClick}>
-              {#snippet backlogSection(beans: typeof filteredTodoBeans, status: string, label: string)}
+              {#snippet backlogSection(items: typeof filteredTodoItems, status: string, label: string)}
                 <div
                   class="p-3"
-                  ondragover={(e) => backlogDrag.hoverList(e, null, beans.length, status)}
+                  ondragover={(e) => backlogDrag.hoverList(e, null, items.length, status)}
                   ondragleave={(e) => backlogDrag.leaveList(e, e.currentTarget, null)}
-                  ondrop={(e) => backlogDrag.drop(e, null, beans)}
+                  ondrop={(e) => backlogDrag.drop(e, null, items)}
                   role="list"
                 >
                   <h3 class="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-text-faint">
                     {label}
-                    <span class="font-normal">{beans.length}</span>
+                    <span class="font-normal">{items.length}</span>
                   </h3>
-                  {#each beans as bean, i (bean.id)}
-                    <BeanItem
-                      {bean}
+                  {#each items as item, i (item.id)}
+                    <ItemRow
+                      {item}
                       parentId={null}
                       index={i}
-                      selectedId={ui.currentBean?.id}
-                      onSelect={(b) => ui.selectBean(b)}
+                      selectedId={ui.currentItem?.id}
+                      onSelect={(b) => ui.selectItem(b)}
                       filterText={ui.filterText}
                       sectionStatus={status}
                     />
                   {:else}
-                    {#if !beansStore.loading}
-                      <p class="text-center py-4 text-sm text-text-muted">No beans</p>
+                    {#if !itemsStore.loading}
+                      <p class="text-center py-4 text-sm text-text-muted">No items</p>
                     {/if}
                   {/each}
 
                   <div
                     class={[
                       'mx-1 rounded-full transition-colors',
-                      backlogDrag.showEndIndicator(null, beans.length, status)
+                      backlogDrag.showEndIndicator(null, items.length, status)
                         ? 'h-0.5 bg-accent'
                         : 'h-0'
                     ]}
@@ -126,20 +126,20 @@
                 </div>
               {/snippet}
 
-              {@render backlogSection(filteredTodoBeans, 'todo', 'Todo')}
-              {@render backlogSection(filteredDraftBeans, 'draft', 'Draft')}
+              {@render backlogSection(filteredTodoItems, 'todo', 'Todo')}
+              {@render backlogSection(filteredDraftItems, 'draft', 'Draft')}
             </div>
           {:else}
-            <BoardView onSelect={(b) => ui.selectBean(b)} selectedId={ui.currentBean?.id} />
+            <BoardView onSelect={(b) => ui.selectItem(b)} selectedId={ui.currentItem?.id} />
           {/if}
         </div>
       {/snippet}
 
       {#snippet detailPanel()}
-        {#if ui.currentBean}
-          <BeanPane
-            bean={ui.currentBean}
-            onSelect={(b) => ui.selectBean(b)}
+        {#if ui.currentItem}
+          <ItemPane
+            item={ui.currentItem}
+            onSelect={(b) => ui.selectItem(b)}
             onEdit={(b) => ui.openEditForm(b)}
             onClose={() => ui.clearSelection()}
           />
@@ -153,7 +153,7 @@
           {
             content: detailPanel,
             size: 480,
-            collapsed: !ui.currentBean,
+            collapsed: !ui.currentItem,
             persistKey: 'detail-width'
           }
         ]}

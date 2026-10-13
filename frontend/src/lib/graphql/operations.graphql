@@ -2,7 +2,7 @@
 # Fragments
 # =============================================================================
 
-fragment BeanFields on Bean {
+fragment ItemFields on Item {
   id
   slug
   path
@@ -26,7 +26,7 @@ fragment WorktreeFields on Worktree {
   description
   branch
   path
-  beans {
+  items {
     id
   }
   setupStatus
@@ -44,7 +44,7 @@ fragment WorktreeFields on Worktree {
 }
 
 fragment AgentSessionFields on AgentSession {
-  beanId
+  itemId
   agentType
   status
   messages {
@@ -105,15 +105,15 @@ fragment AgentActionFields on AgentAction {
 # Subscriptions
 # =============================================================================
 
-subscription BeanChanged($includeInitial: Boolean!) {
-  beanChanged(includeInitial: $includeInitial) {
+subscription ItemChanged($includeInitial: Boolean!) {
+  itemChanged(includeInitial: $includeInitial) {
     type
-    beanId
-    bean {
-      ...BeanFields
+    itemId
+    item {
+      ...ItemFields
     }
-    beans {
-      ...BeanFields
+    items {
+      ...ItemFields
     }
   }
 }
@@ -124,15 +124,15 @@ subscription WorktreesChanged {
   }
 }
 
-subscription AgentSessionChanged($beanId: ID!) {
-  agentSessionChanged(beanId: $beanId) {
+subscription AgentSessionChanged($itemId: ID!) {
+  agentSessionChanged(itemId: $itemId) {
     ...AgentSessionFields
   }
 }
 
 subscription ActiveAgentStatuses {
   activeAgentStatuses {
-    beanId
+    itemId
     status
   }
 }
@@ -185,8 +185,8 @@ query BranchStatus($path: String) {
   }
 }
 
-query AgentActions($beanId: ID!, $skipForge: Boolean) {
-  agentActions(beanId: $beanId, skipForge: $skipForge) {
+query AgentActions($itemId: ID!, $skipForge: Boolean) {
+  agentActions(itemId: $itemId, skipForge: $skipForge) {
     ...AgentActionFields
   }
 }
@@ -204,27 +204,27 @@ query AllFileDiff($filePath: String!, $path: String) {
 # Mutations
 # =============================================================================
 
-mutation CreateBean($input: CreateBeanInput!) {
-  createBean(input: $input) {
-    ...BeanFields
+mutation CreateItem($input: CreateItemInput!) {
+  createItem(input: $input) {
+    ...ItemFields
   }
 }
 
-mutation UpdateBean($id: ID!, $input: UpdateBeanInput!) {
-  updateBean(id: $id, input: $input) {
-    ...BeanFields
+mutation UpdateItem($id: ID!, $input: UpdateItemInput!) {
+  updateItem(id: $id, input: $input) {
+    ...ItemFields
   }
 }
 
-mutation UpdateBeanStatus($id: ID!, $input: UpdateBeanInput!) {
-  updateBean(id: $id, input: $input) {
+mutation UpdateItemStatus($id: ID!, $input: UpdateItemInput!) {
+  updateItem(id: $id, input: $input) {
     id
     status
   }
 }
 
-mutation UpdateBeanOrder($id: ID!, $input: UpdateBeanInput!) {
-  updateBean(id: $id, input: $input) {
+mutation UpdateItemOrder($id: ID!, $input: UpdateItemInput!) {
+  updateItem(id: $id, input: $input) {
     id
     status
     order
@@ -232,12 +232,12 @@ mutation UpdateBeanOrder($id: ID!, $input: UpdateBeanInput!) {
   }
 }
 
-mutation DeleteBean($id: ID!) {
-  deleteBean(id: $id)
+mutation DeleteItem($id: ID!) {
+  deleteItem(id: $id)
 }
 
-mutation ArchiveBean($id: ID!) {
-  archiveBean(id: $id)
+mutation ArchiveItem($id: ID!) {
+  archiveItem(id: $id)
 }
 
 mutation CreateWorktree($name: String!) {
@@ -250,8 +250,8 @@ mutation RemoveWorktree($id: ID!) {
   removeWorktree(id: $id)
 }
 
-mutation SendAgentMessage($beanId: ID!, $message: String!, $images: [ImageInput!], $attachments: [FileAttachmentInput!]) {
-  sendAgentMessage(beanId: $beanId, message: $message, images: $images, attachments: $attachments)
+mutation SendAgentMessage($itemId: ID!, $message: String!, $images: [ImageInput!], $attachments: [FileAttachmentInput!]) {
+  sendAgentMessage(itemId: $itemId, message: $message, images: $images, attachments: $attachments)
 }
 
 query ListFiles($workspaceId: ID, $prefix: String!, $limit: Int) {
@@ -260,28 +260,28 @@ query ListFiles($workspaceId: ID, $prefix: String!, $limit: Int) {
   }
 }
 
-mutation StopAgent($beanId: ID!) {
-  stopAgent(beanId: $beanId)
+mutation StopAgent($itemId: ID!) {
+  stopAgent(itemId: $itemId)
 }
 
-mutation SetAgentPlanMode($beanId: ID!, $planMode: Boolean!) {
-  setAgentPlanMode(beanId: $beanId, planMode: $planMode)
+mutation SetAgentPlanMode($itemId: ID!, $planMode: Boolean!) {
+  setAgentPlanMode(itemId: $itemId, planMode: $planMode)
 }
 
-mutation SetAgentActMode($beanId: ID!, $actMode: Boolean!) {
-  setAgentActMode(beanId: $beanId, actMode: $actMode)
+mutation SetAgentActMode($itemId: ID!, $actMode: Boolean!) {
+  setAgentActMode(itemId: $itemId, actMode: $actMode)
 }
 
-mutation SetAgentEffort($beanId: ID!, $effort: String!) {
-  setAgentEffort(beanId: $beanId, effort: $effort)
+mutation SetAgentEffort($itemId: ID!, $effort: String!) {
+  setAgentEffort(itemId: $itemId, effort: $effort)
 }
 
-mutation ClearAgentSession($beanId: ID!) {
-  clearAgentSession(beanId: $beanId)
+mutation ClearAgentSession($itemId: ID!) {
+  clearAgentSession(itemId: $itemId)
 }
 
-mutation ExecuteAgentAction($beanId: ID!, $actionId: ID!) {
-  executeAgentAction(beanId: $beanId, actionId: $actionId)
+mutation ExecuteAgentAction($itemId: ID!, $actionId: ID!) {
+  executeAgentAction(itemId: $itemId, actionId: $actionId)
 }
 
 mutation WriteTerminalInput($sessionId: String!, $data: String!) {

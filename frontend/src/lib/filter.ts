@@ -1,17 +1,17 @@
-import type { Bean } from '$lib/beans.svelte';
+import type { Item } from '$lib/items.svelte';
 
 /**
- * Returns true if the bean matches the filter text.
+ * Returns true if the item matches the filter text.
  * Case-insensitive substring match against title, type, status, tags, and ID.
  */
-export function matchesFilter(bean: Bean, text: string): boolean {
+export function matchesFilter(item: Item, text: string): boolean {
   if (!text) return true;
   const lower = text.toLowerCase();
   return (
-    bean.title.toLowerCase().includes(lower) ||
-    bean.type.toLowerCase().includes(lower) ||
-    bean.status.toLowerCase().includes(lower) ||
-    bean.id.toLowerCase().includes(lower) ||
-    bean.tags.some((tag) => tag.toLowerCase().includes(lower))
+    item.title.toLowerCase().includes(lower) ||
+    item.type.toLowerCase().includes(lower) ||
+    item.status.toLowerCase().includes(lower) ||
+    item.id.toLowerCase().includes(lower) ||
+    item.tags.some((tag) => tag.toLowerCase().includes(lower))
   );
 }

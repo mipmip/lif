@@ -1,4 +1,4 @@
-/** Shared color/style maps for bean badges, borders, and indicators. */
+/** Shared color/style maps for item badges, borders, and indicators. */
 
 export const statusColors: Record<string, string> = {
   draft: 'bg-status-draft-bg text-status-draft-text',

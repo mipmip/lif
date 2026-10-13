@@ -7,25 +7,25 @@ import (
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/xRiErOS/beans/pkg/candidates"
-	"github.com/xRiErOS/beans/pkg/config"
-	"github.com/xRiErOS/beans/internal/ui"
+	"github.com/xRiErOS/lif/pkg/candidates"
+	"github.com/xRiErOS/lif/pkg/config"
+	"github.com/xRiErOS/lif/internal/ui"
 )
 
 // prioritySelectedMsg is sent when a priority is selected from the picker
 type prioritySelectedMsg struct {
-	beanIDs  []string
+	itemIDs  []string
 	priority string
 }
 
 // closePriorityPickerMsg is sent when the priority picker is cancelled
 type closePriorityPickerMsg struct{}
 
-// openPriorityPickerMsg requests opening the priority picker for bean(s)
+// openPriorityPickerMsg requests opening the priority picker for item(s)
 type openPriorityPickerMsg struct {
-	beanIDs         []string // IDs of beans to update
-	beanTitle       string   // Display title (single title or "N beans")
-	currentPriority string   // Only meaningful for single bean
+	itemIDs         []string // IDs of items to update
+	itemTitle       string   // Display title (single title or "N items")
+	currentPriority string   // Only meaningful for single item
 }
 
 // priorityItem wraps a priority to implement list.Item
@@ -76,14 +76,14 @@ func (d priorityItemDelegate) Render(w io.Writer, m list.Model, index int, listI
 // priorityPickerModel is the model for the priority picker view
 type priorityPickerModel struct {
 	list            list.Model
-	beanIDs         []string
-	beanTitle       string
+	itemIDs         []string
+	itemTitle       string
 	currentPriority string
 	width           int
 	height          int
 }
 
-func newPriorityPickerModel(beanIDs []string, beanTitle, currentPriority string, cfg *config.Config, width, height int) priorityPickerModel {
+func newPriorityPickerModel(itemIDs []string, itemTitle, currentPriority string, cfg *config.Config, width, height int) priorityPickerModel {
 	// Get all priorities
 	priorities := candidates.PriorityCandidates(cfg)
 
@@ -130,8 +130,8 @@ func newPriorityPickerModel(beanIDs []string, beanTitle, currentPriority string,
 
 	return priorityPickerModel{
 		list:            l,
-		beanIDs:         beanIDs,
-		beanTitle:       beanTitle,
+		itemIDs:         itemIDs,
+		itemTitle:       itemTitle,
 		currentPriority: currentPriority,
 		width:           width,
 		height:          height,
@@ -161,7 +161,7 @@ func (m priorityPickerModel) Update(msg tea.Msg) (priorityPickerModel, tea.Cmd) 
 			case "enter":
 				if item, ok := m.list.SelectedItem().(priorityItem); ok {
 					return m, func() tea.Msg {
-						return prioritySelectedMsg{beanIDs: m.beanIDs, priority: item.name}
+						return prioritySelectedMsg{itemIDs: m.itemIDs, priority: item.name}
 					}
 				}
 			case "esc", "backspace":
@@ -187,16 +187,16 @@ func (m priorityPickerModel) View() string {
 		description = item.description
 	}
 
-	// For multi-select, don't show individual bean ID
-	var beanID string
-	if len(m.beanIDs) == 1 {
-		beanID = m.beanIDs[0]
+	// For multi-select, don't show individual item ID
+	var itemID string
+	if len(m.itemIDs) == 1 {
+		itemID = m.itemIDs[0]
 	}
 
 	return renderPickerModal(pickerModalConfig{
 		Title:       "Select Priority",
-		BeanTitle:   m.beanTitle,
-		BeanID:      beanID,
+		ItemTitle:   m.itemTitle,
+		ItemID:      itemID,
 		ListContent: m.list.View(),
 		Description: description,
 		Width:       m.width,

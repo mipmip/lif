@@ -77,7 +77,7 @@ func ThemeByName(name string) (Theme, bool) {
 //
 // SetTheme deliberately ignores an unknown name so a typo degrades to the
 // default instead of stripping colour from every command. That tolerance
-// makes the typo invisible, which is why `beans check` validates the name
+// makes the typo invisible, which is why `lif check` validates the name
 // through this predicate.
 func IsValidTheme(name string) bool {
 	if name == "" {

@@ -4,22 +4,24 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/xRiErOS/beans/internal/gitutil"
-	"github.com/xRiErOS/beans/internal/ui"
-	"github.com/xRiErOS/beans/pkg/bean"
-	"github.com/xRiErOS/beans/pkg/beancore"
-	"github.com/xRiErOS/beans/pkg/config"
+	"github.com/xRiErOS/lif/internal/gitutil"
+	"github.com/xRiErOS/lif/internal/ui"
+	"github.com/xRiErOS/lif/internal/worktree"
+	"github.com/xRiErOS/lif/pkg/config"
+	"github.com/xRiErOS/lif/pkg/item"
+	"github.com/xRiErOS/lif/pkg/itemcore"
 )
 
-// unknownTypeBeans returns every bean whose type the current configuration
-// does not carry. A config edit or a profile switch can leave beans behind
+// unknownTypeItems returns every item whose type the current configuration
+// does not carry. A config edit or a profile switch can leave items behind
 // that no longer match any known type.
-func unknownTypeBeans(allBeans []*bean.Bean) []*bean.Bean {
-	var out []*bean.Bean
-	for _, b := range allBeans {
+func unknownTypeItems(allItems []*item.Item) []*item.Item {
+	var out []*item.Item
+	for _, b := range allItems {
 		if b.Type == "" {
 			continue
 		}
@@ -39,27 +41,89 @@ var (
 type checkResult struct {
 	Success           bool                      `json:"success"`
 	ConfigErrors      []string                  `json:"config_errors"`
-	BeanIssues        *beancore.LinkCheckResult `json:"bean_issues,omitempty"`
+	ItemIssues        *itemcore.LinkCheckResult `json:"item_issues,omitempty"`
 	Fixed             int                       `json:"fixed,omitempty"`
 	PolicyWarnings    []string                  `json:"policy_warnings,omitempty"`
 	AttachmentOrphans []string                  `json:"attachment_orphans,omitempty"`
+	LegacyNames       []string                  `json:"legacy_names,omitempty"`
+}
+
+// legacyNameWarnings returns one warning per legacy store name in use, each
+// naming the legacy name, the new name and the step that ends it. It reads
+// the outcome of the name levels from res and never from the environment.
+func legacyNameWarnings(res storeResolution, c *config.Config, storeRoot string) []string {
+	var out []string
+	file := filepath.Base(c.ConfigFile())
+	if res.LegacyConfigFile {
+		out = append(out, fmt.Sprintf("config file %s is a legacy name: run `git mv %s %s` in %s",
+			file, config.LegacyConfigFileName, config.ConfigFileName, c.ConfigDir()))
+	}
+	if res.LegacySectionKey {
+		out = append(out, fmt.Sprintf("section key %s: in %s is a legacy name: rename the key to %s:",
+			config.LegacySectionKey, file, config.SectionKey))
+	}
+	if res.LegacyStoreDir {
+		move := fmt.Sprintf("run `git mv %s %s` in %s", config.LegacyDefaultStoreDir, config.DefaultStoreDir, filepath.Dir(storeRoot))
+		msg := fmt.Sprintf("store directory %s is a legacy name: %s", config.LegacyDefaultStoreDir, move)
+		switch res.StoreDirSource {
+		case storeSourceConfig:
+			msg += fmt.Sprintf(", then change path: %s to path: %s in %s",
+				c.Items.Path, filepath.Join(filepath.Dir(c.Items.Path), config.DefaultStoreDir), file)
+			if res.LegacyConfigFile {
+				msg += fmt.Sprintf(", and run `git mv %s %s`", config.LegacyConfigFileName, config.ConfigFileName)
+			}
+		case storeSourceFlag:
+			msg += fmt.Sprintf(", then pass the new directory to --%s", storePathFlag)
+		case storeSourceEnv:
+			msg += fmt.Sprintf(", then point %s at the new directory", config.StoreEnvVar)
+		}
+		out = append(out, msg)
+	}
+	if res.LegacyEnv {
+		out = append(out, fmt.Sprintf("environment variable %s is a legacy name: export %s instead",
+			config.LegacyStoreEnvVar, config.StoreEnvVar))
+	}
+	return out
+}
+
+// legacyWorktreeWarnings returns the warnings for the legacy worktree root and
+// for each worktree on a legacy branch of the repository at repoDir. It is
+// read-only. Outside a git repository the branch scan finds nothing.
+func legacyWorktreeWarnings(c *config.Config, repoDir string) []string {
+	var out []string
+	project := c.GetProjectName()
+	if project == "" && c.ConfigDir() != "" {
+		project = filepath.Base(c.ConfigDir())
+	}
+	if root, legacy, err := c.ResolveWorktreePath(project); err == nil && legacy {
+		out = append(out, fmt.Sprintf("worktree root %s is a legacy name: remove the remaining worktrees, then delete %s; new worktrees go to ~/%s/worktrees/%s",
+			root, root, config.HomeDir, filepath.Base(root)))
+	}
+	if wts, err := worktree.LegacyBranchWorktrees(repoDir); err == nil {
+		for _, wt := range wts {
+			id := strings.TrimPrefix(wt.Branch, config.LegacyWorktreeBranchPrefix)
+			out = append(out, fmt.Sprintf("worktree %s is on legacy branch %s: finish or remove it, or run `git branch -m %s %s%s`",
+				wt.Path, wt.Branch, wt.Branch, config.WorktreeBranchPrefix, id))
+		}
+	}
+	return out
 }
 
 // attachmentOrphanIssues reports one line per attachment directory whose
-// bean no longer resolves. It exists because the carry-along invariant of
+// item no longer resolves. It exists because the carry-along invariant of
 // an ID rename is otherwise only asserted: the measured failure was a green
 // check over a directory left behind by a prefix rebrand. A store without
 // attachments yields nothing, and a read error is reported rather than
 // swallowed — a directory that cannot be read is exactly the case where a
 // silent nil would hide the drift again.
-func attachmentOrphanIssues(c *beancore.Core) []string {
+func attachmentOrphanIssues(c *itemcore.Core) []string {
 	orphans, err := c.OrphanAttachments()
 	if err != nil {
-		return []string{fmt.Sprintf("cannot read %s: %v", beancore.AttachmentsDir, err)}
+		return []string{fmt.Sprintf("cannot read %s: %v", itemcore.AttachmentsDir, err)}
 	}
 	issues := make([]string, 0, len(orphans))
 	for _, id := range orphans {
-		issues = append(issues, fmt.Sprintf("%s/%s has no bean %s", beancore.AttachmentsDir, id, id))
+		issues = append(issues, fmt.Sprintf("%s/%s has no item %s", itemcore.AttachmentsDir, id, id))
 	}
 	return issues
 }
@@ -67,11 +131,11 @@ func attachmentOrphanIssues(c *beancore.Core) []string {
 var checkCmd = &cobra.Command{
 	Use:   "check",
 	Args:  cobra.NoArgs,
-	Short: "Validate configuration and bean integrity",
-	Long: `Checks configuration and bean integrity, including:
+	Short: "Validate configuration and item integrity",
+	Long: `Checks configuration and item integrity, including:
 - Configuration settings (colors, default type)
-- Broken links (links to non-existent beans)
-- Self-references (beans linking to themselves)
+- Broken links (links to non-existent items)
+- Self-references (items linking to themselves)
 - Circular dependencies (cycles in blocks/parent relationships)
 
 Use --fix to automatically remove broken links and self-references.
@@ -79,7 +143,7 @@ Note: Cycles cannot be auto-fixed and require manual intervention.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		var configErrors []string
 		var fixed int
-		allBeans := core.All()
+		allItems := core.All()
 
 		// === Configuration checks ===
 		if !checkJSON {
@@ -105,14 +169,14 @@ Note: Cycles cannot be auto-fixed and require manual intervention.`,
 			}
 		}
 
-		// 2b-2. Check every bean's type against the current configuration
-		if stray := unknownTypeBeans(allBeans); len(stray) > 0 {
+		// 2b-2. Check every item's type against the current configuration
+		if stray := unknownTypeItems(allItems); len(stray) > 0 {
 			for _, b := range stray {
 				configErrors = append(configErrors,
-					fmt.Sprintf("bean %s carries type '%s', which the configuration does not define", b.ID, b.Type))
+					fmt.Sprintf("item %s carries type '%s', which the configuration does not define", b.ID, b.Type))
 			}
 		} else if !checkJSON {
-			fmt.Printf("  %s Every bean carries a known type\n", ui.Success.Render("✓"))
+			fmt.Printf("  %s Every item carries a known type\n", ui.Success.Render("✓"))
 		}
 
 		// 2c. Check agent.default_effort is a valid effort level
@@ -195,10 +259,10 @@ Note: Cycles cannot be auto-fixed and require manual intervention.`,
 			}
 		}
 
-		// === Bean link checks ===
+		// === Item link checks ===
 		if !checkJSON {
 			fmt.Println()
-			fmt.Println(ui.Bold.Render("Bean Links"))
+			fmt.Println(ui.Bold.Render("Item Links"))
 		}
 
 		linkResult := core.CheckAllLinks()
@@ -213,23 +277,23 @@ Note: Cycles cannot be auto-fixed and require manual intervention.`,
 
 			if !checkJSON {
 				for _, bl := range linkResult.BrokenLinks {
-					fmt.Printf("  %s %s: removed broken link %s:%s\n", ui.Success.Render("✓"), bl.BeanID, bl.LinkType, bl.Target)
+					fmt.Printf("  %s %s: removed broken link %s:%s\n", ui.Success.Render("✓"), bl.ItemID, bl.LinkType, bl.Target)
 				}
 				for _, sl := range linkResult.SelfLinks {
-					fmt.Printf("  %s %s: removed self-reference in %s link\n", ui.Success.Render("✓"), sl.BeanID, sl.LinkType)
+					fmt.Printf("  %s %s: removed self-reference in %s link\n", ui.Success.Render("✓"), sl.ItemID, sl.LinkType)
 				}
 			}
 
 			// Clear the fixed issues from the result
-			linkResult.BrokenLinks = []beancore.BrokenLink{}
-			linkResult.SelfLinks = []beancore.SelfLink{}
+			linkResult.BrokenLinks = []itemcore.BrokenLink{}
+			linkResult.SelfLinks = []itemcore.SelfLink{}
 		} else if !checkJSON {
 			// Report issues without fixing
 			for _, bl := range linkResult.BrokenLinks {
-				fmt.Printf("  %s %s: broken link %s:%s\n", ui.Danger.Render("✗"), bl.BeanID, bl.LinkType, bl.Target)
+				fmt.Printf("  %s %s: broken link %s:%s\n", ui.Danger.Render("✗"), bl.ItemID, bl.LinkType, bl.Target)
 			}
 			for _, sl := range linkResult.SelfLinks {
-				fmt.Printf("  %s %s: self-reference in %s link\n", ui.Danger.Render("✗"), sl.BeanID, sl.LinkType)
+				fmt.Printf("  %s %s: self-reference in %s link\n", ui.Danger.Render("✗"), sl.ItemID, sl.LinkType)
 			}
 		}
 
@@ -265,7 +329,7 @@ Note: Cycles cannot be auto-fixed and require manual intervention.`,
 
 		// === Policy checks ===
 		var policyWarnings []string
-		if len(cfg.Beans.RequireFieldsOn) > 0 {
+		if len(cfg.Items.RequireFieldsOn) > 0 {
 			if !checkJSON {
 				fmt.Println()
 				fmt.Println(ui.Bold.Render("Policy"))
@@ -273,23 +337,23 @@ Note: Cycles cannot be auto-fixed and require manual intervention.`,
 
 			commitField := cfg.GetCommitField()
 			type commitRef struct {
-				beanID string
+				itemID string
 				sha    string
 			}
 			var refs []commitRef
 			var shas []string
 			seenSha := make(map[string]bool)
 
-			for _, b := range allBeans {
+			for _, b := range allItems {
 				if fields := cfg.RequiredFieldsFor(b.Status); len(fields) > 0 {
-					missing := beancore.MissingRequiredFields(b, fields)
+					missing := itemcore.MissingRequiredFields(b, fields)
 					if len(missing) > 0 {
 						policyWarnings = append(policyWarnings, fmt.Sprintf("%s: status %q missing required field(s): %s", b.ID, b.Status, strings.Join(missing, ", ")))
 					}
 				}
 				if v, ok := b.Extra[commitField]; ok {
 					if sha, ok := v.(string); ok && sha != "" {
-						refs = append(refs, commitRef{beanID: b.ID, sha: sha})
+						refs = append(refs, commitRef{itemID: b.ID, sha: sha})
 						if !seenSha[sha] {
 							seenSha[sha] = true
 							shas = append(shas, sha)
@@ -309,7 +373,7 @@ Note: Cycles cannot be auto-fixed and require manual intervention.`,
 				} else {
 					for _, ref := range refs {
 						if !exist[ref.sha] {
-							policyWarnings = append(policyWarnings, fmt.Sprintf("%s: commit %s not found in this repository", ref.beanID, ref.sha))
+							policyWarnings = append(policyWarnings, fmt.Sprintf("%s: commit %s not found in this repository", ref.itemID, ref.sha))
 						}
 					}
 				}
@@ -326,6 +390,19 @@ Note: Cycles cannot be auto-fixed and require manual intervention.`,
 			}
 		}
 
+		// === Legacy names ===
+		// Reported by check only (D06). They never count as issues: not in
+		// totalIssues, with or without --strict.
+		legacyNames := legacyNameWarnings(resolution, cfg, core.Root())
+		legacyNames = append(legacyNames, legacyWorktreeWarnings(cfg, cfg.ConfigDir())...)
+		if !checkJSON && len(legacyNames) > 0 {
+			fmt.Println()
+			fmt.Println(ui.Bold.Render("Legacy names"))
+			for _, w := range legacyNames {
+				fmt.Printf("  %s %s\n", ui.Warning.Render("!"), w)
+			}
+		}
+
 		// === Summary ===
 		totalIssues := len(configErrors) + linkResult.TotalIssues() + len(attachmentOrphans)
 		if checkStrict {
@@ -336,10 +413,11 @@ Note: Cycles cannot be auto-fixed and require manual intervention.`,
 			result := checkResult{
 				Success:           totalIssues == 0,
 				ConfigErrors:      configErrors,
-				BeanIssues:        linkResult,
+				ItemIssues:        linkResult,
 				Fixed:             fixed,
 				PolicyWarnings:    policyWarnings,
 				AttachmentOrphans: attachmentOrphans,
+				LegacyNames:       legacyNames,
 			}
 			data, _ := json.MarshalIndent(result, "", "  ")
 			fmt.Println(string(data))

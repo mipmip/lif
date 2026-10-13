@@ -101,8 +101,8 @@ a,
   @apply rounded px-1.5 py-0.5 text-[10px] font-medium shadow-[0_1px_0_0_rgba(0,0,0,0.3)];
 }
 
-/* ── Bean link ───────────────────────────────── */
-.bean-link {
+/* ── Item link ───────────────────────────────── */
+.item-link {
   @apply inline-flex cursor-pointer rounded bg-accent/10 px-1 align-baseline font-mono text-[0.85em] whitespace-nowrap text-accent no-underline transition-colors hover:border-accent/45 hover:bg-accent/20;
 }
 
@@ -139,7 +139,7 @@ a,
   @apply mb-0;
 }
 
-.prose a:not(.bean-link) {
+.prose a:not(.item-link) {
   @apply text-accent underline decoration-accent/40 underline-offset-2 hover:decoration-accent;
 }
 

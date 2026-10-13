@@ -1,16 +1,16 @@
 # Querying and Automation
 
-This page documents `beans graphql`, the CLI's structured-query interface, and the JSON output/error envelope that every scriptable `beans` command shares. Read it before wiring `beans` into a script, an agent tool call, or a CI step.
+This page documents `lif graphql`, the CLI's structured-query interface, and the JSON output/error envelope that every scriptable `lif` command shares. Read it before wiring `lif` into a script, an agent tool call, or a CI step.
 
-## `beans graphql`
+## `lif graphql`
 
-`beans graphql <query>` (alias: `beans query`) executes a GraphQL query or mutation directly against the local bean store, without starting the `beans-serve` web server. It runs the same resolver and schema that `beans-serve` exposes over HTTP, so a query written against one works unmodified against the other for read-only bean data (server-only fields such as worktrees or agent sessions are not backed by anything when there is no server process).
+`lif graphql <query>` (alias: `query`) executes a GraphQL query or mutation directly against the local item store, without starting the `lif-serve` web server. It runs the same resolver and schema that `lif-serve` exposes over HTTP, so a query written against one works unmodified against the other for read-only item data (server-only fields such as worktrees or agent sessions are not backed by anything when there is no server process).
 
-The query is the command's single positional argument. When no argument is given, `beans graphql` reads the query from stdin instead, which avoids shell-quoting problems for multi-line documents:
+The query is the command's single positional argument. When no argument is given, `lif graphql` reads the query from stdin instead, which avoids shell-quoting problems for multi-line documents:
 
 ```
-echo '{ beans { id title } }' | beans graphql
-cat query.graphql | beans graphql
+echo '{ items { id title } }' | lif graphql
+cat query.graphql | lif graphql
 ```
 
 Flags:
@@ -27,34 +27,34 @@ Output is always the `data` portion of the GraphQL response, pretty-printed; `--
 Examples, verified against a throwaway store:
 
 ```
-beans graphql '{ beans { id title status } }'
-beans graphql '{ bean(id: "abc") { title status body } }'
-beans graphql '{ beans(filter: { status: ["todo", "in-progress"] }) { id title } }'
-beans graphql '{ beans { id title blockedBy { id title } children { id title } } }'
-beans graphql -v '{"id": "abc"}' 'query GetBean($id: ID!) { bean(id: $id) { title } }'
-beans graphql --schema
+lif graphql '{ items { id title status } }'
+lif graphql '{ item(id: "abc") { title status body } }'
+lif graphql '{ items(filter: { status: ["todo", "in-progress"] }) { id title } }'
+lif graphql '{ items { id title blockedBy { id title } children { id title } } }'
+lif graphql -v '{"id": "abc"}' 'query GetItem($id: ID!) { item(id: $id) { title } }'
+lif graphql --schema
 ```
 
 A malformed query fails before any resolver runs:
 
 ```
-$ beans graphql '{ nope }'
+$ lif graphql '{ nope }'
 Error: graphql: Cannot query field "nope" on type "Query".
-Run 'beans graphql --help' for usage.
+Run 'lif graphql --help' for usage.
 ```
 
-The schema itself — every `Query`, `Mutation`, and `Subscription` field, with its own doc comments — is the authoritative reference for what can be queried; `beans graphql --schema` always reflects the binary actually running. The subset of the schema backed by `beans` alone (no server process) covers bean data: `bean(id)` and `beans(filter)`, plus their relationship fields (`blockedBy`, `blocking`, `children`, `parent`, and similar). Fields describing worktrees, agent sessions, terminals, and file diffs are resolved by [`beans-serve`](../web-ui-and-api.md) and return empty or zero values when queried through the plain `beans` binary.
+The schema itself — every `Query`, `Mutation`, and `Subscription` field, with its own doc comments — is the authoritative reference for what can be queried; `lif graphql --schema` always reflects the binary actually running. The subset of the schema backed by `lif` alone (no server process) covers item data: `item(id)` and `items(filter)`, plus their relationship fields (`blockedBy`, `blocking`, `children`, `parent`, and similar). Fields that depend on a running [`lif-serve`](../web-ui-and-api.md) return empty or zero values through the plain `lif` binary: `worktrees` is `[]`, `agentSession` is `null`, `workspacePort` is `0`, and `isRunning` is `false`. Git-backed fields such as `fileChanges` and `allFileChanges` are answered from the repository of the current directory, and project fields such as `projectName` and `mainBranch` from the configuration.
 
 ## JSON output contract
 
-Successful JSON payloads carry the domain model, not a wrapper. `list`, `show`, `progress`, and `roadmap` return their domain model directly; `check` returns its own `success` plus diagnostic fields; and rename dry runs return a rename plan. The bean-mutating commands `create`, `update`, `start`, `complete`, `scrap`, `delete`, `tag`, and `order` return the affected bean itself when the call names one bean, and a bare array of beans when it names several — the same shape `beans show --json` emits, so `jq -r .id` means the same thing at every call site. Only `init`, `archive`, and a `next` with no match still return a message envelope (`{"success": true, "message": "...", "path": "..."}` for `init`, without `path` for the other two), because they have no bean to name.
+Successful JSON payloads carry the domain model, not a wrapper. `list`, `show`, `progress`, and `roadmap` return their domain model directly; `check` returns its own `success` plus diagnostic fields; and rename dry runs return a rename plan. The item-mutating commands `create`, `update`, `start`, `complete`, `scrap`, `delete`, `tag`, and `order` return the affected item itself when the call names one item, and a bare array of items when it names several — the same shape `lif show --json` emits, so `jq -r .id` means the same thing at every call site. Only `init`, `archive`, and a `next` with no match still return a message envelope (`{"success": true, "message": "...", "path": "..."}` for `init`, without `path` for the other two), because they have no item to name.
 
-For example, a lifecycle mutation on one bean returns:
+For example, a lifecycle mutation on one item returns:
 
 ```json
 {
-  "id": "beans-ab12",
-  "title": "the affected bean",
+  "id": "lif-ab12",
+  "title": "the affected item",
   "status": "completed"
 }
 ```
@@ -69,13 +69,13 @@ A failed result:
 }
 ```
 
-`code` is one of a fixed set: `NOT_FOUND`, `NO_BEANS_DIR`, `INVALID_STATUS`, `FILE_ERROR`, `VALIDATION_ERROR`, `CONFLICT`, `POLICY_VIOLATION`. Verified example, a lookup against an ID that does not exist:
+`code` is one of a fixed set: `NOT_FOUND`, `NO_LIF_DIR`, `INVALID_STATUS`, `FILE_ERROR`, `VALIDATION_ERROR`, `CONFLICT`, `POLICY_VIOLATION`. Verified example, a lookup against an ID that does not exist:
 
 ```
-$ beans show doesnotexist --json
+$ lif show doesnotexist --json
 {
   "success": false,
-  "error": "bean not found: doesnotexist",
+  "error": "item not found: doesnotexist",
   "code": "NOT_FOUND"
 }
 ```
@@ -85,14 +85,14 @@ $ beans show doesnotexist --json
 Without `--json`, a failing command prints exactly two lines to stderr — the error, and a pointer to `--help` — and exits with status 1:
 
 ```
-$ beans show doesnotexist
-Error: bean not found: doesnotexist
-Run 'beans show --help' for usage.
+$ lif show doesnotexist
+Error: item not found: doesnotexist
+Run 'lif show --help' for usage.
 ```
 
-This replaces cobra's default behavior of printing the error followed by the entire flag usage block; the two-line shape is identical for a runtime failure (a missing bean) and an invocation failure (an unparsable flag), so scripts and human readers see one consistent failure format regardless of cause.
+This replaces cobra's default behavior of printing the error followed by the entire flag usage block; the two-line shape is identical for a runtime failure (a missing item) and an invocation failure (an unparsable flag), so scripts and human readers see one consistent failure format regardless of cause.
 
-The two output modes never overlap: when a command has already written a JSON error document to stdout, the two-line stderr report is suppressed, so a `--json` caller gets exactly one artifact. An error raised before a command reaches its JSON-emitting code path — an unreadable config file, a missing `.beans` directory — still reaches the user on stderr even when `--json` was requested, because no document was ever emitted to suppress it.
+The two output modes never overlap: when a command has already written a JSON error document to stdout, the two-line stderr report is suppressed, so a `--json` caller gets exactly one artifact. An error raised before a command reaches its JSON-emitting code path — an unreadable config file, a missing `.lif` directory — still reaches the user on stderr even when `--json` was requested, because no document was ever emitted to suppress it.
 
 ## Related documentation
 

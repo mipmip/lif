@@ -1,4 +1,4 @@
-module github.com/xRiErOS/beans
+module github.com/xRiErOS/lif
 
 go 1.26
 

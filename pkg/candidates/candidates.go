@@ -1,4 +1,4 @@
-// Package candidates produces the option sets shown by the beans TUI's
+// Package candidates produces the option sets shown by the lif TUI's
 // pickers (parent, blocking, status, type, priority, tag). It is
 // independent of any rendering framework: every producer here returns
 // plain data, never a bubbletea/lipgloss view.
@@ -9,22 +9,22 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/xRiErOS/beans/pkg/bean"
-	"github.com/xRiErOS/beans/pkg/beancore"
-	"github.com/xRiErOS/beans/pkg/beangraph"
-	"github.com/xRiErOS/beans/pkg/config"
+	"github.com/xRiErOS/lif/pkg/config"
+	"github.com/xRiErOS/lif/pkg/item"
+	"github.com/xRiErOS/lif/pkg/itemcore"
+	"github.com/xRiErOS/lif/pkg/itemgraph"
 )
 
-// ParentCandidates returns the beans eligible to become the parent of the
-// beans identified by beanIDs (whose types are beanTypes), sorted by type
-// order then title (case-insensitive). A bean is eligible only if its type
-// is a valid parent type for every selected bean, and it is neither one of
-// the selected beans nor a descendant of any of them (which would create a
+// ParentCandidates returns the items eligible to become the parent of the
+// items identified by itemIDs (whose types are itemTypes), sorted by type
+// order then title (case-insensitive). An item is eligible only if its type
+// is a valid parent type for every selected item, and it is neither one of
+// the selected items nor a descendant of any of them (which would create a
 // cycle).
-func ParentCandidates(ctx context.Context, resolver *beangraph.CoreResolver, cfg *config.Config, beanIDs, beanTypes []string) ([]*bean.Bean, error) {
+func ParentCandidates(ctx context.Context, resolver *itemgraph.CoreResolver, cfg *config.Config, itemIDs, itemTypes []string) ([]*item.Item, error) {
 	var validParentTypes []string
-	for i, beanType := range beanTypes {
-		typeParents := beancore.ValidParentTypes(cfg, beanType)
+	for i, itemType := range itemTypes {
+		typeParents := itemcore.ValidParentTypes(cfg, itemType)
 		if i == 0 {
 			validParentTypes = typeParents
 		} else {
@@ -32,30 +32,30 @@ func ParentCandidates(ctx context.Context, resolver *beangraph.CoreResolver, cfg
 		}
 	}
 
-	allBeans, err := resolver.Beans(ctx, nil)
+	allItems, err := resolver.Items(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	// Collect all descendants of all selected beans (to prevent cycles).
+	// Collect all descendants of all selected items (to prevent cycles).
 	allDescendants := make(map[string]bool)
-	for _, beanID := range beanIDs {
-		for descID := range collectDescendants(beanID, allBeans) {
+	for _, itemID := range itemIDs {
+		for descID := range collectDescendants(itemID, allItems) {
 			allDescendants[descID] = true
 		}
 	}
 
 	selectedSet := make(map[string]bool)
-	for _, id := range beanIDs {
+	for _, id := range itemIDs {
 		selectedSet[id] = true
 	}
 
 	// Filter to eligible parents:
-	// 1. Must be of a valid parent type for ALL selected beans
-	// 2. Must not be any of the selected beans
-	// 3. Must not be a descendant of any selected bean (to prevent cycles)
-	var eligibleBeans []*bean.Bean
-	for _, b := range allBeans {
+	// 1. Must be of a valid parent type for ALL selected items
+	// 2. Must not be any of the selected items
+	// 3. Must not be a descendant of any selected item (to prevent cycles)
+	var eligibleItems []*item.Item
+	for _, b := range allItems {
 		if selectedSet[b.ID] {
 			continue
 		}
@@ -72,58 +72,58 @@ func ParentCandidates(ctx context.Context, resolver *beangraph.CoreResolver, cfg
 		if !isValidType {
 			continue
 		}
-		eligibleBeans = append(eligibleBeans, b)
+		eligibleItems = append(eligibleItems, b)
 	}
 
-	sortByTypeThenTitle(eligibleBeans, cfg)
-	return eligibleBeans, nil
+	sortByTypeThenTitle(eligibleItems, cfg)
+	return eligibleItems, nil
 }
 
-// BlockingCandidates returns every bean other than beanID, sorted by type
+// BlockingCandidates returns every item other than itemID, sorted by type
 // order then title (case-insensitive). Like ParentCandidates, it excludes
-// beanID's own descendants: a bean may not block or be blocked by a bean
+// itemID's own descendants: an item may not block or be blocked by an item
 // in its own subtree.
-func BlockingCandidates(ctx context.Context, resolver *beangraph.CoreResolver, cfg *config.Config, beanID string) ([]*bean.Bean, error) {
-	allBeans, err := resolver.Beans(ctx, nil)
+func BlockingCandidates(ctx context.Context, resolver *itemgraph.CoreResolver, cfg *config.Config, itemID string) ([]*item.Item, error) {
+	allItems, err := resolver.Items(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	descendants := collectDescendants(beanID, allBeans)
+	descendants := collectDescendants(itemID, allItems)
 
-	var eligibleBeans []*bean.Bean
-	for _, b := range allBeans {
-		if b.ID == beanID {
+	var eligibleItems []*item.Item
+	for _, b := range allItems {
+		if b.ID == itemID {
 			continue
 		}
 		if descendants[b.ID] {
 			continue
 		}
-		eligibleBeans = append(eligibleBeans, b)
+		eligibleItems = append(eligibleItems, b)
 	}
 
-	sortByTypeThenTitle(eligibleBeans, cfg)
-	return eligibleBeans, nil
+	sortByTypeThenTitle(eligibleItems, cfg)
+	return eligibleItems, nil
 }
 
-// sortByTypeThenTitle sorts beans by cfg's type order, then by
+// sortByTypeThenTitle sorts items by cfg's type order, then by
 // case-insensitive title.
-func sortByTypeThenTitle(beans []*bean.Bean, cfg *config.Config) {
+func sortByTypeThenTitle(items []*item.Item, cfg *config.Config) {
 	typeNames := cfg.TypeNames()
 	typeOrder := make(map[string]int)
 	for i, t := range typeNames {
 		typeOrder[t] = i
 	}
-	sort.Slice(beans, func(i, j int) bool {
-		ti, tj := typeOrder[beans[i].Type], typeOrder[beans[j].Type]
+	sort.Slice(items, func(i, j int) bool {
+		ti, tj := typeOrder[items[i].Type], typeOrder[items[j].Type]
 		if ti != tj {
 			return ti < tj
 		}
-		return strings.ToLower(beans[i].Title) < strings.ToLower(beans[j].Title)
+		return strings.ToLower(items[i].Title) < strings.ToLower(items[j].Title)
 	})
 }
 
-// StatusCandidates returns the available bean statuses, merged from cfg's
+// StatusCandidates returns the available item statuses, merged from cfg's
 // configured overrides onto the built-in defaults (*config.Config's
 // StatusList, beans-b2v8). A nil cfg is not an error: StatusList tolerates
 // it and falls back to the built-in defaults, so callers that have no
@@ -143,22 +143,22 @@ func PriorityCandidates(cfg *config.Config) []config.PriorityConfig {
 	return cfg.PriorityList()
 }
 
-// TagCount holds a tag and its usage count across all beans.
+// TagCount holds a tag and its usage count across all items.
 type TagCount struct {
 	Tag   string
 	Count int
 }
 
-// TagCandidates returns every tag in use across all beans with its usage
+// TagCandidates returns every tag in use across all items with its usage
 // count, sorted by count descending, then by tag ascending.
-func TagCandidates(ctx context.Context, resolver *beangraph.CoreResolver) ([]TagCount, error) {
-	beans, err := resolver.Beans(ctx, nil)
+func TagCandidates(ctx context.Context, resolver *itemgraph.CoreResolver) ([]TagCount, error) {
+	items, err := resolver.Items(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
 
 	tagCounts := make(map[string]int)
-	for _, b := range beans {
+	for _, b := range items {
 		for _, tag := range b.Tags {
 			tagCounts[tag]++
 		}
@@ -194,21 +194,21 @@ func intersectStrings(a, b []string) []string {
 	return result
 }
 
-// collectDescendants returns a set of all bean IDs that are descendants of
-// the given bean.
-func collectDescendants(beanID string, allBeans []*bean.Bean) map[string]bool {
+// collectDescendants returns a set of all item IDs that are descendants of
+// the given item.
+func collectDescendants(itemID string, allItems []*item.Item) map[string]bool {
 	descendants := make(map[string]bool)
 
 	// Build parent->children map
 	children := make(map[string][]string)
-	for _, b := range allBeans {
+	for _, b := range allItems {
 		if b.Parent != "" {
 			children[b.Parent] = append(children[b.Parent], b.ID)
 		}
 	}
 
 	// BFS to collect all descendants
-	queue := children[beanID]
+	queue := children[itemID]
 	for len(queue) > 0 {
 		childID := queue[0]
 		queue = queue[1:]

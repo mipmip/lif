@@ -6,9 +6,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/xRiErOS/beans/internal/gitutil"
-	"github.com/xRiErOS/beans/pkg/bean"
-	"github.com/xRiErOS/beans/internal/output"
+	"github.com/xRiErOS/lif/internal/gitutil"
+	"github.com/xRiErOS/lif/pkg/item"
+	"github.com/xRiErOS/lif/internal/output"
 )
 
 // resolveContent returns content from a direct value or file flag.
@@ -27,7 +27,7 @@ func resolveContent(value, file string) (string, error) {
 	}
 
 	if value != "" {
-		return bean.UnescapeBody(value), nil
+		return item.UnescapeBody(value), nil
 	}
 
 	if file != "" {
@@ -41,8 +41,8 @@ func resolveContent(value, file string) (string, error) {
 	return "", nil
 }
 
-// applyTags adds tags to a bean, returning an error if any tag is invalid.
-func applyTags(b *bean.Bean, tags []string) error {
+// applyTags adds tags to an item, returning an error if any tag is invalid.
+func applyTags(b *item.Item, tags []string) error {
 	for _, tag := range tags {
 		if err := b.AddTag(tag); err != nil {
 			return err
@@ -87,12 +87,12 @@ func mergeTags(existing, add, remove []string) []string {
 // applyBodyReplace replaces exactly one occurrence of old with new.
 // Returns an error if old is not found or found multiple times.
 func applyBodyReplace(body, old, new string) (string, error) {
-	return bean.ReplaceOnce(body, old, new)
+	return item.ReplaceOnce(body, old, new)
 }
 
 // applyBodyAppend appends text to the body with a newline separator.
 func applyBodyAppend(body, text string) string {
-	return bean.AppendWithSeparator(body, text)
+	return item.AppendWithSeparator(body, text)
 }
 
 // parseSetPair splits a flag-value argument on the first "=". Only the
@@ -111,11 +111,11 @@ func parseSetPair(arg string, flagName string) (key, value string, err error) {
 }
 
 // checkReservedKey returns an error naming the native flag for key if key is
-// a field of the known bean schema, nil otherwise. Known keys without a
+// a field of the known item schema, nil otherwise. Known keys without a
 // direct write flag (created_at, updated_at, order) get a "managed field"
 // error instead of a fabricated flag name.
 func checkReservedKey(key string) error {
-	flag, known := bean.ReservedKeyFlag(key)
+	flag, known := item.ReservedKeyFlag(key)
 	if !known {
 		return nil
 	}
@@ -149,13 +149,13 @@ func validateExtraKeys(sets []string, unsets []string) error {
 	return nil
 }
 
-// applyExtraOps applies --set and --unset operations to a bean's Extra map.
+// applyExtraOps applies --set and --unset operations to an item's Extra map.
 // --set operations are applied first, then --unset removes keys -- a key
 // named by both --set and --unset in the same invocation ends up unset. This
 // keeps --unset predictable as the more destructive, last-word operation.
 // Callers must run validateExtraKeys first; a malformed --set here returns
 // an error but any already-applied --set writes are not rolled back.
-func applyExtraOps(b *bean.Bean, sets []string, unsets []string) error {
+func applyExtraOps(b *item.Item, sets []string, unsets []string) error {
 	for _, s := range sets {
 		key, value, err := parseSetPair(s, "--set")
 		if err != nil {
@@ -172,7 +172,7 @@ func applyExtraOps(b *bean.Bean, sets []string, unsets []string) error {
 	return nil
 }
 
-// extraSetMap parses validated --set pairs into the map beancore.WithExtraOps
+// extraSetMap parses validated --set pairs into the map itemcore.WithExtraOps
 // takes. Callers must run validateExtraKeys first.
 func extraSetMap(sets []string) (map[string]any, error) {
 	m := make(map[string]any, len(sets))
@@ -223,5 +223,5 @@ func resolveAppendContent(value string) (string, error) {
 		}
 		return strings.TrimRight(string(data), "\n"), nil
 	}
-	return bean.UnescapeBody(value), nil
+	return item.UnescapeBody(value), nil
 }

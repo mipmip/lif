@@ -18,13 +18,13 @@ var (
 )
 
 // CustomFrontMatter reports whether this binary preserves unknown ("custom")
-// front matter keys (pkg/bean.Bean.Extra) across a parse/render round-trip
+// front matter keys (pkg/item.Item.Extra) across a parse/render round-trip
 // instead of silently dropping them. It is always true for this and every
 // following version -- an older binary (predating this field) simply lacks
-// it, which is what makes the two tell apart in `beans version` output.
+// it, which is what makes the two tell apart in `lif version` output.
 const CustomFrontMatter = true
 
-// Info is the machine-readable shape of `beans version --json`.
+// Info is the machine-readable shape of `lif version --json`.
 type Info struct {
 	Version           string `json:"version"`
 	Commit            string `json:"commit"`
@@ -54,7 +54,7 @@ func String() string {
 	if CustomFrontMatter {
 		status = "preserved"
 	}
-	s := fmt.Sprintf("beans %s (%s) built %s\ncustom front matter: %s", Version, Commit, Date, status)
+	s := fmt.Sprintf("lif %s (%s) built %s\ncustom front matter: %s", Version, Commit, Date, status)
 	if Tree != "" {
 		kind := TreeKind
 		if kind == "" {

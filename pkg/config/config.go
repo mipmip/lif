@@ -10,20 +10,67 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/xRiErOS/beans/pkg/bean"
+	"github.com/xRiErOS/lif/pkg/item"
 	"gopkg.in/yaml.v3"
 )
 
 const (
-	// ConfigFileName is the name of the config file at project root
-	ConfigFileName = ".beans.yml"
-	// DefaultBeansPath is the default directory for storing beans
-	DefaultBeansPath = ".beans"
+	// ConfigFileName is the name of the config file at project root.
+	ConfigFileName = ".lif.yml"
+	// SectionKey is the top-level key of the items section in a config file.
+	SectionKey = "lif"
+	// DefaultStoreDir is the default directory for storing items.
+	DefaultStoreDir = ".lif"
+	// StoreEnvVar is the env var that names the store directory.
+	StoreEnvVar = "LIF_PATH"
+
+	// The four legacy names. A project made by the former tool keeps them and
+	// they are read in place (never renamed). Every legacy name of these four
+	// levels is defined here and only here, so dropping the fallback is one
+	// deletion per level.
+	//
+	// LegacyConfigFileName is the former config file name.
+	LegacyConfigFileName = ".beans.yml"
+	// LegacySectionKey is the former key of the items section.
+	LegacySectionKey = "beans"
+	// LegacyDefaultStoreDir is the former default store directory.
+	LegacyDefaultStoreDir = ".beans"
+	// LegacyStoreEnvVar is the former env var that names the store directory.
+	LegacyStoreEnvVar = "BEANS_PATH"
+
+	// Legacy names of the worktree, crash-backup and port levels. Like the
+	// four above they are read in place and never renamed, but these levels
+	// have no ambiguity error: the legacy name works beside the new one.
+	//
+	// HomeDir is the directory in the user's home that holds the default
+	// worktree roots (<home>/<HomeDir>/worktrees/<project>).
+	HomeDir = ".lif"
+	// LegacyHomeDir is the former home directory of the default worktree roots.
+	LegacyHomeDir = ".beans"
+	// WorktreeBranchPrefix is the branch prefix of every new worktree.
+	WorktreeBranchPrefix = "lif/"
+	// LegacyWorktreeBranchPrefix is the former worktree branch prefix. Worktrees
+	// on such branches are still listed and used.
+	LegacyWorktreeBranchPrefix = "beans/"
+	// StagingDirPrefix starts the name of the staging directory of an atomic swap.
+	StagingDirPrefix = ".lif-staging-"
+	// BackupDirPrefix starts the name of the backup directory of an atomic swap.
+	BackupDirPrefix = ".lif.bak-"
+	// LegacyBackupDirPrefix starts the name of a backup directory left by the
+	// former tool; the orphan scan matches it like BackupDirPrefix.
+	LegacyBackupDirPrefix = ".beans.bak-"
+	// WorkspacePortEnvVar names the port of a workspace in the terminal
+	// environment of its shell and run sessions.
+	WorkspacePortEnvVar = "LIF_WORKSPACE_PORT"
+	// LegacyWorkspacePortEnvVar is the former name of the same variable; it is
+	// exported with the same value.
+	LegacyWorkspacePortEnvVar = "BEANS_WORKSPACE_PORT"
+
 	// LegacyConfigFile is the old config file location (deprecated)
 	LegacyConfigFile = "config.yaml"
 	// DefaultServerPort is the default port for the web server
 	DefaultServerPort = 8080
-	// AnchorRepoRoot anchors the beans directory at the main worktree's root
+	// AnchorRepoRoot anchors the items directory at the main worktree's root
 	// instead of at the config file's directory. Secondary worktrees then share
 	// the main workdir's store rather than each carrying their own.
 	AnchorRepoRoot = "repo-root"
@@ -63,7 +110,7 @@ var DefaultStatuses = []StatusConfig{
 // individual entries; see (*Config).TypeList.
 var DefaultTypes = []TypeConfig{
 	{Name: "milestone", Color: "mauve", Rank: 1, Short: "M", Emphasis: true, Description: "A target release or checkpoint; group work that should ship together"},
-	{Name: "epic", Color: "blue", Rank: 2, Short: "E", Emphasis: true, Description: "A thematic container for related work; should have child beans, not be worked on directly"},
+	{Name: "epic", Color: "blue", Rank: 2, Short: "E", Emphasis: true, Description: "A thematic container for related work; should have child items, not be worked on directly"},
 	{Name: "feature", Color: "sapphire", Rank: 3, Short: "F", Description: "A user-facing capability or enhancement"},
 	{Name: "bug", Color: "maroon", Rank: LeafRank, Short: "B", Description: "Something that is broken and needs fixing"},
 	{Name: "task", Color: "", Rank: LeafRank, Short: "T", Description: "A concrete piece of work to complete (eg. a chore, or a sub-task for a feature)"},
@@ -91,7 +138,7 @@ type StatusConfig struct {
 	Description string `yaml:"description,omitempty"`
 }
 
-// TypeConfig defines a single bean type with its display color.
+// TypeConfig defines a single item type with its display color.
 type TypeConfig struct {
 	Name  string `yaml:"name"`
 	Color string `yaml:"color"`
@@ -103,8 +150,8 @@ type TypeConfig struct {
 	// what carries the hierarchy where hue alone cannot: Catppuccin tones are
 	// uniformly pastel, so a container would otherwise lose against a leaf.
 	Emphasis bool `yaml:"emphasis,omitempty"`
-	// Roadmap decides whether this type gets its own section in `beans roadmap`
-	// and an entry in `beans milestones`. Nil means visible; only an explicit
+	// Roadmap decides whether this type gets its own section in `lif roadmap`
+	// and an entry in `lif milestones`. Nil means visible; only an explicit
 	// roadmap: false hides the type. On a container rank (1-3) this also
 	// hides its whole subtree; on the leaf rank it is inert, since a leaf is
 	// never itself a container to hide beneath.
@@ -183,8 +230,8 @@ type TypeOverride struct {
 	Rank        *int   `yaml:"rank,omitempty"`
 	Description string `yaml:"description,omitempty"`
 	Emphasis    *bool  `yaml:"emphasis,omitempty"`
-	// Roadmap decides whether this type gets its own section in `beans roadmap`
-	// and an entry in `beans milestones`. Nil means visible; only an explicit
+	// Roadmap decides whether this type gets its own section in `lif roadmap`
+	// and an entry in `lif milestones`. Nil means visible; only an explicit
 	// roadmap: false hides the type. On a container rank (1-3) this also
 	// hides its whole subtree; on the leaf rank it is inert, since a leaf is
 	// never itself a container to hide beneath.
@@ -282,7 +329,8 @@ type WorktreeConfig struct {
 	BaseRef string `yaml:"base_ref,omitempty"`
 
 	// Path is the directory where worktrees are created.
-	// Default: ~/.beans/worktrees/<project-name>/
+	// Default: ~/.lif/worktrees/<project-name>/, or ~/.beans/worktrees/<project-name>/
+	// when that directory already exists.
 	// Supports ~ for home directory.
 	Path string `yaml:"path,omitempty"`
 
@@ -326,7 +374,7 @@ type AgentConfig struct {
 // ProjectConfig defines project-level settings.
 type ProjectConfig struct {
 	// Name is the human-readable project name, displayed in the UI.
-	// Default: derived from directory name during `beans init`.
+	// Default: derived from directory name during `lif init`.
 	Name string `yaml:"name,omitempty"`
 }
 
@@ -352,10 +400,10 @@ type DisplayConfig struct {
 	MaxWidth int `yaml:"max_width,omitempty"`
 }
 
-// Config holds the beans configuration.
+// Config holds the items configuration.
 type Config struct {
 	Project  ProjectConfig  `yaml:"project,omitempty"`
-	Beans    BeansConfig    `yaml:"beans"`
+	Items    ItemsConfig    `yaml:"-"`
 	Worktree WorktreeConfig `yaml:"worktree,omitempty"`
 	Agent    AgentConfig    `yaml:"agent,omitempty"`
 	Server   ServerConfig   `yaml:"server,omitempty"`
@@ -370,7 +418,7 @@ type Config struct {
 
 	// TypesExclusive switches the merge in TypeList() off: when true, Types is
 	// the complete type table on its own, not an override list layered onto
-	// DefaultTypes. beans init --profile sets this so a profile gives a
+	// DefaultTypes. lif init --profile sets this so a profile gives a
 	// project exactly its own types; a hand-written config that never sets it
 	// keeps the existing entry-by-entry override behaviour unchanged.
 	TypesExclusive bool `yaml:"types_exclusive,omitempty"`
@@ -379,16 +427,20 @@ type Config struct {
 	// Used to resolve relative paths
 	configDir string `yaml:"-"`
 
-	// configFile is the .beans.yml this config was read from (not serialized).
+	// configFile is the config file this config was read from (not serialized).
 	// Empty when no file was found and the defaults are in play; callers use
 	// that distinction to tell a repository's own declaration apart from a
 	// fallback (see ConfigFile).
 	configFile string `yaml:"-"`
+
+	// sectionKey is the top-level key the items section was read under
+	// ("lif" or "beans"). Empty means the new key (see SectionKey).
+	sectionKey string `yaml:"-"`
 }
 
-// BeansConfig defines settings for bean creation.
-type BeansConfig struct {
-	// Path is the path to the beans directory (relative to config file location)
+// ItemsConfig defines settings for item creation.
+type ItemsConfig struct {
+	// Path is the path to the items directory (relative to config file location)
 	Path string `yaml:"path,omitempty"`
 	// Anchor decides what Path is relative to. Empty (the default) keeps the
 	// config file's own directory, so a secondary worktree gets its own store.
@@ -401,7 +453,7 @@ type BeansConfig struct {
 	DefaultType    string `yaml:"default_type,omitempty"`
 	RequireIfMatch bool   `yaml:"require_if_match,omitempty"`
 	// RequireFieldsOn maps a target status to front matter keys that must carry
-	// a non-empty value whenever a bean is written into that status.
+	// a non-empty value whenever an item is written into that status.
 	RequireFieldsOn map[string][]string `yaml:"require_fields_on,omitempty"`
 	// CommitField names the extra front matter key that holds a git commit SHA.
 	// Only this key is git-verified when written or checked.
@@ -411,8 +463,8 @@ type BeansConfig struct {
 // Default returns a Config with default values.
 func Default() *Config {
 	return &Config{
-		Beans: BeansConfig{
-			Path:          DefaultBeansPath,
+		Items: ItemsConfig{
+			Path:          "",
 			Prefix:        "",
 			IDLength:      4,
 			DefaultStatus: "todo",
@@ -435,17 +487,17 @@ func Default() *Config {
 // DefaultWithPrefix returns a Config with the given prefix.
 func DefaultWithPrefix(prefix string) *Config {
 	cfg := Default()
-	cfg.Beans.Prefix = prefix
+	cfg.Items.Prefix = prefix
 	return cfg
 }
 
-// FindConfig searches upward from the given directory for a .beans.yml config file.
+// FindConfig searches upward from the given directory for a config file.
 // Returns the absolute path to the config file, or empty string if not found.
 func FindConfig(startDir string) (string, error) {
 	return FindConfigWithin(startDir, "")
 }
 
-// FindConfigWithin searches upward from startDir for a .beans.yml config file,
+// FindConfigWithin searches upward from startDir for a config file (see ResolveConfigFile),
 // stopping at rootDir (inclusive). If rootDir is empty, searches up to the
 // filesystem root.
 func FindConfigWithin(startDir, rootDir string) (string, error) {
@@ -463,8 +515,11 @@ func FindConfigWithin(startDir, rootDir string) (string, error) {
 	}
 
 	for {
-		configPath := filepath.Join(dir, ConfigFileName)
-		if _, err := os.Stat(configPath); err == nil {
+		configPath, found, err := ResolveConfigFile(dir)
+		if err != nil {
+			return "", err
+		}
+		if found {
 			return configPath, nil
 		}
 
@@ -482,6 +537,145 @@ func FindConfigWithin(startDir, rootDir string) (string, error) {
 	}
 }
 
+// The four name levels -- config file, section key, default store directory
+// and store-path env var -- follow one rule each: exactly one of the new and
+// the legacy name present uses that one in place, both present is an error
+// naming both, neither present uses the new name. Each level resolves in the
+// function below; no caller compares the names itself.
+
+// ResolveConfigFile resolves the config file inside dir. found reports whether
+// a file exists; when none does, path is where the new-name file would go.
+func ResolveConfigFile(dir string) (path string, found bool, err error) {
+	newPath := filepath.Join(dir, ConfigFileName)
+	legacyPath := filepath.Join(dir, LegacyConfigFileName)
+	hasNew, hasLegacy := exists(newPath), exists(legacyPath)
+	switch {
+	case hasNew && hasLegacy:
+		return "", false, fmt.Errorf("both %s and %s exist in %s; keep one of them", ConfigFileName, LegacyConfigFileName, dir)
+	case hasLegacy:
+		return legacyPath, true, nil
+	case hasNew:
+		return newPath, true, nil
+	default:
+		return newPath, false, nil
+	}
+}
+
+// ResolveSectionKey resolves the section key of the config file at path. A
+// missing file or a file with neither key yields the new key.
+func ResolveSectionKey(path string) (string, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return SectionKey, nil
+		}
+		return "", fmt.Errorf("%s: %w", path, err)
+	}
+	var doc yaml.Node
+	if err := yaml.Unmarshal(data, &doc); err != nil {
+		return "", fmt.Errorf("%s: %w", path, err)
+	}
+	_, key, err := itemsSection(&doc, path)
+	return key, err
+}
+
+// itemsSection locates the items section of a parsed config document and
+// returns its value node together with the key it sits under. The node is nil
+// when neither key is present.
+func itemsSection(doc *yaml.Node, path string) (section *yaml.Node, key string, err error) {
+	key = SectionKey
+	if doc.Kind != yaml.DocumentNode || len(doc.Content) == 0 || doc.Content[0].Kind != yaml.MappingNode {
+		return nil, key, nil
+	}
+	top := doc.Content[0]
+	var newNode, legacyNode *yaml.Node
+	for i := 0; i+1 < len(top.Content); i += 2 {
+		switch top.Content[i].Value {
+		case SectionKey:
+			newNode = top.Content[i+1]
+		case LegacySectionKey:
+			legacyNode = top.Content[i+1]
+		}
+	}
+	switch {
+	case newNode != nil && legacyNode != nil:
+		return nil, "", fmt.Errorf("%s: both sections %q and %q are present; keep one of them", path, SectionKey+":", LegacySectionKey+":")
+	case legacyNode != nil:
+		return legacyNode, LegacySectionKey, nil
+	default:
+		return newNode, SectionKey, nil
+	}
+}
+
+// ResolveDefaultStoreDir resolves the default store directory name inside dir,
+// for a config without an explicit path.
+func ResolveDefaultStoreDir(dir string) (string, error) {
+	hasNew := exists(filepath.Join(dir, DefaultStoreDir))
+	hasLegacy := exists(filepath.Join(dir, LegacyDefaultStoreDir))
+	switch {
+	case hasNew && hasLegacy:
+		return "", fmt.Errorf("both %s and %s exist in %s; keep one of them", DefaultStoreDir, LegacyDefaultStoreDir, dir)
+	case hasLegacy:
+		return LegacyDefaultStoreDir, nil
+	default:
+		return DefaultStoreDir, nil
+	}
+}
+
+// ResolveInitStoreDir resolves the store directory `init` creates or
+// re-initializes inside dir. It is ResolveDefaultStoreDir, except for a
+// directory that holds a legacy config file and no store directory yet: that
+// is a project with only legacy names, and init keeps it that way.
+func ResolveInitStoreDir(dir string) (string, error) {
+	name, err := ResolveDefaultStoreDir(dir)
+	if err != nil || exists(filepath.Join(dir, DefaultStoreDir)) {
+		return name, err
+	}
+	configFile, found, err := ResolveConfigFile(dir)
+	if err != nil {
+		return "", err
+	}
+	if found && IsLegacyConfigFile(configFile) {
+		return LegacyDefaultStoreDir, nil
+	}
+	return name, nil
+}
+
+// ResolveStoreEnv resolves the store-path env var. A variable counts as
+// present when it is non-empty. legacy reports that the value came from the
+// legacy variable; path is empty when neither is set.
+func ResolveStoreEnv() (path string, legacy bool, err error) {
+	newValue, legacyValue := os.Getenv(StoreEnvVar), os.Getenv(LegacyStoreEnvVar)
+	switch {
+	case newValue != "" && legacyValue != "":
+		return "", false, fmt.Errorf("both %s and %s are set; unset one of them", StoreEnvVar, LegacyStoreEnvVar)
+	case legacyValue != "":
+		return legacyValue, true, nil
+	default:
+		return newValue, false, nil
+	}
+}
+
+// IsLegacyConfigFile reports whether path names the legacy config file.
+func IsLegacyConfigFile(path string) bool {
+	return filepath.Base(path) == LegacyConfigFileName
+}
+
+// IsLegacyStoreDir reports whether path names the legacy store directory.
+func IsLegacyStoreDir(path string) bool {
+	return filepath.Base(path) == LegacyDefaultStoreDir
+}
+
+// IsLegacySectionKey reports whether key is the legacy section key.
+func IsLegacySectionKey(key string) bool {
+	return key == LegacySectionKey
+}
+
+func exists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
+}
+
 // Load reads configuration from the given config file path.
 // Returns default config if the file doesn't exist.
 func Load(configPath string) (*Config, error) {
@@ -493,9 +687,28 @@ func Load(configPath string) (*Config, error) {
 		return nil, err
 	}
 
-	var cfg Config
-	if err := yaml.Unmarshal(data, &cfg); err != nil {
+	// Decode in two steps: the items section sits under one of two keys, so
+	// it is located first and decoded on its own; the rest of the document
+	// decodes into the struct, where Items is tagged out.
+	var doc yaml.Node
+	if err := yaml.Unmarshal(data, &doc); err != nil {
 		return nil, err
+	}
+	var cfg Config
+	if doc.Kind != 0 {
+		if err := doc.Decode(&cfg); err != nil {
+			return nil, err
+		}
+		section, key, err := itemsSection(&doc, configPath)
+		if err != nil {
+			return nil, err
+		}
+		cfg.sectionKey = key
+		if section != nil {
+			if err := section.Decode(&cfg.Items); err != nil {
+				return nil, err
+			}
+		}
 	}
 
 	// Store the config file and its directory: the directory resolves
@@ -503,18 +716,17 @@ func Load(configPath string) (*Config, error) {
 	cfg.configDir = filepath.Dir(configPath)
 	cfg.configFile = configPath
 
-	// Apply defaults for missing values
-	if cfg.Beans.Path == "" {
-		cfg.Beans.Path = DefaultBeansPath
+	// Apply defaults for missing values. A missing path stays empty: it means
+	// "the default store directory", which is resolved against the disk when
+	// the store is opened (ResolveItemsPath).
+	if cfg.Items.IDLength == 0 {
+		cfg.Items.IDLength = 4
 	}
-	if cfg.Beans.IDLength == 0 {
-		cfg.Beans.IDLength = 4
+	if cfg.Items.DefaultStatus == "" {
+		cfg.Items.DefaultStatus = "todo"
 	}
-	if cfg.Beans.DefaultStatus == "" {
-		cfg.Beans.DefaultStatus = "todo"
-	}
-	if cfg.Beans.DefaultType == "" {
-		// "task" is the canonical fallback: Default() (used by `beans init`
+	if cfg.Items.DefaultType == "" {
+		// "task" is the canonical fallback: Default() (used by `lif init`
 		// and whenever no config file exists) hardcodes it, and it is the
 		// leaf/most common type for day-to-day work. Prefer it here too, so
 		// a config that merely omits default_type behaves identically
@@ -530,10 +742,10 @@ func Load(configPath string) (*Config, error) {
 		// nothing to derive one from.
 		types := cfg.TypeList()
 		if len(types) > 0 {
-			cfg.Beans.DefaultType = types[0].Name
+			cfg.Items.DefaultType = types[0].Name
 			for _, t := range types {
 				if t.Name == "task" {
-					cfg.Beans.DefaultType = "task"
+					cfg.Items.DefaultType = "task"
 					break
 				}
 			}
@@ -542,7 +754,7 @@ func Load(configPath string) (*Config, error) {
 
 	// A misspelt anchor must not degrade into the default: that would silently
 	// resolve a different store than the file asks for.
-	if err := ValidateAnchor(cfg.Beans.Anchor); err != nil {
+	if err := ValidateAnchor(cfg.Items.Anchor, cfg.SectionKey()); err != nil {
 		return nil, fmt.Errorf("%s: %w", configPath, err)
 	}
 
@@ -553,37 +765,38 @@ func Load(configPath string) (*Config, error) {
 	return &cfg, nil
 }
 
-// ValidateAnchor rejects any beans.anchor value the resolver cannot honour.
-func ValidateAnchor(anchor string) error {
+// ValidateAnchor rejects any anchor value the resolver cannot honour. key is the
+// section key of the file the value came from, so the error names its key path.
+func ValidateAnchor(anchor, key string) error {
 	switch anchor {
 	case "", AnchorRepoRoot:
 		return nil
 	default:
-		return fmt.Errorf("unknown beans.anchor %q (expected %q or an empty value)", anchor, AnchorRepoRoot)
+		return fmt.Errorf("unknown %s.anchor %q (expected %q or an empty value)", key, anchor, AnchorRepoRoot)
 	}
 }
 
-// validateRequireFieldsOn rejects a beans.require_fields_on configuration that
-// names an unknown status, an empty field name, or a field beans already
+// validateRequireFieldsOn rejects a require_fields_on configuration that
+// names an unknown status, an empty field name, or a field items already
 // manages as a schema field. Misconfiguration must not silently degrade into
 // no policy at all.
 func (c *Config) validateRequireFieldsOn() error {
-	statuses := make([]string, 0, len(c.Beans.RequireFieldsOn))
-	for status := range c.Beans.RequireFieldsOn {
+	statuses := make([]string, 0, len(c.Items.RequireFieldsOn))
+	for status := range c.Items.RequireFieldsOn {
 		statuses = append(statuses, status)
 	}
 	sort.Strings(statuses)
 	for _, status := range statuses {
-		fields := c.Beans.RequireFieldsOn[status]
+		fields := c.Items.RequireFieldsOn[status]
 		if !c.IsValidStatus(status) {
-			return fmt.Errorf("unknown status %q in beans.require_fields_on (valid: %s)", status, strings.Join(c.StatusNames(), ", "))
+			return fmt.Errorf("unknown status %q in %s.require_fields_on (valid: %s)", status, c.SectionKey(), strings.Join(c.StatusNames(), ", "))
 		}
 		for _, field := range fields {
 			if strings.TrimSpace(field) == "" {
-				return fmt.Errorf("beans.require_fields_on[%q] contains an empty field name", status)
+				return fmt.Errorf("%s.require_fields_on[%q] contains an empty field name", c.SectionKey(), status)
 			}
-			if _, known := bean.ReservedKeyFlag(field); known {
-				return fmt.Errorf("beans.require_fields_on[%q] names reserved front matter field %q (managed by beans, not an extra key)", status, field)
+			if _, known := item.ReservedKeyFlag(field); known {
+				return fmt.Errorf("%s.require_fields_on[%q] names reserved front matter field %q (managed by lif, not an extra key)", c.SectionKey(), status, field)
 			}
 		}
 	}
@@ -614,17 +827,80 @@ func LoadFromDirectoryWithin(startDir, rootDir string) (*Config, error) {
 	return Load(configPath)
 }
 
-// ResolveBeansPath returns the absolute path to the beans directory.
-func (c *Config) ResolveBeansPath() string {
-	if filepath.IsAbs(c.Beans.Path) {
-		return c.Beans.Path
-	}
-	if c.configDir == "" {
+// ResolveItemsPath returns the absolute path to the items directory,
+// anchored at the config directory (the current directory when none is set).
+func (c *Config) ResolveItemsPath() (string, error) {
+	base := c.configDir
+	if base == "" {
 		// Fallback: use current directory
-		cwd, _ := os.Getwd()
-		return filepath.Join(cwd, c.Beans.Path)
+		base, _ = os.Getwd()
 	}
-	return filepath.Join(c.configDir, c.Beans.Path)
+	return c.ResolveItemsPathIn(base)
+}
+
+// ResolveItemsPathIn is ResolveItemsPath with an explicit anchor directory,
+// the main worktree root for `anchor: repo-root`. An explicit path is joined
+// verbatim; without one the default store directory is resolved inside base
+// (see ResolveDefaultStoreDir), which is where both default names can clash.
+func (c *Config) ResolveItemsPathIn(base string) (string, error) {
+	if filepath.IsAbs(c.Items.Path) {
+		return c.Items.Path, nil
+	}
+	if c.Items.Path != "" {
+		return filepath.Join(base, c.Items.Path), nil
+	}
+	name, err := ResolveDefaultStoreDir(base)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(base, name), nil
+}
+
+// SectionKey returns the top-level key of the items section: the key of the
+// file this config was loaded from, and the new key when no file was loaded.
+func (c *Config) SectionKey() string {
+	if c.sectionKey == "" {
+		return SectionKey
+	}
+	return c.sectionKey
+}
+
+// SaveTarget decides which file Save writes and under which section key. A
+// config read from a file writes that very file under its own key. Any other
+// config writes into the one config file already present in the target
+// directory and keeps that file's key; only a directory without a config file
+// gets the new file with the new key.
+func (c *Config) SaveTarget(dir string) (path, key string, err error) {
+	if c.configFile != "" {
+		return c.configFile, c.SectionKey(), nil
+	}
+	targetDir := c.configDir
+	if targetDir == "" {
+		targetDir = dir
+	}
+	path, found, err := ResolveConfigFile(targetDir)
+	if err != nil {
+		return "", "", err
+	}
+	key = SectionKey
+	if found {
+		if key, err = ResolveSectionKey(path); err != nil {
+			return "", "", err
+		}
+	}
+	return path, key, nil
+}
+
+// TargetFileName is the base name of the config file Save(dir) writes: the
+// file this config was read from, the config file already in the directory,
+// or the new file name when there is none. It falls back to the new name when
+// the target cannot be decided, so a message can always name a file.
+func (c *Config) TargetFileName(dir string) string {
+	path, _, err := c.SaveTarget(dir)
+	if err != nil {
+		return ConfigFileName
+	}
+	return filepath.Base(path)
 }
 
 // ConfigDir returns the directory containing the config file.
@@ -632,10 +908,10 @@ func (c *Config) ConfigDir() string {
 	return c.configDir
 }
 
-// ConfigFile returns the path of the .beans.yml this config was read from, or
+// ConfigFile returns the path of the config file this config was read from, or
 // an empty string when no config file was found and the defaults apply. A
 // non-empty result means the repository declared where its store lives, which
-// ranks above the BEANS_PATH env var during path resolution.
+// ranks above the store-path env var during path resolution.
 func (c *Config) ConfigFile() string {
 	return c.configFile
 }
@@ -650,11 +926,12 @@ func (c *Config) SetConfigDir(dir string) {
 // Preserves the existing file mode if the file already exists.
 // If configDir is set, saves to that directory; otherwise saves to the given directory.
 func (c *Config) Save(dir string) error {
-	targetDir := c.configDir
-	if targetDir == "" {
-		targetDir = dir
+	path, key, err := c.SaveTarget(dir)
+	if err != nil {
+		return err
 	}
-	path := filepath.Join(targetDir, ConfigFileName)
+	targetDir := filepath.Dir(path)
+	c.sectionKey = key
 
 	doc := c.toYAMLNode()
 
@@ -675,7 +952,7 @@ func (c *Config) Save(dir string) error {
 	}
 
 	// Write to a temporary file in the same directory to ensure atomicity.
-	tmpFile, err := os.CreateTemp(targetDir, ConfigFileName+".tmp.*")
+	tmpFile, err := os.CreateTemp(targetDir, filepath.Base(path)+".tmp.*")
 	if err != nil {
 		return fmt.Errorf("creating temp file: %w", err)
 	}
@@ -731,63 +1008,65 @@ func (c *Config) toYAMLNode() *yaml.Node {
 		projectMapping.Content = append(projectMapping.Content, key, strNode(c.Project.Name))
 	}
 
-	// Build the beans mapping
-	beansMapping := &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
+	// Build the items mapping
+	itemsMapping := &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
 
-	if c.Beans.Path != "" {
+	// An omitted path stays omitted: the default directory is resolved when
+	// the store is opened (ResolveItemsPath), not frozen into the file.
+	if c.Items.Path != "" {
 		key := strNode("path")
-		key.HeadComment = "Directory where bean files are stored"
-		beansMapping.Content = append(beansMapping.Content, key, strNode(c.Beans.Path))
+		key.HeadComment = "Directory where item files are stored"
+		itemsMapping.Content = append(itemsMapping.Content, key, strNode(c.Items.Path))
 	}
 
-	if c.Beans.Anchor != "" {
+	if c.Items.Anchor != "" {
 		key := strNode("anchor")
 		key.HeadComment = "What `path` is relative to: \"repo-root\" makes every worktree share the main workdir's store"
-		beansMapping.Content = append(beansMapping.Content, key, strNode(c.Beans.Anchor))
+		itemsMapping.Content = append(itemsMapping.Content, key, strNode(c.Items.Anchor))
 	}
 
 	prefixKey := strNode("prefix")
-	prefixKey.HeadComment = "Prefix for bean IDs (e.g., \"myproject-abc1\")"
-	beansMapping.Content = append(beansMapping.Content, prefixKey, strNode(c.Beans.Prefix))
+	prefixKey.HeadComment = "Prefix for item IDs (e.g., \"myproject-abc1\")"
+	itemsMapping.Content = append(itemsMapping.Content, prefixKey, strNode(c.Items.Prefix))
 
 	idLenKey := strNode("id_length")
 	idLenKey.HeadComment = "Length of the random ID suffix"
-	beansMapping.Content = append(beansMapping.Content, idLenKey, intNode(c.Beans.IDLength))
+	itemsMapping.Content = append(itemsMapping.Content, idLenKey, intNode(c.Items.IDLength))
 
-	if c.Beans.DefaultStatus != "" {
+	if c.Items.DefaultStatus != "" {
 		key := strNode("default_status")
-		key.HeadComment = "Default status for new beans"
-		beansMapping.Content = append(beansMapping.Content, key, strNode(c.Beans.DefaultStatus))
+		key.HeadComment = "Default status for new items"
+		itemsMapping.Content = append(itemsMapping.Content, key, strNode(c.Items.DefaultStatus))
 	}
 
-	if c.Beans.DefaultType != "" {
+	if c.Items.DefaultType != "" {
 		key := strNode("default_type")
-		key.HeadComment = "Default type for new beans"
-		beansMapping.Content = append(beansMapping.Content, key, strNode(c.Beans.DefaultType))
+		key.HeadComment = "Default type for new items"
+		itemsMapping.Content = append(itemsMapping.Content, key, strNode(c.Items.DefaultType))
 	}
 
-	if c.Beans.RequireIfMatch {
+	if c.Items.RequireIfMatch {
 		key := strNode("require_if_match")
 		key.HeadComment = "Require ETag for updates (optimistic concurrency)"
-		beansMapping.Content = append(beansMapping.Content, key, scalar("true", "!!bool"))
+		itemsMapping.Content = append(itemsMapping.Content, key, scalar("true", "!!bool"))
 	}
 
-	if len(c.Beans.RequireFieldsOn) > 0 {
+	if len(c.Items.RequireFieldsOn) > 0 {
 		key := strNode("require_fields_on")
-		key.HeadComment = "Front matter keys that must be set when a bean enters a status"
+		key.HeadComment = "Front matter keys that must be set when an item enters a status"
 		mapping := &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
 		// Iterate the map's own keys, sorted for deterministic output -
 		// looping over StatusList() instead would silently drop any status
 		// name RequireFieldsOn carries that StatusList() doesn't (e.g. a
 		// config built directly rather than through Load, which is the only
 		// place that validates every key names a known status).
-		statuses := make([]string, 0, len(c.Beans.RequireFieldsOn))
-		for s := range c.Beans.RequireFieldsOn {
+		statuses := make([]string, 0, len(c.Items.RequireFieldsOn))
+		for s := range c.Items.RequireFieldsOn {
 			statuses = append(statuses, s)
 		}
 		sort.Strings(statuses)
 		for _, s := range statuses {
-			fields := c.Beans.RequireFieldsOn[s]
+			fields := c.Items.RequireFieldsOn[s]
 			if len(fields) == 0 {
 				continue
 			}
@@ -797,13 +1076,13 @@ func (c *Config) toYAMLNode() *yaml.Node {
 			}
 			mapping.Content = append(mapping.Content, strNode(s), seq)
 		}
-		beansMapping.Content = append(beansMapping.Content, key, mapping)
+		itemsMapping.Content = append(itemsMapping.Content, key, mapping)
 	}
 
-	if c.Beans.CommitField != "" {
+	if c.Items.CommitField != "" {
 		key := strNode("commit_field")
 		key.HeadComment = "Extra front matter key holding the git commit SHA (default: commit)"
-		beansMapping.Content = append(beansMapping.Content, key, strNode(c.Beans.CommitField))
+		itemsMapping.Content = append(itemsMapping.Content, key, strNode(c.Items.CommitField))
 	}
 
 	// Build the worktree mapping
@@ -815,7 +1094,7 @@ func (c *Config) toYAMLNode() *yaml.Node {
 	}
 	if c.Worktree.Path != "" {
 		key := strNode("path")
-		key.HeadComment = "Directory for worktrees (default: ~/.beans/worktrees/<project>/)"
+		key.HeadComment = "Directory for worktrees (default: ~/.lif/worktrees/<project>/)"
 		worktreeMapping.Content = append(worktreeMapping.Content, key, strNode(c.Worktree.Path))
 	}
 	setupKey := strNode("setup")
@@ -857,7 +1136,7 @@ func (c *Config) toYAMLNode() *yaml.Node {
 	serverMapping := &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
 	if c.Server.Port != 0 {
 		portKey := strNode("port")
-		portKey.HeadComment = "Port for the web UI (used by `beans-serve`)"
+		portKey.HeadComment = "Port for the web UI (used by `lif-serve`)"
 		serverMapping.Content = append(serverMapping.Content, portKey, intNode(c.Server.Port))
 	}
 	if len(c.Server.CORSOrigins) > 0 {
@@ -871,7 +1150,7 @@ func (c *Config) toYAMLNode() *yaml.Node {
 	}
 
 	// Build the display mapping. Like Statuses/Types/Priorities, this must be
-	// round-tripped: Save() is called by `beans rename` on an already-loaded
+	// round-tripped: Save() is called by `lif rename` on an already-loaded
 	// Config, and before this a configured theme/max_width was silently
 	// dropped on the next write.
 	displayMapping := &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
@@ -888,7 +1167,7 @@ func (c *Config) toYAMLNode() *yaml.Node {
 
 	// Build the statuses/types/priorities override sequences. These round-trip
 	// exactly what was configured (not the merged result) so that Save() -
-	// called by `beans rename`, for instance - never silently drops a user's
+	// called by `lif rename`, for instance - never silently drops a user's
 	// overrides from the file.
 	statusesSeq := &yaml.Node{Kind: yaml.SequenceNode, Tag: "!!seq"}
 	for _, s := range c.Statuses {
@@ -948,13 +1227,13 @@ func (c *Config) toYAMLNode() *yaml.Node {
 	topMapping := &yaml.Node{
 		Kind:        yaml.MappingNode,
 		Tag:         "!!map",
-		HeadComment: "Beans configuration\nSee: https://github.com/xRiErOS/beans",
+		HeadComment: "Lif configuration\nSee: https://github.com/xRiErOS/lif",
 	}
 	if len(projectMapping.Content) > 0 {
 		topMapping.Content = append(topMapping.Content, strNode("project"), projectMapping)
 	}
 
-	topMapping.Content = append(topMapping.Content, strNode("beans"), beansMapping)
+	topMapping.Content = append(topMapping.Content, strNode(c.SectionKey()), itemsMapping)
 
 	if len(worktreeMapping.Content) > 0 {
 		topMapping.Content = append(topMapping.Content, strNode("worktree"), worktreeMapping)
@@ -1018,21 +1297,21 @@ func (c *Config) IsValidStatus(status string) bool {
 	return false
 }
 
-// RequiredFieldsFor returns the front matter keys that must be set when a bean
+// RequiredFieldsFor returns the front matter keys that must be set when an item
 // enters status. Returns nil when no policy applies.
 func (c *Config) RequiredFieldsFor(status string) []string {
 	if c == nil {
 		return nil
 	}
-	return c.Beans.RequireFieldsOn[status]
+	return c.Items.RequireFieldsOn[status]
 }
 
 // GetCommitField returns the configured commit field name, or DefaultCommitField.
 func (c *Config) GetCommitField() string {
-	if c == nil || c.Beans.CommitField == "" {
+	if c == nil || c.Items.CommitField == "" {
 		return DefaultCommitField
 	}
-	return c.Beans.CommitField
+	return c.Items.CommitField
 }
 
 // mergeDefaults merges a config's override entries into a copy of a
@@ -1123,20 +1402,20 @@ func (c *Config) GetStatus(name string) *StatusConfig {
 	return nil
 }
 
-// GetDefaultStatus returns the default status name for new beans.
+// GetDefaultStatus returns the default status name for new items.
 func (c *Config) GetDefaultStatus() string {
-	if c == nil || c.Beans.DefaultStatus == "" {
+	if c == nil || c.Items.DefaultStatus == "" {
 		return "todo"
 	}
-	return c.Beans.DefaultStatus
+	return c.Items.DefaultStatus
 }
 
-// GetDefaultType returns the default type name for new beans.
+// GetDefaultType returns the default type name for new items.
 func (c *Config) GetDefaultType() string {
 	if c == nil {
 		return ""
 	}
-	return c.Beans.DefaultType
+	return c.Items.DefaultType
 }
 
 // IsArchiveStatus returns true if the given status is marked for archiving.
@@ -1313,17 +1592,17 @@ func (c *Config) TypeList() []TypeConfig {
 	)
 }
 
-// BeanColors holds resolved color information for rendering a bean
-type BeanColors struct {
+// ItemColors holds resolved color information for rendering an item
+type ItemColors struct {
 	StatusColor   string
 	TypeColor     string
 	PriorityColor string
 	IsArchive     bool
 }
 
-// GetBeanColors returns the resolved colors for a bean based on its status, type, and priority.
-func (c *Config) GetBeanColors(status, typeName, priority string) BeanColors {
-	colors := BeanColors{
+// GetItemColors returns the resolved colors for an item based on its status, type, and priority.
+func (c *Config) GetItemColors(status, typeName, priority string) ItemColors {
+	colors := ItemColors{
 		StatusColor:   "gray",
 		TypeColor:     "",
 		PriorityColor: "",
@@ -1418,20 +1697,29 @@ const DefaultWorktreeBaseRef = "main"
 
 // ResolveWorktreePath returns the absolute path to the directory where worktrees
 // should be created. If worktree.path is configured, it is used (with ~ expansion).
-// Otherwise, defaults to ~/.beans/worktrees/<projectName>/.
+// Otherwise the root is ~/.beans/worktrees/<projectName>/ when that directory
+// exists (a root made by the former tool), else ~/.lif/worktrees/<projectName>/.
+// When both exist the legacy root wins; there is no ambiguity error. legacy
+// reports that the legacy root was chosen; it is never true for worktree.path.
+// The resolver only resolves: it creates no directory.
 // projectName is used only when computing the default path.
-func (c *Config) ResolveWorktreePath(projectName string) (string, error) {
+func (c *Config) ResolveWorktreePath(projectName string) (path string, legacy bool, err error) {
 	if c.Worktree.Path != "" {
-		return expandHome(c.Worktree.Path)
+		path, err = expandHome(c.Worktree.Path)
+		return path, false, err
 	}
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return "", fmt.Errorf("resolve home directory: %w", err)
+		return "", false, fmt.Errorf("resolve home directory: %w", err)
 	}
 	if projectName == "" {
 		projectName = "default"
 	}
-	return filepath.Join(home, ".beans", "worktrees", projectName), nil
+	legacyRoot := filepath.Join(home, LegacyHomeDir, "worktrees", projectName)
+	if info, statErr := os.Stat(legacyRoot); statErr == nil && info.IsDir() {
+		return legacyRoot, true, nil
+	}
+	return filepath.Join(home, HomeDir, "worktrees", projectName), false, nil
 }
 
 // expandHome expands a leading ~ in a path to the user's home directory.

@@ -13,8 +13,8 @@ import (
 	"github.com/coder/websocket/wsjson"
 	"github.com/gin-gonic/gin"
 
-	"github.com/xRiErOS/beans/internal/cors"
-	"github.com/xRiErOS/beans/internal/graph"
+	"github.com/xRiErOS/lif/internal/cors"
+	"github.com/xRiErOS/lif/internal/graph"
 )
 
 // TestGqlWebsocketImplementationRejectsDisallowedOrigin pins the origin check
@@ -83,7 +83,7 @@ func TestGqlWebsocketImplementationAcceptsAllowedOrigin(t *testing.T) {
 // the graphql-transport-ws connection_init/connection_ack roundtrip proves
 // the hijacked connection is alive. Fixed by gin v1.12.0
 // (gin-gonic/gin#4373); a regression here means every GraphQL subscription
-// (agent chat, bean list, worktree status, ...) silently never delivers data.
+// (agent chat, item list, worktree status, ...) silently never delivers data.
 func TestGraphQLWebsocketHandshakeThroughGinRouter(t *testing.T) {
 	checker := cors.NewChecker([]string{"http://allowed.example"})
 

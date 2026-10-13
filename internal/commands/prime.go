@@ -8,7 +8,7 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/xRiErOS/beans/pkg/config"
+	"github.com/xRiErOS/lif/pkg/config"
 	"github.com/spf13/cobra"
 )
 
@@ -38,7 +38,7 @@ type promptData struct {
 	// this project (used by the generic policy section).
 	CommitFieldGated bool
 	// CompletionCommitGated is true specifically when CommitField is
-	// required on the "completed" status, i.e. `beans complete` itself
+	// required on the "completed" status, i.e. `lif complete` itself
 	// needs `--commit`. A project can gate CommitField on another status
 	// (e.g. "accepted") without gating completion at all.
 	CompletionCommitGated bool
@@ -64,13 +64,13 @@ func rankLines(c *config.Config) []string {
 var primeCmd = &cobra.Command{
 	Use:   "prime",
 	Short: "Output instructions for AI coding agents",
-	Long:  `Outputs a prompt that primes AI coding agents on how to use the beans CLI to manage project issues.`,
+	Long:  `Outputs a prompt that primes AI coding agents on how to use the lif CLI to manage project items.`,
 	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		// Load the project's actual config so the required-fields policy
 		// section reflects what's really configured here, not static prose.
 		// If no explicit path is given and no project can be found, stay
-		// silent (agents outside a beans project get no prompt).
+		// silent (agents outside a lif project get no prompt).
 		var loadedCfg *config.Config
 		switch {
 		case configPath != "":
@@ -79,7 +79,7 @@ var primeCmd = &cobra.Command{
 				return nil // Silently exit on error
 			}
 			loadedCfg = c
-		case beansPath != "":
+		case storePath != "":
 			cwd, err := os.Getwd()
 			if err != nil {
 				return nil // Silently exit on error
@@ -114,15 +114,15 @@ var primeCmd = &cobra.Command{
 		commitField := loadedCfg.GetCommitField()
 		commitFieldGated := false
 
-		statuses := make([]string, 0, len(loadedCfg.Beans.RequireFieldsOn))
-		for status := range loadedCfg.Beans.RequireFieldsOn {
+		statuses := make([]string, 0, len(loadedCfg.Items.RequireFieldsOn))
+		for status := range loadedCfg.Items.RequireFieldsOn {
 			statuses = append(statuses, status)
 		}
 		sort.Strings(statuses)
 
 		requiredFields := make([]requiredFieldsEntry, 0, len(statuses))
 		for _, status := range statuses {
-			fields := loadedCfg.Beans.RequireFieldsOn[status]
+			fields := loadedCfg.Items.RequireFieldsOn[status]
 			requiredFields = append(requiredFields, requiredFieldsEntry{Status: status, Fields: fields})
 			for _, f := range fields {
 				if f == commitField {

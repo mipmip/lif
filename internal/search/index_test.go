@@ -3,12 +3,12 @@ package search
 import (
 	"testing"
 
-	"github.com/xRiErOS/beans/pkg/bean"
+	"github.com/xRiErOS/lif/pkg/item"
 )
 
 func mustNewID(t *testing.T) string {
 	t.Helper()
-	id, err := bean.NewID("", 4)
+	id, err := item.NewID("", 4)
 	if err != nil {
 		t.Fatalf("NewID error: %v", err)
 	}
@@ -35,16 +35,16 @@ func TestNewIndex(t *testing.T) {
 	defer idx.Close()
 }
 
-func TestIndexBean(t *testing.T) {
+func TestIndexItem(t *testing.T) {
 	idx := setupTestIndex(t)
 
-	b := &bean.Bean{
+	b := &item.Item{
 		ID:    "abc1",
 		Title: "Authentication System",
 		Body:  "Implement JWT tokens for user authentication",
 	}
 
-	err := idx.IndexBean(b)
+	err := idx.IndexItem(b)
 	if err != nil {
 		t.Fatalf("IndexBean() error = %v", err)
 	}
@@ -62,14 +62,14 @@ func TestIndexBean(t *testing.T) {
 func TestSearch_MatchTitle(t *testing.T) {
 	idx := setupTestIndex(t)
 
-	beans := []*bean.Bean{
+	items := []*item.Item{
 		{ID: "aaa1", Title: "User Authentication", Body: "Login system"},
 		{ID: "bbb2", Title: "Database Schema", Body: "Table definitions"},
 		{ID: "ccc3", Title: "API Endpoints", Body: "REST interface"},
 	}
 
-	for _, b := range beans {
-		if err := idx.IndexBean(b); err != nil {
+	for _, b := range items {
+		if err := idx.IndexItem(b); err != nil {
 			t.Fatalf("IndexBean() error = %v", err)
 		}
 	}
@@ -87,14 +87,14 @@ func TestSearch_MatchTitle(t *testing.T) {
 func TestSearch_MatchBody(t *testing.T) {
 	idx := setupTestIndex(t)
 
-	beans := []*bean.Bean{
+	items := []*item.Item{
 		{ID: "aaa1", Title: "Feature A", Body: "Implement JWT tokens"},
 		{ID: "bbb2", Title: "Feature B", Body: "Add database migrations"},
 		{ID: "ccc3", Title: "Feature C", Body: "Update UI components"},
 	}
 
-	for _, b := range beans {
-		if err := idx.IndexBean(b); err != nil {
+	for _, b := range items {
+		if err := idx.IndexItem(b); err != nil {
 			t.Fatalf("IndexBean() error = %v", err)
 		}
 	}
@@ -112,14 +112,14 @@ func TestSearch_MatchBody(t *testing.T) {
 func TestSearch_MatchSlug(t *testing.T) {
 	idx := setupTestIndex(t)
 
-	beans := []*bean.Bean{
+	items := []*item.Item{
 		{ID: "aaa1", Slug: "auth-feature", Title: "Feature A", Body: "Some content"},
 		{ID: "bbb2", Slug: "database-migration", Title: "Feature B", Body: "Other content"},
 		{ID: "ccc3", Slug: "ui-update", Title: "Feature C", Body: "More content"},
 	}
 
-	for _, b := range beans {
-		if err := idx.IndexBean(b); err != nil {
+	for _, b := range items {
+		if err := idx.IndexItem(b); err != nil {
 			t.Fatalf("IndexBean() error = %v", err)
 		}
 	}
@@ -138,14 +138,14 @@ func TestSearch_MatchSlug(t *testing.T) {
 func TestSearch_MultipleResults(t *testing.T) {
 	idx := setupTestIndex(t)
 
-	beans := []*bean.Bean{
+	items := []*item.Item{
 		{ID: "aaa1", Title: "User Login", Body: "Authentication flow"},
 		{ID: "bbb2", Title: "User Registration", Body: "Sign up form"},
 		{ID: "ccc3", Title: "Admin Panel", Body: "Dashboard"},
 	}
 
-	for _, b := range beans {
-		if err := idx.IndexBean(b); err != nil {
+	for _, b := range items {
+		if err := idx.IndexItem(b); err != nil {
 			t.Fatalf("IndexBean() error = %v", err)
 		}
 	}
@@ -163,12 +163,12 @@ func TestSearch_MultipleResults(t *testing.T) {
 func TestSearch_NoResults(t *testing.T) {
 	idx := setupTestIndex(t)
 
-	b := &bean.Bean{
+	b := &item.Item{
 		ID:    "abc1",
 		Title: "Test Bean",
 		Body:  "Some content",
 	}
-	if err := idx.IndexBean(b); err != nil {
+	if err := idx.IndexItem(b); err != nil {
 		t.Fatalf("IndexBean() error = %v", err)
 	}
 
@@ -185,12 +185,12 @@ func TestSearch_NoResults(t *testing.T) {
 func TestSearch_EmptyQuery(t *testing.T) {
 	idx := setupTestIndex(t)
 
-	b := &bean.Bean{
+	b := &item.Item{
 		ID:    "abc1",
 		Title: "Test Bean",
 		Body:  "Some content",
 	}
-	if err := idx.IndexBean(b); err != nil {
+	if err := idx.IndexItem(b); err != nil {
 		t.Fatalf("IndexBean() error = %v", err)
 	}
 
@@ -207,14 +207,14 @@ func TestSearch_EmptyQuery(t *testing.T) {
 func TestSearch_BooleanQuery(t *testing.T) {
 	idx := setupTestIndex(t)
 
-	beans := []*bean.Bean{
+	items := []*item.Item{
 		{ID: "aaa1", Title: "User Authentication", Body: "Login with password"},
 		{ID: "bbb2", Title: "User Registration", Body: "Create account"},
 		{ID: "ccc3", Title: "Admin Authentication", Body: "Admin login"},
 	}
 
-	for _, b := range beans {
-		if err := idx.IndexBean(b); err != nil {
+	for _, b := range items {
+		if err := idx.IndexItem(b); err != nil {
 			t.Fatalf("IndexBean() error = %v", err)
 		}
 	}
@@ -241,14 +241,14 @@ func TestSearch_BooleanQuery(t *testing.T) {
 func TestSearch_Wildcard(t *testing.T) {
 	idx := setupTestIndex(t)
 
-	beans := []*bean.Bean{
+	items := []*item.Item{
 		{ID: "aaa1", Title: "Authentication", Body: ""},
 		{ID: "bbb2", Title: "Authorization", Body: ""},
 		{ID: "ccc3", Title: "Automation", Body: ""},
 	}
 
-	for _, b := range beans {
-		if err := idx.IndexBean(b); err != nil {
+	for _, b := range items {
+		if err := idx.IndexItem(b); err != nil {
 			t.Fatalf("IndexBean() error = %v", err)
 		}
 	}
@@ -264,15 +264,15 @@ func TestSearch_Wildcard(t *testing.T) {
 	}
 }
 
-func TestDeleteBean(t *testing.T) {
+func TestDeleteItem(t *testing.T) {
 	idx := setupTestIndex(t)
 
-	b := &bean.Bean{
+	b := &item.Item{
 		ID:    "abc1",
 		Title: "Test Bean",
 		Body:  "Some content",
 	}
-	if err := idx.IndexBean(b); err != nil {
+	if err := idx.IndexItem(b); err != nil {
 		t.Fatalf("IndexBean() error = %v", err)
 	}
 
@@ -283,7 +283,7 @@ func TestDeleteBean(t *testing.T) {
 	}
 
 	// Delete
-	if err := idx.DeleteBean("abc1"); err != nil {
+	if err := idx.DeleteItem("abc1"); err != nil {
 		t.Fatalf("DeleteBean() error = %v", err)
 	}
 
@@ -294,23 +294,23 @@ func TestDeleteBean(t *testing.T) {
 	}
 }
 
-func TestIndexBean_Update(t *testing.T) {
+func TestIndexItem_Update(t *testing.T) {
 	idx := setupTestIndex(t)
 
 	// Index initial version
-	b := &bean.Bean{
+	b := &item.Item{
 		ID:    "abc1",
 		Title: "Original Title",
 		Body:  "Original content",
 	}
-	if err := idx.IndexBean(b); err != nil {
+	if err := idx.IndexItem(b); err != nil {
 		t.Fatalf("IndexBean() error = %v", err)
 	}
 
-	// Update the bean
+	// Update the item
 	b.Title = "Updated Title"
 	b.Body = "Updated content"
-	if err := idx.IndexBean(b); err != nil {
+	if err := idx.IndexItem(b); err != nil {
 		t.Fatalf("IndexBean() update error = %v", err)
 	}
 
@@ -330,14 +330,14 @@ func TestIndexBean_Update(t *testing.T) {
 func TestSearch_Limit(t *testing.T) {
 	idx := setupTestIndex(t)
 
-	// Index many beans
+	// Index many items
 	for i := 0; i < 20; i++ {
-		b := &bean.Bean{
+		b := &item.Item{
 			ID:    mustNewID(t),
 			Title: "Test Bean",
 			Body:  "Content",
 		}
-		if err := idx.IndexBean(b); err != nil {
+		if err := idx.IndexItem(b); err != nil {
 			t.Fatalf("IndexBean() error = %v", err)
 		}
 	}
@@ -356,12 +356,12 @@ func TestSearch_Limit(t *testing.T) {
 func TestSearch_DefaultLimit(t *testing.T) {
 	idx := setupTestIndex(t)
 
-	b := &bean.Bean{
+	b := &item.Item{
 		ID:    "abc1",
 		Title: "Test",
 		Body:  "",
 	}
-	if err := idx.IndexBean(b); err != nil {
+	if err := idx.IndexItem(b); err != nil {
 		t.Fatalf("IndexBean() error = %v", err)
 	}
 

@@ -8,9 +8,9 @@ import (
 	"strings"
 )
 
-// beanIDPattern matches valid bean IDs: alphanumeric characters, hyphens, and underscores.
+// itemIDPattern matches valid item IDs: alphanumeric characters, hyphens, and underscores.
 // The special ID "__central__" (used for central agent chat) is also valid.
-var beanIDPattern = regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
+var itemIDPattern = regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
 
 // SafeJoin joins a trusted root directory with an untrusted relative path component,
 // returning the resulting absolute path only if it stays within root.
@@ -36,16 +36,16 @@ func SafeJoin(root, untrusted string) (string, error) {
 	return joined, nil
 }
 
-// ValidateBeanID checks that a bean ID contains only safe characters
+// ValidateItemID checks that an item ID contains only safe characters
 // (alphanumeric, hyphens, underscores). Returns an error if the ID is
 // empty or contains unexpected characters that could be used for path
 // traversal or command injection.
-func ValidateBeanID(beanID string) error {
-	if beanID == "" {
-		return fmt.Errorf("bean ID must not be empty")
+func ValidateItemID(itemID string) error {
+	if itemID == "" {
+		return fmt.Errorf("item ID must not be empty")
 	}
-	if !beanIDPattern.MatchString(beanID) {
-		return fmt.Errorf("invalid bean ID %q: must contain only alphanumeric characters, hyphens, and underscores", beanID)
+	if !itemIDPattern.MatchString(itemID) {
+		return fmt.Errorf("invalid item ID %q: must contain only alphanumeric characters, hyphens, and underscores", itemID)
 	}
 	return nil
 }

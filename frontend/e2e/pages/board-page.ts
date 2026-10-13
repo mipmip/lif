@@ -22,7 +22,7 @@ export class BoardPage {
     return this.page.locator(`[data-status="${status}"]`);
   }
 
-  /** Get all bean titles in a specific column, in display order. */
+  /** Get all item titles in a specific column, in display order. */
   async getColumnTitles(status: string): Promise<string[]> {
     const col = this.column(status);
     const cards = col.locator('[role="listitem"] [role="button"] span.text-sm');
@@ -30,26 +30,26 @@ export class BoardPage {
     return titles.map((t) => t.trim());
   }
 
-  /** Get the count of beans in a column. */
+  /** Get the count of items in a column. */
   async getColumnCount(status: string): Promise<number> {
     const col = this.column(status);
     return col.locator('[role="listitem"]').count();
   }
 
-  /** Wait for a specific count of beans in a column. */
+  /** Wait for a specific count of items in a column. */
   async waitForColumnCount(status: string, count: number) {
     const col = this.column(status);
     await expect(col.locator('[role="listitem"]')).toHaveCount(count, { timeout: 10_000 });
   }
 
-  /** Wait for a bean to appear in a specific column. */
-  async waitForBeanInColumn(title: string, status: string) {
+  /** Wait for an item to appear in a specific column. */
+  async waitForItemInColumn(title: string, status: string) {
     const col = this.column(status);
     await col.locator('[role="listitem"]', { hasText: title }).waitFor({ timeout: 10_000 });
   }
 
-  /** Wait for a bean to disappear from a specific column. */
-  async waitForBeanNotInColumn(title: string, status: string) {
+  /** Wait for an item to disappear from a specific column. */
+  async waitForItemNotInColumn(title: string, status: string) {
     const col = this.column(status);
     await col
       .locator('[role="listitem"]', { hasText: title })
@@ -58,7 +58,7 @@ export class BoardPage {
 
   /** Get the "Archive all" button in the completed column. */
   get archiveAllButton() {
-    return this.column('completed').getByRole('button', { name: 'Archive all completed beans' });
+    return this.column('completed').getByRole('button', { name: 'Archive all completed items' });
   }
 
   /** Click the "Archive all" button and confirm the modal. */

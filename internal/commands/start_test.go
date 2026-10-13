@@ -7,24 +7,24 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/xRiErOS/beans/pkg/bean"
-	"github.com/xRiErOS/beans/pkg/beancore"
-	"github.com/xRiErOS/beans/pkg/config"
+	"github.com/xRiErOS/lif/pkg/config"
+	"github.com/xRiErOS/lif/pkg/item"
+	"github.com/xRiErOS/lif/pkg/itemcore"
 )
 
 // setupStartTest installs a throwaway core and default config into the
-// package globals startCmd.RunE reads, and returns a bean already persisted
+// package globals startCmd.RunE reads, and returns an item already persisted
 // in that core.
-func setupStartTest(t *testing.T) *bean.Bean {
+func setupStartTest(t *testing.T) *item.Item {
 	t.Helper()
 	tmpDir := t.TempDir()
-	beansDir := filepath.Join(tmpDir, ".beans")
-	if err := os.MkdirAll(beansDir, 0755); err != nil {
+	itemsDir := filepath.Join(tmpDir, ".beans")
+	if err := os.MkdirAll(itemsDir, 0755); err != nil {
 		t.Fatalf("failed to create test .beans dir: %v", err)
 	}
 
 	testCfg := config.Default()
-	testCore := beancore.New(beansDir, testCfg)
+	testCore := itemcore.New(itemsDir, testCfg)
 	if err := testCore.Load(); err != nil {
 		t.Fatalf("failed to load core: %v", err)
 	}
@@ -33,9 +33,9 @@ func setupStartTest(t *testing.T) *bean.Bean {
 	core, cfg = testCore, testCfg
 	t.Cleanup(func() { core, cfg = oldCore, oldCfg })
 
-	b := &bean.Bean{
+	b := &item.Item{
 		ID:     "beans-test1",
-		Slug:   bean.Slugify("A test bean"),
+		Slug:   item.Slugify("A test bean"),
 		Title:  "A test bean",
 		Status: "todo",
 		Type:   "task",
@@ -59,7 +59,7 @@ func resetStartFlags(t *testing.T) {
 	})
 }
 
-// TestStartSetsStatusInProgress verifies that beans start <id> sets status to in-progress.
+// TestStartSetsStatusInProgress verifies that lif start <id> sets status to in-progress.
 func TestStartSetsStatusInProgress(t *testing.T) {
 	b := setupStartTest(t)
 	resetStartFlags(t)
@@ -77,9 +77,9 @@ func TestStartSetsStatusInProgress(t *testing.T) {
 	}
 }
 
-// TestStartDisplaysBeanDetails verifies that start displays the bean details
+// TestStartDisplaysItemDetails verifies that start displays the item details
 // by delegating to show command.
-func TestStartDisplaysBeanDetails(t *testing.T) {
+func TestStartDisplaysItemDetails(t *testing.T) {
 	b := setupStartTest(t)
 	resetStartFlags(t)
 
@@ -110,7 +110,7 @@ func TestStartDisplaysBeanDetails(t *testing.T) {
 
 	output := string(captured)
 
-	// Verify output contains bean ID and title (show command output includes these)
+	// Verify output contains item ID and title (show command output includes these)
 	if !strings.Contains(output, b.ID) {
 		t.Errorf("output does not contain bean ID %q, output = %q", b.ID, output)
 	}
@@ -122,7 +122,7 @@ func TestStartDisplaysBeanDetails(t *testing.T) {
 	}
 }
 
-// TestStartRejectsUnknownID verifies that unknown bean ID returns an error.
+// TestStartRejectsUnknownID verifies that unknown item ID returns an error.
 func TestStartRejectsUnknownID(t *testing.T) {
 	setupStartTest(t)
 	resetStartFlags(t)
@@ -155,12 +155,12 @@ func captureStartStdout(t *testing.T, fn func()) []byte {
 	return data
 }
 
-// mkStartBean adds another bean to the store set up by setupStartTest.
-func mkStartBean(t *testing.T, id, title string) *bean.Bean {
+// mkStartItem adds another item to the store set up by setupStartTest.
+func mkStartItem(t *testing.T, id, title string) *item.Item {
 	t.Helper()
-	b := &bean.Bean{
+	b := &item.Item{
 		ID:     id,
-		Slug:   bean.Slugify(title),
+		Slug:   item.Slugify(title),
 		Title:  title,
 		Status: "todo",
 		Type:   "task",
@@ -172,12 +172,12 @@ func mkStartBean(t *testing.T, id, title string) *bean.Bean {
 }
 
 // TestStartTakesMultipleIDs verifies the batch signature starts every named
-// bean. With more than one ID the output collapses to one line per bean
+// item. With more than one ID the output collapses to one line per item
 // instead of the full show rendering, which would otherwise dump n bodies.
 func TestStartTakesMultipleIDs(t *testing.T) {
 	first := setupStartTest(t)
 	resetStartFlags(t)
-	second := mkStartBean(t, "beans-bst2", "Second bean")
+	second := mkStartItem(t, "beans-bst2", "Second bean")
 
 	out := captureStartStdout(t, func() {
 		if err := startCmd.RunE(startCmd, []string{first.ID, second.ID}); err != nil {
@@ -207,7 +207,7 @@ func TestStartTakesMultipleIDs(t *testing.T) {
 func TestStartPreflightRejectsUnknownID(t *testing.T) {
 	first := setupStartTest(t)
 	resetStartFlags(t)
-	second := mkStartBean(t, "beans-brt2", "Second bean")
+	second := mkStartItem(t, "beans-brt2", "Second bean")
 
 	if err := startCmd.RunE(startCmd, []string{first.ID, "beans-nope", second.ID}); err == nil {
 		t.Fatal("startCmd.RunE() error = nil, want an error for the unknown ID")

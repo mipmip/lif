@@ -8,16 +8,16 @@ import (
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/xRiErOS/beans/internal/ui"
-	"github.com/xRiErOS/beans/pkg/bean"
-	"github.com/xRiErOS/beans/pkg/beangraph"
-	"github.com/xRiErOS/beans/pkg/candidates"
-	"github.com/xRiErOS/beans/pkg/config"
+	"github.com/xRiErOS/lif/internal/ui"
+	"github.com/xRiErOS/lif/pkg/candidates"
+	"github.com/xRiErOS/lif/pkg/config"
+	"github.com/xRiErOS/lif/pkg/item"
+	"github.com/xRiErOS/lif/pkg/itemgraph"
 )
 
 // blockingConfirmedMsg is sent when blocking changes are confirmed
 type blockingConfirmedMsg struct {
-	beanID  string            // the bean we're modifying
+	itemID  string            // the item we're modifying
 	toAdd   []string          // IDs to add to blocking
 	toRemove []string         // IDs to remove from blocking
 }
@@ -25,22 +25,22 @@ type blockingConfirmedMsg struct {
 // closeBlockingPickerMsg is sent when the blocking picker is cancelled
 type closeBlockingPickerMsg struct{}
 
-// openBlockingPickerMsg requests opening the blocking picker for a bean
+// openBlockingPickerMsg requests opening the blocking picker for an item
 type openBlockingPickerMsg struct {
-	beanID          string
-	beanTitle       string
-	currentBlocking []string // IDs of beans currently being blocked
+	itemID          string
+	itemTitle       string
+	currentBlocking []string // IDs of items currently being blocked
 }
 
-// blockingItem wraps a bean to implement list.Item for the blocking picker
+// blockingItem wraps an item to implement list.Item for the blocking picker
 type blockingItem struct {
-	bean *bean.Bean
+	item *item.Item
 	cfg  *config.Config
 }
 
-func (i blockingItem) Title() string       { return i.bean.Title }
-func (i blockingItem) Description() string { return i.bean.ID }
-func (i blockingItem) FilterValue() string { return i.bean.Title + " " + i.bean.ID }
+func (i blockingItem) Title() string       { return i.item.Title }
+func (i blockingItem) Description() string { return i.item.ID }
+func (i blockingItem) FilterValue() string { return i.item.Title + " " + i.item.ID }
 
 // blockingItemDelegate handles rendering of blocking picker items
 type blockingItemDelegate struct {
@@ -66,7 +66,7 @@ func (d blockingItemDelegate) Render(w io.Writer, m list.Model, index int, listI
 	}
 
 	// Show blocking indicator - read from pending state for live updates
-	isBlocking := (*d.pendingBlocking)[item.bean.ID]
+	isBlocking := (*d.pendingBlocking)[item.item.ID]
 	var blockingIndicator string
 	if isBlocking {
 		blockingIndicator = lipgloss.NewStyle().Foreground(ui.ColorDanger).Bold(true).Render("● ") // Red dot for blocking
@@ -75,15 +75,15 @@ func (d blockingItemDelegate) Render(w io.Writer, m list.Model, index int, listI
 	}
 
 	// Get colors from config
-	colors := d.cfg.GetBeanColors(item.bean.Status, item.bean.Type, item.bean.Priority)
+	colors := d.cfg.GetItemColors(item.item.Status, item.item.Type, item.item.Priority)
 
 	// Format: [indicator] [type] title (id)
-	typeBadge := ui.RenderTypeText(item.bean.Type, colors.TypeColor)
-	title := item.bean.Title
+	typeBadge := ui.RenderTypeText(item.item.Type, colors.TypeColor)
+	title := item.item.Title
 	if colors.IsArchive {
 		title = ui.Muted.Render(title)
 	}
-	id := ui.Muted.Render(" (" + item.bean.ID + ")")
+	id := ui.Muted.Render(" (" + item.item.ID + ")")
 
 	fmt.Fprint(w, cursor+blockingIndicator+typeBadge+" "+title+id)
 }
@@ -91,8 +91,8 @@ func (d blockingItemDelegate) Render(w io.Writer, m list.Model, index int, listI
 // blockingPickerModel is the model for the blocking picker view
 type blockingPickerModel struct {
 	list             list.Model
-	beanID           string           // the bean we're setting blocking for
-	beanTitle        string           // the bean's title
+	itemID           string           // the item we're setting blocking for
+	itemTitle        string           // the item's title
 	originalBlocking map[string]bool  // original state (for computing diff)
 	pendingBlocking  map[string]bool  // pending state (toggled by space)
 	cfg              *config.Config
@@ -100,8 +100,8 @@ type blockingPickerModel struct {
 	height           int
 }
 
-func newBlockingPickerModel(beanID, beanTitle string, currentBlocking []string, resolver *beangraph.CoreResolver, cfg *config.Config, width, height int) blockingPickerModel {
-	eligibleBeans, _ := candidates.BlockingCandidates(context.Background(), resolver, cfg, beanID)
+func newBlockingPickerModel(itemID, itemTitle string, currentBlocking []string, resolver *itemgraph.CoreResolver, cfg *config.Config, width, height int) blockingPickerModel {
+	eligibleItems, _ := candidates.BlockingCandidates(context.Background(), resolver, cfg, itemID)
 
 	// Create maps for original and pending state
 	originalBlocking := make(map[string]bool)
@@ -112,10 +112,10 @@ func newBlockingPickerModel(beanID, beanTitle string, currentBlocking []string, 
 	}
 
 	// Build items list
-	items := make([]list.Item, 0, len(eligibleBeans))
-	for _, b := range eligibleBeans {
+	items := make([]list.Item, 0, len(eligibleItems))
+	for _, b := range eligibleItems {
 		items = append(items, blockingItem{
-			bean: b,
+			item: b,
 			cfg:  cfg,
 		})
 	}
@@ -143,8 +143,8 @@ func newBlockingPickerModel(beanID, beanTitle string, currentBlocking []string, 
 
 	return blockingPickerModel{
 		list:             l,
-		beanID:           beanID,
-		beanTitle:        beanTitle,
+		itemID:           itemID,
+		itemTitle:        itemTitle,
 		originalBlocking: originalBlocking,
 		pendingBlocking:  pendingBlocking,
 		cfg:              cfg,
@@ -177,7 +177,7 @@ func (m blockingPickerModel) Update(msg tea.Msg) (blockingPickerModel, tea.Cmd) 
 				// Toggle the selected item's pending state
 				// The delegate reads from pendingBlocking directly, so no need to update items
 				if item, ok := m.list.SelectedItem().(blockingItem); ok {
-					targetID := item.bean.ID
+					targetID := item.item.ID
 					if m.pendingBlocking[targetID] {
 						delete(m.pendingBlocking, targetID)
 					} else {
@@ -206,7 +206,7 @@ func (m blockingPickerModel) Update(msg tea.Msg) (blockingPickerModel, tea.Cmd) 
 
 				return m, func() tea.Msg {
 					return blockingConfirmedMsg{
-						beanID:   m.beanID,
+						itemID:   m.itemID,
 						toAdd:    toAdd,
 						toRemove: toRemove,
 					}
@@ -232,8 +232,8 @@ func (m blockingPickerModel) View() string {
 
 	return renderPickerModal(pickerModalConfig{
 		Title:       "Manage Blocking",
-		BeanTitle:   m.beanTitle,
-		BeanID:      m.beanID,
+		ItemTitle:   m.itemTitle,
+		ItemID:      m.itemID,
 		ListContent: m.list.View(),
 		Description: "space toggle, enter confirm, esc cancel",
 		Width:       m.width,

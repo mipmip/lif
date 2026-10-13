@@ -941,7 +941,7 @@ func TestNotify_GlobalSubscribers(t *testing.T) {
 	globalCh := m.SubscribeGlobal()
 	defer m.UnsubscribeGlobal(globalCh)
 
-	// Notifying any bean should also notify global subscribers
+	// Notifying any item should also notify global subscribers
 	m.notify("some-bean")
 
 	select {
@@ -974,9 +974,9 @@ func TestListRunningSessions_FiltersRunning(t *testing.T) {
 
 	ids := make(map[string]bool)
 	for _, a := range result {
-		ids[a.BeanID] = true
+		ids[a.ItemID] = true
 		if a.Status != StatusRunning {
-			t.Errorf("expected StatusRunning, got %q for %s", a.Status, a.BeanID)
+			t.Errorf("expected StatusRunning, got %q for %s", a.Status, a.ItemID)
 		}
 	}
 	if !ids["running-1"] || !ids["running-2"] {

@@ -88,30 +88,30 @@ func TestSafeJoin(t *testing.T) {
 	}
 }
 
-func TestValidateBeanID(t *testing.T) {
+func TestValidateItemID(t *testing.T) {
 	tests := []struct {
 		name    string
-		beanID  string
+		itemID  string
 		wantErr bool
 	}{
-		{name: "valid simple", beanID: "bean-abc1", wantErr: false},
-		{name: "valid with underscores", beanID: "__central__", wantErr: false},
-		{name: "valid alphanumeric", beanID: "abc123", wantErr: false},
-		{name: "valid with hyphens", beanID: "my-bean-id", wantErr: false},
-		{name: "empty", beanID: "", wantErr: true},
-		{name: "path traversal", beanID: "../../../etc/passwd", wantErr: true},
-		{name: "contains slash", beanID: "bean/evil", wantErr: true},
-		{name: "contains backslash", beanID: "bean\\evil", wantErr: true},
-		{name: "contains dot-dot", beanID: "bean..evil", wantErr: true},
-		{name: "contains space", beanID: "bean evil", wantErr: true},
-		{name: "contains null byte", beanID: "bean\x00evil", wantErr: true},
+		{name: "valid simple", itemID: "bean-abc1", wantErr: false},
+		{name: "valid with underscores", itemID: "__central__", wantErr: false},
+		{name: "valid alphanumeric", itemID: "abc123", wantErr: false},
+		{name: "valid with hyphens", itemID: "my-bean-id", wantErr: false},
+		{name: "empty", itemID: "", wantErr: true},
+		{name: "path traversal", itemID: "../../../etc/passwd", wantErr: true},
+		{name: "contains slash", itemID: "bean/evil", wantErr: true},
+		{name: "contains backslash", itemID: "bean\\evil", wantErr: true},
+		{name: "contains dot-dot", itemID: "bean..evil", wantErr: true},
+		{name: "contains space", itemID: "bean evil", wantErr: true},
+		{name: "contains null byte", itemID: "bean\x00evil", wantErr: true},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := ValidateBeanID(tt.beanID)
+			err := ValidateItemID(tt.itemID)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("ValidateBeanID(%q) error = %v, wantErr %v", tt.beanID, err, tt.wantErr)
+				t.Errorf("ValidateBeanID(%q) error = %v, wantErr %v", tt.itemID, err, tt.wantErr)
 			}
 		})
 	}

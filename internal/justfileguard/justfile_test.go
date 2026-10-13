@@ -65,7 +65,7 @@ func recipeBody(t *testing.T, justfile, name string) string {
 
 // requireCountBeforeArgs prueft, dass wantCountFlag unmittelbar (durch Whitespace getrennt) vor
 // {{ ARGS }} bzw. {{ARGS}} im Rezeptkoerper steht (AC-02/AC-03), unabhaengig von der konkreten
-// Leerzeichen-Schreibweise innerhalb der doppelten geschweiften Klammern (Risk-Eintrag im bean).
+// Leerzeichen-Schreibweise innerhalb der doppelten geschweiften Klammern (Risk-Eintrag im item).
 func requireCountBeforeArgs(t *testing.T, body string) {
 	t.Helper()
 	pattern := regexp.MustCompile(regexp.QuoteMeta(wantCountFlag) + `\s+\{\{\s*ARGS\s*\}\}`)
@@ -98,14 +98,14 @@ func TestJustfileInstallRecipeCallsGuard(t *testing.T) {
 }
 
 // TestJustfileInstallWipRecipeNeverWritesPlainNames bewacht beans-nji1:
-// `install-wip` darf keines der drei regulaeren Binaries (beans,
-// beans-serve, beans-tui) unter ihrem Klarnamen schreiben -- sonst wuerde
+// `install-wip` darf keines der drei regulaeren Binaries (lif,
+// lif-serve, lif-tui) unter ihrem Klarnamen schreiben -- sonst wuerde
 // ein Wegwerf-/Container-Build genau das systemweite Binary ersetzen, das
 // der Ort-Guard in `install` schuetzt.
 func TestJustfileInstallWipRecipeNeverWritesPlainNames(t *testing.T) {
 	justfile := read(t, repoRoot(t)+"/justfile")
 	body := recipeBody(t, justfile, "install-wip")
-	for _, plain := range []string{`"{{bin_dir}}/beans"`, `"{{bin_dir}}/beans-serve"`, `"{{bin_dir}}/beans-tui"`} {
+	for _, plain := range []string{`"{{bin_dir}}/lif"`, `"{{bin_dir}}/lif-serve"`, `"{{bin_dir}}/lif-tui"`} {
 		if strings.Contains(body, plain) {
 			t.Errorf("install-wip must never target %s, got:\n%s", plain, body)
 		}

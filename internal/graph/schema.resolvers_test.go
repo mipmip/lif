@@ -11,36 +11,36 @@ import (
 	"testing"
 	"time"
 
-	"github.com/xRiErOS/beans/internal/agent"
-	"github.com/xRiErOS/beans/pkg/beangraph"
-	"github.com/xRiErOS/beans/pkg/beangraph/model"
-	"github.com/xRiErOS/beans/pkg/bean"
-	"github.com/xRiErOS/beans/pkg/beancore"
-	"github.com/xRiErOS/beans/pkg/config"
+	"github.com/xRiErOS/lif/internal/agent"
+	"github.com/xRiErOS/lif/pkg/config"
+	"github.com/xRiErOS/lif/pkg/item"
+	"github.com/xRiErOS/lif/pkg/itemcore"
+	"github.com/xRiErOS/lif/pkg/itemgraph"
+	"github.com/xRiErOS/lif/pkg/itemgraph/model"
 )
 
-func setupTestResolver(t *testing.T) (*Resolver, *beancore.Core) {
+func setupTestResolver(t *testing.T) (*Resolver, *itemcore.Core) {
 	t.Helper()
 	tmpDir := t.TempDir()
-	beansDir := filepath.Join(tmpDir, ".beans")
-	if err := os.MkdirAll(beansDir, 0755); err != nil {
+	itemsDir := filepath.Join(tmpDir, ".beans")
+	if err := os.MkdirAll(itemsDir, 0755); err != nil {
 		t.Fatalf("failed to create test .beans dir: %v", err)
 	}
 
 	cfg := config.Default()
-	core := beancore.New(beansDir, cfg)
+	core := itemcore.New(itemsDir, cfg)
 	if err := core.Load(); err != nil {
 		t.Fatalf("failed to load core: %v", err)
 	}
 
-	return &Resolver{CoreResolver: &beangraph.CoreResolver{Core: core}}, core
+	return &Resolver{CoreResolver: &itemgraph.CoreResolver{Core: core}}, core
 }
 
-func createTestBean(t *testing.T, core *beancore.Core, id, title, status string) *bean.Bean {
+func createTestItem(t *testing.T, core *itemcore.Core, id, title, status string) *item.Item {
 	t.Helper()
-	b := &bean.Bean{
+	b := &item.Item{
 		ID:     id,
-		Slug:   bean.Slugify(title),
+		Slug:   item.Slugify(title),
 		Title:  title,
 		Status: status,
 	}
@@ -50,22 +50,22 @@ func createTestBean(t *testing.T, core *beancore.Core, id, title, status string)
 	return b
 }
 
-func TestQueryBean(t *testing.T) {
+func TestQueryItem(t *testing.T) {
 	resolver, core := setupTestResolver(t)
 	ctx := context.Background()
 
-	// Create test bean
-	createTestBean(t, core, "test-1", "Test Bean", "todo")
+	// Create test item
+	createTestItem(t, core, "test-1", "Test Bean", "todo")
 
 	// Test exact match
 	t.Run("exact match", func(t *testing.T) {
 		qr := resolver.Query()
-		got, err := qr.Bean(ctx, "test-1")
+		got, err := qr.Item(ctx, "test-1")
 		if err != nil {
-			t.Fatalf("Bean() error = %v", err)
+			t.Fatalf("Item() error = %v", err)
 		}
 		if got == nil {
-			t.Fatal("Bean() returned nil")
+			t.Fatal("Item() returned nil")
 		}
 		if got.ID != "test-1" {
 			t.Errorf("Bean().ID = %q, want %q", got.ID, "test-1")
@@ -75,160 +75,160 @@ func TestQueryBean(t *testing.T) {
 	// Test partial ID not found (no prefix matching)
 	t.Run("partial ID not found", func(t *testing.T) {
 		qr := resolver.Query()
-		got, err := qr.Bean(ctx, "test")
+		got, err := qr.Item(ctx, "test")
 		if err != nil {
-			t.Fatalf("Bean() error = %v", err)
+			t.Fatalf("Item() error = %v", err)
 		}
 		if got != nil {
-			t.Errorf("Bean() = %v, want nil (partial IDs should not match)", got)
+			t.Errorf("Item() = %v, want nil (partial IDs should not match)", got)
 		}
 	})
 
 	// Test not found
 	t.Run("not found", func(t *testing.T) {
 		qr := resolver.Query()
-		got, err := qr.Bean(ctx, "nonexistent")
+		got, err := qr.Item(ctx, "nonexistent")
 		if err != nil {
-			t.Fatalf("Bean() error = %v", err)
+			t.Fatalf("Item() error = %v", err)
 		}
 		if got != nil {
-			t.Errorf("Bean() = %v, want nil", got)
+			t.Errorf("Item() = %v, want nil", got)
 		}
 	})
 }
 
-func TestQueryBeans(t *testing.T) {
+func TestQueryItems(t *testing.T) {
 	resolver, core := setupTestResolver(t)
 	ctx := context.Background()
 
-	// Create test beans
-	createTestBean(t, core, "bean-1", "First Bean", "todo")
-	createTestBean(t, core, "bean-2", "Second Bean", "in-progress")
-	createTestBean(t, core, "bean-3", "Third Bean", "completed")
+	// Create test items
+	createTestItem(t, core, "bean-1", "First Bean", "todo")
+	createTestItem(t, core, "bean-2", "Second Bean", "in-progress")
+	createTestItem(t, core, "bean-3", "Third Bean", "completed")
 
 	t.Run("no filter", func(t *testing.T) {
 		qr := resolver.Query()
-		got, err := qr.Beans(ctx, nil)
+		got, err := qr.Items(ctx, nil)
 		if err != nil {
-			t.Fatalf("Beans() error = %v", err)
+			t.Fatalf("Items() error = %v", err)
 		}
 		if len(got) != 3 {
-			t.Errorf("Beans() count = %d, want 3", len(got))
+			t.Errorf("Items() count = %d, want 3", len(got))
 		}
 	})
 
 	t.Run("filter by status", func(t *testing.T) {
 		qr := resolver.Query()
-		filter := &model.BeanFilter{
+		filter := &model.ItemFilter{
 			Status: []string{"todo"},
 		}
-		got, err := qr.Beans(ctx, filter)
+		got, err := qr.Items(ctx, filter)
 		if err != nil {
-			t.Fatalf("Beans() error = %v", err)
+			t.Fatalf("Items() error = %v", err)
 		}
 		if len(got) != 1 {
-			t.Errorf("Beans() count = %d, want 1", len(got))
+			t.Errorf("Items() count = %d, want 1", len(got))
 		}
 		if got[0].ID != "bean-1" {
-			t.Errorf("Beans()[0].ID = %q, want %q", got[0].ID, "bean-1")
+			t.Errorf("Items()[0].ID = %q, want %q", got[0].ID, "bean-1")
 		}
 	})
 
 	t.Run("filter by multiple statuses", func(t *testing.T) {
 		qr := resolver.Query()
-		filter := &model.BeanFilter{
+		filter := &model.ItemFilter{
 			Status: []string{"todo", "in-progress"},
 		}
-		got, err := qr.Beans(ctx, filter)
+		got, err := qr.Items(ctx, filter)
 		if err != nil {
-			t.Fatalf("Beans() error = %v", err)
+			t.Fatalf("Items() error = %v", err)
 		}
 		if len(got) != 2 {
-			t.Errorf("Beans() count = %d, want 2", len(got))
+			t.Errorf("Items() count = %d, want 2", len(got))
 		}
 	})
 
 	t.Run("exclude status", func(t *testing.T) {
 		qr := resolver.Query()
-		filter := &model.BeanFilter{
+		filter := &model.ItemFilter{
 			ExcludeStatus: []string{"completed"},
 		}
-		got, err := qr.Beans(ctx, filter)
+		got, err := qr.Items(ctx, filter)
 		if err != nil {
-			t.Fatalf("Beans() error = %v", err)
+			t.Fatalf("Items() error = %v", err)
 		}
 		if len(got) != 2 {
-			t.Errorf("Beans() count = %d, want 2", len(got))
+			t.Errorf("Items() count = %d, want 2", len(got))
 		}
 	})
 }
 
-func TestQueryBeansWithTags(t *testing.T) {
+func TestQueryItemsWithTags(t *testing.T) {
 	resolver, core := setupTestResolver(t)
 	ctx := context.Background()
 
-	// Create test beans with tags
-	b1 := &bean.Bean{ID: "tag-1", Title: "Tagged 1", Status: "todo", Tags: []string{"frontend", "urgent"}}
-	b2 := &bean.Bean{ID: "tag-2", Title: "Tagged 2", Status: "todo", Tags: []string{"backend"}}
-	b3 := &bean.Bean{ID: "tag-3", Title: "No Tags", Status: "todo"}
+	// Create test items with tags
+	b1 := &item.Item{ID: "tag-1", Title: "Tagged 1", Status: "todo", Tags: []string{"frontend", "urgent"}}
+	b2 := &item.Item{ID: "tag-2", Title: "Tagged 2", Status: "todo", Tags: []string{"backend"}}
+	b3 := &item.Item{ID: "tag-3", Title: "No Tags", Status: "todo"}
 	core.Create(b1)
 	core.Create(b2)
 	core.Create(b3)
 
 	t.Run("filter by tag", func(t *testing.T) {
 		qr := resolver.Query()
-		filter := &model.BeanFilter{
+		filter := &model.ItemFilter{
 			Tags: []string{"frontend"},
 		}
-		got, err := qr.Beans(ctx, filter)
+		got, err := qr.Items(ctx, filter)
 		if err != nil {
-			t.Fatalf("Beans() error = %v", err)
+			t.Fatalf("Items() error = %v", err)
 		}
 		if len(got) != 1 {
-			t.Errorf("Beans() count = %d, want 1", len(got))
+			t.Errorf("Items() count = %d, want 1", len(got))
 		}
 	})
 
 	t.Run("filter by multiple tags (OR)", func(t *testing.T) {
 		qr := resolver.Query()
-		filter := &model.BeanFilter{
+		filter := &model.ItemFilter{
 			Tags: []string{"frontend", "backend"},
 		}
-		got, err := qr.Beans(ctx, filter)
+		got, err := qr.Items(ctx, filter)
 		if err != nil {
-			t.Fatalf("Beans() error = %v", err)
+			t.Fatalf("Items() error = %v", err)
 		}
 		if len(got) != 2 {
-			t.Errorf("Beans() count = %d, want 2", len(got))
+			t.Errorf("Items() count = %d, want 2", len(got))
 		}
 	})
 
 	t.Run("exclude by tag", func(t *testing.T) {
 		qr := resolver.Query()
-		filter := &model.BeanFilter{
+		filter := &model.ItemFilter{
 			ExcludeTags: []string{"urgent"},
 		}
-		got, err := qr.Beans(ctx, filter)
+		got, err := qr.Items(ctx, filter)
 		if err != nil {
-			t.Fatalf("Beans() error = %v", err)
+			t.Fatalf("Items() error = %v", err)
 		}
 		if len(got) != 2 {
-			t.Errorf("Beans() count = %d, want 2", len(got))
+			t.Errorf("Items() count = %d, want 2", len(got))
 		}
 	})
 }
 
-func TestQueryBeansWithPriority(t *testing.T) {
+func TestQueryItemsWithPriority(t *testing.T) {
 	resolver, core := setupTestResolver(t)
 	ctx := context.Background()
 
-	// Create test beans with various priorities
+	// Create test items with various priorities
 	// Empty priority should be treated as "normal"
-	b1 := &bean.Bean{ID: "pri-1", Title: "Critical", Status: "todo", Priority: "critical"}
-	b2 := &bean.Bean{ID: "pri-2", Title: "High", Status: "todo", Priority: "high"}
-	b3 := &bean.Bean{ID: "pri-3", Title: "Normal Explicit", Status: "todo", Priority: "normal"}
-	b4 := &bean.Bean{ID: "pri-4", Title: "Normal Implicit", Status: "todo", Priority: ""} // empty = normal
-	b5 := &bean.Bean{ID: "pri-5", Title: "Low", Status: "todo", Priority: "low"}
+	b1 := &item.Item{ID: "pri-1", Title: "Critical", Status: "todo", Priority: "critical"}
+	b2 := &item.Item{ID: "pri-2", Title: "High", Status: "todo", Priority: "high"}
+	b3 := &item.Item{ID: "pri-3", Title: "Normal Explicit", Status: "todo", Priority: "normal"}
+	b4 := &item.Item{ID: "pri-4", Title: "Normal Implicit", Status: "todo", Priority: ""} // empty = normal
+	b5 := &item.Item{ID: "pri-5", Title: "Low", Status: "todo", Priority: "low"}
 	core.Create(b1)
 	core.Create(b2)
 	core.Create(b3)
@@ -237,97 +237,97 @@ func TestQueryBeansWithPriority(t *testing.T) {
 
 	t.Run("filter by normal includes empty priority", func(t *testing.T) {
 		qr := resolver.Query()
-		filter := &model.BeanFilter{
+		filter := &model.ItemFilter{
 			Priority: []string{"normal"},
 		}
-		got, err := qr.Beans(ctx, filter)
+		got, err := qr.Items(ctx, filter)
 		if err != nil {
-			t.Fatalf("Beans() error = %v", err)
+			t.Fatalf("Items() error = %v", err)
 		}
 		// Should include both explicit "normal" and implicit (empty) priority
 		if len(got) != 2 {
-			t.Errorf("Beans() count = %d, want 2", len(got))
+			t.Errorf("Items() count = %d, want 2", len(got))
 		}
 		ids := make(map[string]bool)
 		for _, b := range got {
 			ids[b.ID] = true
 		}
 		if !ids["pri-3"] || !ids["pri-4"] {
-			t.Errorf("Beans() should include pri-3 and pri-4, got %v", ids)
+			t.Errorf("Items() should include pri-3 and pri-4, got %v", ids)
 		}
 	})
 
 	t.Run("filter by critical", func(t *testing.T) {
 		qr := resolver.Query()
-		filter := &model.BeanFilter{
+		filter := &model.ItemFilter{
 			Priority: []string{"critical"},
 		}
-		got, err := qr.Beans(ctx, filter)
+		got, err := qr.Items(ctx, filter)
 		if err != nil {
-			t.Fatalf("Beans() error = %v", err)
+			t.Fatalf("Items() error = %v", err)
 		}
 		if len(got) != 1 {
-			t.Errorf("Beans() count = %d, want 1", len(got))
+			t.Errorf("Items() count = %d, want 1", len(got))
 		}
 		if got[0].ID != "pri-1" {
-			t.Errorf("Beans()[0].ID = %q, want %q", got[0].ID, "pri-1")
+			t.Errorf("Items()[0].ID = %q, want %q", got[0].ID, "pri-1")
 		}
 	})
 
 	t.Run("filter by multiple priorities", func(t *testing.T) {
 		qr := resolver.Query()
-		filter := &model.BeanFilter{
+		filter := &model.ItemFilter{
 			Priority: []string{"critical", "high"},
 		}
-		got, err := qr.Beans(ctx, filter)
+		got, err := qr.Items(ctx, filter)
 		if err != nil {
-			t.Fatalf("Beans() error = %v", err)
+			t.Fatalf("Items() error = %v", err)
 		}
 		if len(got) != 2 {
-			t.Errorf("Beans() count = %d, want 2", len(got))
+			t.Errorf("Items() count = %d, want 2", len(got))
 		}
 	})
 
 	t.Run("exclude normal excludes empty priority", func(t *testing.T) {
 		qr := resolver.Query()
-		filter := &model.BeanFilter{
+		filter := &model.ItemFilter{
 			ExcludePriority: []string{"normal"},
 		}
-		got, err := qr.Beans(ctx, filter)
+		got, err := qr.Items(ctx, filter)
 		if err != nil {
-			t.Fatalf("Beans() error = %v", err)
+			t.Fatalf("Items() error = %v", err)
 		}
 		// Should exclude both explicit "normal" and implicit (empty) priority
 		if len(got) != 3 {
-			t.Errorf("Beans() count = %d, want 3", len(got))
+			t.Errorf("Items() count = %d, want 3", len(got))
 		}
 		for _, b := range got {
 			if b.ID == "pri-3" || b.ID == "pri-4" {
-				t.Errorf("Beans() should not include %s", b.ID)
+				t.Errorf("Items() should not include %s", b.ID)
 			}
 		}
 	})
 }
 
-func TestBeanRelationships(t *testing.T) {
+func TestItemRelationships(t *testing.T) {
 	resolver, core := setupTestResolver(t)
 	ctx := context.Background()
 
-	// Create beans with relationships
-	parent := &bean.Bean{ID: "parent-1", Title: "Parent", Status: "todo"}
-	child1 := &bean.Bean{
+	// Create items with relationships
+	parent := &item.Item{ID: "parent-1", Title: "Parent", Status: "todo"}
+	child1 := &item.Item{
 		ID:     "child-1",
 		Title:  "Child 1",
 		Status: "todo",
 		Parent: "parent-1",
 	}
-	child2 := &bean.Bean{
+	child2 := &item.Item{
 		ID:     "child-2",
 		Title:  "Child 2",
 		Status: "todo",
 		Parent: "parent-1",
 	}
-	blocker := &bean.Bean{
+	blocker := &item.Item{
 		ID:       "blocker-1",
 		Title:    "Blocker",
 		Status:   "todo",
@@ -340,7 +340,7 @@ func TestBeanRelationships(t *testing.T) {
 	core.Create(blocker)
 
 	t.Run("parent resolver", func(t *testing.T) {
-		br := resolver.Bean()
+		br := resolver.Item()
 		got, err := br.Parent(ctx, child1)
 		if err != nil {
 			t.Fatalf("Parent() error = %v", err)
@@ -354,7 +354,7 @@ func TestBeanRelationships(t *testing.T) {
 	})
 
 	t.Run("children resolver", func(t *testing.T) {
-		br := resolver.Bean()
+		br := resolver.Item()
 		got, err := br.Children(ctx, parent, nil)
 		if err != nil {
 			t.Fatalf("Children() error = %v", err)
@@ -365,7 +365,7 @@ func TestBeanRelationships(t *testing.T) {
 	})
 
 	t.Run("blockedBy resolver", func(t *testing.T) {
-		br := resolver.Bean()
+		br := resolver.Item()
 		got, err := br.BlockedBy(ctx, child1, nil)
 		if err != nil {
 			t.Fatalf("BlockedBy() error = %v", err)
@@ -379,7 +379,7 @@ func TestBeanRelationships(t *testing.T) {
 	})
 
 	t.Run("blocks resolver", func(t *testing.T) {
-		br := resolver.Bean()
+		br := resolver.Item()
 		got, err := br.Blocking(ctx, blocker, nil)
 		if err != nil {
 			t.Fatalf("Blocks() error = %v", err)
@@ -397,8 +397,8 @@ func TestBrokenLinksFiltered(t *testing.T) {
 	resolver, core := setupTestResolver(t)
 	ctx := context.Background()
 
-	// Create bean with broken link
-	b := &bean.Bean{
+	// Create item with broken link
+	b := &item.Item{
 		ID:     "orphan-1",
 		Title:  "Orphan",
 		Status: "todo",
@@ -407,7 +407,7 @@ func TestBrokenLinksFiltered(t *testing.T) {
 	core.Create(b)
 
 	t.Run("broken parent link returns nil", func(t *testing.T) {
-		br := resolver.Bean()
+		br := resolver.Item()
 		got, err := br.Parent(ctx, b)
 		if err != nil {
 			t.Fatalf("Parent() error = %v", err)
@@ -418,19 +418,19 @@ func TestBrokenLinksFiltered(t *testing.T) {
 	})
 }
 
-func TestQueryBeansWithParentAndBlocks(t *testing.T) {
+func TestQueryItemsWithParentAndBlocks(t *testing.T) {
 	resolver, core := setupTestResolver(t)
 	ctx := context.Background()
 
-	// Create beans with various relationship configurations
-	noRels := &bean.Bean{ID: "no-rels", Title: "No Relationships", Status: "todo"}
-	hasParent := &bean.Bean{
+	// Create items with various relationship configurations
+	noRels := &item.Item{ID: "no-rels", Title: "No Relationships", Status: "todo"}
+	hasParent := &item.Item{
 		ID:     "has-parent",
 		Title:  "Has Parent",
 		Status: "todo",
 		Parent: "no-rels",
 	}
-	hasBlocks := &bean.Bean{
+	hasBlocks := &item.Item{
 		ID:       "has-blocks",
 		Title:    "Has Blocks",
 		Status:   "todo",
@@ -444,90 +444,90 @@ func TestQueryBeansWithParentAndBlocks(t *testing.T) {
 	t.Run("filter hasParent", func(t *testing.T) {
 		qr := resolver.Query()
 		hasParentBool := true
-		filter := &model.BeanFilter{
+		filter := &model.ItemFilter{
 			HasParent: &hasParentBool,
 		}
-		got, err := qr.Beans(ctx, filter)
+		got, err := qr.Items(ctx, filter)
 		if err != nil {
-			t.Fatalf("Beans() error = %v", err)
+			t.Fatalf("Items() error = %v", err)
 		}
 		if len(got) != 1 {
-			t.Errorf("Beans() count = %d, want 1", len(got))
+			t.Errorf("Items() count = %d, want 1", len(got))
 		}
 		if got[0].ID != "has-parent" {
-			t.Errorf("Beans()[0].ID = %q, want %q", got[0].ID, "has-parent")
+			t.Errorf("Items()[0].ID = %q, want %q", got[0].ID, "has-parent")
 		}
 	})
 
 	t.Run("filter noParent", func(t *testing.T) {
 		qr := resolver.Query()
 		noParentBool := true
-		filter := &model.BeanFilter{
+		filter := &model.ItemFilter{
 			NoParent: &noParentBool,
 		}
-		got, err := qr.Beans(ctx, filter)
+		got, err := qr.Items(ctx, filter)
 		if err != nil {
-			t.Fatalf("Beans() error = %v", err)
+			t.Fatalf("Items() error = %v", err)
 		}
 		if len(got) != 2 {
-			t.Errorf("Beans() count = %d, want 2", len(got))
+			t.Errorf("Items() count = %d, want 2", len(got))
 		}
 	})
 
 	t.Run("filter hasBlocks", func(t *testing.T) {
 		qr := resolver.Query()
 		hasBlocksBool := true
-		filter := &model.BeanFilter{
+		filter := &model.ItemFilter{
 			HasBlocking: &hasBlocksBool,
 		}
-		got, err := qr.Beans(ctx, filter)
+		got, err := qr.Items(ctx, filter)
 		if err != nil {
-			t.Fatalf("Beans() error = %v", err)
+			t.Fatalf("Items() error = %v", err)
 		}
 		if len(got) != 1 {
-			t.Errorf("Beans() count = %d, want 1", len(got))
+			t.Errorf("Items() count = %d, want 1", len(got))
 		}
 		if got[0].ID != "has-blocks" {
-			t.Errorf("Beans()[0].ID = %q, want %q", got[0].ID, "has-blocks")
+			t.Errorf("Items()[0].ID = %q, want %q", got[0].ID, "has-blocks")
 		}
 	})
 
 	t.Run("filter isBlocked true", func(t *testing.T) {
 		qr := resolver.Query()
 		isBlockedBool := true
-		filter := &model.BeanFilter{
+		filter := &model.ItemFilter{
 			IsBlocked: &isBlockedBool,
 		}
-		got, err := qr.Beans(ctx, filter)
+		got, err := qr.Items(ctx, filter)
 		if err != nil {
-			t.Fatalf("Beans() error = %v", err)
+			t.Fatalf("Items() error = %v", err)
 		}
 		if len(got) != 1 {
-			t.Errorf("Beans() count = %d, want 1", len(got))
+			t.Errorf("Items() count = %d, want 1", len(got))
 		}
 		if got[0].ID != "has-parent" {
-			t.Errorf("Beans()[0].ID = %q, want %q", got[0].ID, "has-parent")
+			t.Errorf("Items()[0].ID = %q, want %q", got[0].ID, "has-parent")
 		}
 	})
 
 	t.Run("filter isBlocked false", func(t *testing.T) {
 		qr := resolver.Query()
 		isBlockedBool := false
-		filter := &model.BeanFilter{
+		filter := &model.ItemFilter{
 			IsBlocked: &isBlockedBool,
 		}
-		got, err := qr.Beans(ctx, filter)
+		got, err := qr.Items(ctx, filter)
 		if err != nil {
-			t.Fatalf("Beans() error = %v", err)
+			t.Fatalf("Items() error = %v", err)
 		}
-		// Should return all beans except "has-parent" (which is blocked by "has-blocks")
+		// Should return all items except "has-parent" (which is blocked by "has-blocks")
 		if len(got) != 2 {
-			t.Errorf("Beans() count = %d, want 2", len(got))
+			t.Errorf("Items() count = %d, want 2", len(got))
 		}
 		// Verify "has-parent" is not in results
 		for _, b := range got {
 			if b.ID == "has-parent" {
-				t.Errorf("Beans() should not contain blocked bean 'has-parent'")
+				t.Errorf("Items() should not contain blocked bean 'has-parent'")
 			}
 		}
 	})
@@ -535,18 +535,18 @@ func TestQueryBeansWithParentAndBlocks(t *testing.T) {
 	t.Run("filter by parentId", func(t *testing.T) {
 		qr := resolver.Query()
 		parentID := "no-rels"
-		filter := &model.BeanFilter{
+		filter := &model.ItemFilter{
 			ParentID: &parentID,
 		}
-		got, err := qr.Beans(ctx, filter)
+		got, err := qr.Items(ctx, filter)
 		if err != nil {
-			t.Fatalf("Beans() error = %v", err)
+			t.Fatalf("Items() error = %v", err)
 		}
 		if len(got) != 1 {
-			t.Errorf("Beans() count = %d, want 1", len(got))
+			t.Errorf("Items() count = %d, want 1", len(got))
 		}
 		if got[0].ID != "has-parent" {
-			t.Errorf("Beans()[0].ID = %q, want %q", got[0].ID, "has-parent")
+			t.Errorf("Items()[0].ID = %q, want %q", got[0].ID, "has-parent")
 		}
 	})
 }
@@ -555,70 +555,70 @@ func TestIsBlockedFilterWithResolvedBlockers(t *testing.T) {
 	resolver, core := setupTestResolver(t)
 	ctx := context.Background()
 
-	// Create beans to test blocking with various blocker statuses
-	activeBlocker := &bean.Bean{
+	// Create items to test blocking with various blocker statuses
+	activeBlocker := &item.Item{
 		ID:       "active-blocker",
 		Title:    "Active Blocker",
 		Status:   "todo",
 		Blocking: []string{"blocked-by-active"},
 	}
-	completedBlocker := &bean.Bean{
+	completedBlocker := &item.Item{
 		ID:       "completed-blocker",
 		Title:    "Completed Blocker",
 		Status:   "completed",
 		Blocking: []string{"blocked-by-completed"},
 	}
-	scrappedBlocker := &bean.Bean{
+	scrappedBlocker := &item.Item{
 		ID:       "scrapped-blocker",
 		Title:    "Scrapped Blocker",
 		Status:   "scrapped",
 		Blocking: []string{"blocked-by-scrapped"},
 	}
-	blockedByActive := &bean.Bean{
+	blockedByActive := &item.Item{
 		ID:     "blocked-by-active",
 		Title:  "Blocked by Active",
 		Status: "todo",
 	}
-	blockedByCompleted := &bean.Bean{
+	blockedByCompleted := &item.Item{
 		ID:     "blocked-by-completed",
 		Title:  "Blocked by Completed",
 		Status: "todo",
 	}
-	blockedByScrapped := &bean.Bean{
+	blockedByScrapped := &item.Item{
 		ID:     "blocked-by-scrapped",
 		Title:  "Blocked by Scrapped",
 		Status: "todo",
 	}
-	notBlocked := &bean.Bean{
+	notBlocked := &item.Item{
 		ID:     "not-blocked",
 		Title:  "Not Blocked",
 		Status: "todo",
 	}
-	// Bean with mixed blockers (one active, one completed)
-	mixedBlocker := &bean.Bean{
+	// Item with mixed blockers (one active, one completed)
+	mixedBlocker := &item.Item{
 		ID:       "mixed-blocker",
 		Title:    "Mixed Blocker (active)",
 		Status:   "in-progress",
 		Blocking: []string{"mixed-blocked"},
 	}
-	mixedBlockerCompleted := &bean.Bean{
+	mixedBlockerCompleted := &item.Item{
 		ID:       "mixed-blocker-completed",
 		Title:    "Mixed Blocker (completed)",
 		Status:   "completed",
 		Blocking: []string{"mixed-blocked"},
 	}
-	mixedBlocked := &bean.Bean{
+	mixedBlocked := &item.Item{
 		ID:     "mixed-blocked",
 		Title:  "Mixed Blocked",
 		Status: "todo",
 	}
 
-	beans := []*bean.Bean{
+	items := []*item.Item{
 		activeBlocker, completedBlocker, scrappedBlocker,
 		blockedByActive, blockedByCompleted, blockedByScrapped,
 		notBlocked, mixedBlocker, mixedBlockerCompleted, mixedBlocked,
 	}
-	for _, b := range beans {
+	for _, b := range items {
 		if err := core.Create(b); err != nil {
 			t.Fatalf("Create error: %v", err)
 		}
@@ -627,15 +627,15 @@ func TestIsBlockedFilterWithResolvedBlockers(t *testing.T) {
 	t.Run("isBlocked true returns only beans with active blockers", func(t *testing.T) {
 		qr := resolver.Query()
 		isBlocked := true
-		filter := &model.BeanFilter{
+		filter := &model.ItemFilter{
 			IsBlocked: &isBlocked,
 		}
-		got, err := qr.Beans(ctx, filter)
+		got, err := qr.Items(ctx, filter)
 		if err != nil {
-			t.Fatalf("Beans() error = %v", err)
+			t.Fatalf("Items() error = %v", err)
 		}
 
-		// Should only return beans blocked by active blockers
+		// Should only return items blocked by active blockers
 		ids := make(map[string]bool)
 		for _, b := range got {
 			ids[b.ID] = true
@@ -661,12 +661,12 @@ func TestIsBlockedFilterWithResolvedBlockers(t *testing.T) {
 	t.Run("isBlocked false excludes beans with active blockers", func(t *testing.T) {
 		qr := resolver.Query()
 		isBlocked := false
-		filter := &model.BeanFilter{
+		filter := &model.ItemFilter{
 			IsBlocked: &isBlocked,
 		}
-		got, err := qr.Beans(ctx, filter)
+		got, err := qr.Items(ctx, filter)
 		if err != nil {
-			t.Fatalf("Beans() error = %v", err)
+			t.Fatalf("Items() error = %v", err)
 		}
 
 		ids := make(map[string]bool)
@@ -674,7 +674,7 @@ func TestIsBlockedFilterWithResolvedBlockers(t *testing.T) {
 			ids[b.ID] = true
 		}
 
-		// Should include beans with no active blockers
+		// Should include items with no active blockers
 		if !ids["blocked-by-completed"] {
 			t.Error("expected blocked-by-completed in results (blocker is completed)")
 		}
@@ -684,7 +684,7 @@ func TestIsBlockedFilterWithResolvedBlockers(t *testing.T) {
 		if !ids["not-blocked"] {
 			t.Error("expected not-blocked in results (no blockers)")
 		}
-		// Should exclude beans with active blockers
+		// Should exclude items with active blockers
 		if ids["blocked-by-active"] {
 			t.Error("blocked-by-active should NOT be in results (has active blocker)")
 		}
@@ -694,60 +694,60 @@ func TestIsBlockedFilterWithResolvedBlockers(t *testing.T) {
 	})
 }
 
-func TestMutationCreateBean(t *testing.T) {
+func TestMutationCreateItem(t *testing.T) {
 	resolver, core := setupTestResolver(t)
 	ctx := context.Background()
 
 	t.Run("create with required fields only", func(t *testing.T) {
 		mr := resolver.Mutation()
-		input := model.CreateBeanInput{
+		input := model.CreateItemInput{
 			Title: "New Bean",
 		}
-		got, err := mr.CreateBean(ctx, input)
+		got, err := mr.CreateItem(ctx, input)
 		if err != nil {
-			t.Fatalf("CreateBean() error = %v", err)
+			t.Fatalf("CreateItem() error = %v", err)
 		}
 		if got == nil {
-			t.Fatal("CreateBean() returned nil")
+			t.Fatal("CreateItem() returned nil")
 		}
 		if got.Title != "New Bean" {
-			t.Errorf("CreateBean().Title = %q, want %q", got.Title, "New Bean")
+			t.Errorf("CreateItem().Title = %q, want %q", got.Title, "New Bean")
 		}
 		// Type defaults to "task"
 		if got.Type != "task" {
-			t.Errorf("CreateBean().Type = %q, want %q (default)", got.Type, "task")
+			t.Errorf("CreateItem().Type = %q, want %q (default)", got.Type, "task")
 		}
 		if got.ID == "" {
-			t.Error("CreateBean().ID is empty")
+			t.Error("CreateItem().ID is empty")
 		}
 	})
 
 	t.Run("create with all fields", func(t *testing.T) {
-		// Create parent and target beans first
-		parentBean := &bean.Bean{
+		// Create parent and target items first
+		parentItem := &item.Item{
 			ID:     "some-parent",
 			Title:  "Parent Bean",
 			Status: "todo",
 			Type:   "epic",
 		}
-		targetBean := &bean.Bean{
+		targetItem := &item.Item{
 			ID:     "some-target",
 			Title:  "Target Bean",
 			Status: "todo",
 			Type:   "task",
 		}
-		core.Create(parentBean)
-		core.Create(targetBean)
+		core.Create(parentItem)
+		core.Create(targetItem)
 
 		mr := resolver.Mutation()
-		beanType := "feature"
+		itemType := "feature"
 		status := "in-progress"
 		priority := "high"
 		body := "Test body content"
 		parent := "some-parent"
-		input := model.CreateBeanInput{
+		input := model.CreateItemInput{
 			Title:    "Full Bean",
-			Type:     &beanType,
+			Type:     &itemType,
 			Status:   &status,
 			Priority: &priority,
 			Body:     &body,
@@ -755,102 +755,102 @@ func TestMutationCreateBean(t *testing.T) {
 			Parent:   &parent,
 			Blocking: []string{"some-target"},
 		}
-		got, err := mr.CreateBean(ctx, input)
+		got, err := mr.CreateItem(ctx, input)
 		if err != nil {
-			t.Fatalf("CreateBean() error = %v", err)
+			t.Fatalf("CreateItem() error = %v", err)
 		}
 		if got.Type != "feature" {
-			t.Errorf("CreateBean().Type = %q, want %q", got.Type, "feature")
+			t.Errorf("CreateItem().Type = %q, want %q", got.Type, "feature")
 		}
 		if got.Status != "in-progress" {
-			t.Errorf("CreateBean().Status = %q, want %q", got.Status, "in-progress")
+			t.Errorf("CreateItem().Status = %q, want %q", got.Status, "in-progress")
 		}
 		if got.Priority != "high" {
-			t.Errorf("CreateBean().Priority = %q, want %q", got.Priority, "high")
+			t.Errorf("CreateItem().Priority = %q, want %q", got.Priority, "high")
 		}
 		if got.Body != "Test body content" {
-			t.Errorf("CreateBean().Body = %q, want %q", got.Body, "Test body content")
+			t.Errorf("CreateItem().Body = %q, want %q", got.Body, "Test body content")
 		}
 		if len(got.Tags) != 2 {
-			t.Errorf("CreateBean().Tags count = %d, want 2", len(got.Tags))
+			t.Errorf("CreateItem().Tags count = %d, want 2", len(got.Tags))
 		}
 		if got.Parent != "some-parent" {
-			t.Errorf("CreateBean().Parent = %q, want %q", got.Parent, "some-parent")
+			t.Errorf("CreateItem().Parent = %q, want %q", got.Parent, "some-parent")
 		}
 		if len(got.Blocking) != 1 {
-			t.Errorf("CreateBean().Blocking count = %d, want 1", len(got.Blocking))
+			t.Errorf("CreateItem().Blocking count = %d, want 1", len(got.Blocking))
 		}
 	})
 }
 
-func TestMutationCreateBeanWithCustomPrefix(t *testing.T) {
+func TestMutationCreateItemWithCustomPrefix(t *testing.T) {
 	resolver, _ := setupTestResolver(t)
 	ctx := context.Background()
 
 	t.Run("create with custom prefix", func(t *testing.T) {
 		mr := resolver.Mutation()
 		customPrefix := "SYNC-TASK-"
-		input := model.CreateBeanInput{
+		input := model.CreateItemInput{
 			Title:  "Custom Prefix Bean",
 			Prefix: &customPrefix,
 		}
-		got, err := mr.CreateBean(ctx, input)
+		got, err := mr.CreateItem(ctx, input)
 		if err != nil {
-			t.Fatalf("CreateBean() error = %v", err)
+			t.Fatalf("CreateItem() error = %v", err)
 		}
 		if got == nil {
-			t.Fatal("CreateBean() returned nil")
+			t.Fatal("CreateItem() returned nil")
 		}
 		// ID should start with the custom prefix
 		if !strings.HasPrefix(got.ID, "SYNC-TASK-") {
-			t.Errorf("CreateBean().ID = %q, want prefix %q", got.ID, "SYNC-TASK-")
+			t.Errorf("CreateItem().ID = %q, want prefix %q", got.ID, "SYNC-TASK-")
 		}
 		// ID should be prefix + 4 chars (default length)
 		if len(got.ID) != len("SYNC-TASK-")+4 {
-			t.Errorf("CreateBean().ID length = %d, want %d", len(got.ID), len("SYNC-TASK-")+4)
+			t.Errorf("CreateItem().ID length = %d, want %d", len(got.ID), len("SYNC-TASK-")+4)
 		}
 	})
 
 	t.Run("create without prefix uses config default", func(t *testing.T) {
 		mr := resolver.Mutation()
-		input := model.CreateBeanInput{
+		input := model.CreateItemInput{
 			Title: "No Custom Prefix Bean",
 		}
-		got, err := mr.CreateBean(ctx, input)
+		got, err := mr.CreateItem(ctx, input)
 		if err != nil {
-			t.Fatalf("CreateBean() error = %v", err)
+			t.Fatalf("CreateItem() error = %v", err)
 		}
 		// Without custom prefix, should use config default (empty in test setup)
 		// ID should just be 4 chars
 		if len(got.ID) != 4 {
-			t.Errorf("CreateBean().ID length = %d, want 4", len(got.ID))
+			t.Errorf("CreateItem().ID length = %d, want 4", len(got.ID))
 		}
 	})
 
 	t.Run("create with empty prefix string uses config default", func(t *testing.T) {
 		mr := resolver.Mutation()
 		emptyPrefix := ""
-		input := model.CreateBeanInput{
+		input := model.CreateItemInput{
 			Title:  "Empty Prefix Bean",
 			Prefix: &emptyPrefix,
 		}
-		got, err := mr.CreateBean(ctx, input)
+		got, err := mr.CreateItem(ctx, input)
 		if err != nil {
-			t.Fatalf("CreateBean() error = %v", err)
+			t.Fatalf("CreateItem() error = %v", err)
 		}
 		// Empty string prefix should fall back to config default
 		if len(got.ID) != 4 {
-			t.Errorf("CreateBean().ID length = %d, want 4", len(got.ID))
+			t.Errorf("CreateItem().ID length = %d, want 4", len(got.ID))
 		}
 	})
 }
 
-func TestMutationUpdateBean(t *testing.T) {
+func TestMutationUpdateItem(t *testing.T) {
 	resolver, core := setupTestResolver(t)
 	ctx := context.Background()
 
-	// Create a test bean
-	b := &bean.Bean{
+	// Create a test item
+	b := &item.Item{
 		ID:       "update-test",
 		Title:    "Original Title",
 		Status:   "todo",
@@ -864,19 +864,19 @@ func TestMutationUpdateBean(t *testing.T) {
 	t.Run("update single field", func(t *testing.T) {
 		mr := resolver.Mutation()
 		newStatus := "in-progress"
-		input := model.UpdateBeanInput{
+		input := model.UpdateItemInput{
 			Status: &newStatus,
 		}
-		got, err := mr.UpdateBean(ctx, "update-test", input)
+		got, err := mr.UpdateItem(ctx, "update-test", input)
 		if err != nil {
-			t.Fatalf("UpdateBean() error = %v", err)
+			t.Fatalf("UpdateItem() error = %v", err)
 		}
 		if got.Status != "in-progress" {
-			t.Errorf("UpdateBean().Status = %q, want %q", got.Status, "in-progress")
+			t.Errorf("UpdateItem().Status = %q, want %q", got.Status, "in-progress")
 		}
 		// Other fields unchanged
 		if got.Title != "Original Title" {
-			t.Errorf("UpdateBean().Title = %q, want %q", got.Title, "Original Title")
+			t.Errorf("UpdateItem().Title = %q, want %q", got.Title, "Original Title")
 		}
 	})
 
@@ -885,49 +885,49 @@ func TestMutationUpdateBean(t *testing.T) {
 		newTitle := "Updated Title"
 		newPriority := "high"
 		newBody := "Updated body"
-		input := model.UpdateBeanInput{
+		input := model.UpdateItemInput{
 			Title:    &newTitle,
 			Priority: &newPriority,
 			Body:     &newBody,
 		}
-		got, err := mr.UpdateBean(ctx, "update-test", input)
+		got, err := mr.UpdateItem(ctx, "update-test", input)
 		if err != nil {
-			t.Fatalf("UpdateBean() error = %v", err)
+			t.Fatalf("UpdateItem() error = %v", err)
 		}
 		if got.Title != "Updated Title" {
-			t.Errorf("UpdateBean().Title = %q, want %q", got.Title, "Updated Title")
+			t.Errorf("UpdateItem().Title = %q, want %q", got.Title, "Updated Title")
 		}
 		if got.Priority != "high" {
-			t.Errorf("UpdateBean().Priority = %q, want %q", got.Priority, "high")
+			t.Errorf("UpdateItem().Priority = %q, want %q", got.Priority, "high")
 		}
 		if got.Body != "Updated body" {
-			t.Errorf("UpdateBean().Body = %q, want %q", got.Body, "Updated body")
+			t.Errorf("UpdateItem().Body = %q, want %q", got.Body, "Updated body")
 		}
 	})
 
 	t.Run("replace tags", func(t *testing.T) {
 		mr := resolver.Mutation()
-		input := model.UpdateBeanInput{
+		input := model.UpdateItemInput{
 			Tags: []string{"new-tag-1", "new-tag-2"},
 		}
-		got, err := mr.UpdateBean(ctx, "update-test", input)
+		got, err := mr.UpdateItem(ctx, "update-test", input)
 		if err != nil {
-			t.Fatalf("UpdateBean() error = %v", err)
+			t.Fatalf("UpdateItem() error = %v", err)
 		}
 		if len(got.Tags) != 2 {
-			t.Errorf("UpdateBean().Tags count = %d, want 2", len(got.Tags))
+			t.Errorf("UpdateItem().Tags count = %d, want 2", len(got.Tags))
 		}
 	})
 
 	t.Run("update nonexistent bean", func(t *testing.T) {
 		mr := resolver.Mutation()
 		newTitle := "Whatever"
-		input := model.UpdateBeanInput{
+		input := model.UpdateItemInput{
 			Title: &newTitle,
 		}
-		_, err := mr.UpdateBean(ctx, "nonexistent", input)
+		_, err := mr.UpdateItem(ctx, "nonexistent", input)
 		if err == nil {
-			t.Error("UpdateBean() expected error for nonexistent bean")
+			t.Error("UpdateItem() expected error for nonexistent bean")
 		}
 	})
 }
@@ -936,9 +936,9 @@ func TestMutationSetParent(t *testing.T) {
 	resolver, core := setupTestResolver(t)
 	ctx := context.Background()
 
-	// Create test beans
-	parent := &bean.Bean{ID: "parent-1", Title: "Parent", Status: "todo", Type: "epic"}
-	child := &bean.Bean{ID: "child-1", Title: "Child", Status: "todo", Type: "task"}
+	// Create test items
+	parent := &item.Item{ID: "parent-1", Title: "Parent", Status: "todo", Type: "epic"}
+	child := &item.Item{ID: "child-1", Title: "Child", Status: "todo", Type: "task"}
 	core.Create(parent)
 	core.Create(child)
 
@@ -979,9 +979,9 @@ func TestMutationAddRemoveBlocking(t *testing.T) {
 	resolver, core := setupTestResolver(t)
 	ctx := context.Background()
 
-	// Create test beans
-	blocker := &bean.Bean{ID: "blocker-1", Title: "Blocker", Status: "todo", Type: "task"}
-	target := &bean.Bean{ID: "target-1", Title: "Target", Status: "todo", Type: "task"}
+	// Create test items
+	blocker := &item.Item{ID: "blocker-1", Title: "Blocker", Status: "todo", Type: "task"}
+	target := &item.Item{ID: "target-1", Title: "Target", Status: "todo", Type: "task"}
 	core.Create(blocker)
 	core.Create(target)
 
@@ -1019,39 +1019,39 @@ func TestMutationAddRemoveBlocking(t *testing.T) {
 	})
 }
 
-func TestMutationDeleteBean(t *testing.T) {
+func TestMutationDeleteItem(t *testing.T) {
 	resolver, core := setupTestResolver(t)
 	ctx := context.Background()
 
 	t.Run("delete existing bean", func(t *testing.T) {
-		// Create a bean to delete
-		b := &bean.Bean{ID: "delete-me", Title: "Delete Me", Status: "todo", Type: "task"}
+		// Create an item to delete
+		b := &item.Item{ID: "delete-me", Title: "Delete Me", Status: "todo", Type: "task"}
 		core.Create(b)
 
 		mr := resolver.Mutation()
-		got, err := mr.DeleteBean(ctx, "delete-me")
+		got, err := mr.DeleteItem(ctx, "delete-me")
 		if err != nil {
-			t.Fatalf("DeleteBean() error = %v", err)
+			t.Fatalf("DeleteItem() error = %v", err)
 		}
 		if !got {
-			t.Error("DeleteBean() = false, want true")
+			t.Error("DeleteItem() = false, want true")
 		}
 
 		// Verify it's gone
 		qr := resolver.Query()
-		bean, _ := qr.Bean(ctx, "delete-me")
-		if bean != nil {
+		item, _ := qr.Item(ctx, "delete-me")
+		if item != nil {
 			t.Error("Bean still exists after delete")
 		}
 	})
 
 	t.Run("delete removes incoming links", func(t *testing.T) {
-		// Create target bean
-		target := &bean.Bean{ID: "target-bean", Title: "Target", Status: "todo", Type: "task"}
+		// Create target item
+		target := &item.Item{ID: "target-bean", Title: "Target", Status: "todo", Type: "task"}
 		core.Create(target)
 
-		// Create bean that links to target
-		linker := &bean.Bean{
+		// Create item that links to target
+		linker := &item.Item{
 			ID:       "linker-bean",
 			Title:    "Linker",
 			Status:   "todo",
@@ -1062,14 +1062,14 @@ func TestMutationDeleteBean(t *testing.T) {
 
 		// Delete target - should remove the link from linker
 		mr := resolver.Mutation()
-		_, err := mr.DeleteBean(ctx, "target-bean")
+		_, err := mr.DeleteItem(ctx, "target-bean")
 		if err != nil {
-			t.Fatalf("DeleteBean() error = %v", err)
+			t.Fatalf("DeleteItem() error = %v", err)
 		}
 
 		// Verify linker no longer has the link
 		qr := resolver.Query()
-		updated, _ := qr.Bean(ctx, "linker-bean")
+		updated, _ := qr.Item(ctx, "linker-bean")
 		if updated == nil {
 			t.Fatal("Linker bean was deleted unexpectedly")
 		}
@@ -1080,14 +1080,14 @@ func TestMutationDeleteBean(t *testing.T) {
 
 	t.Run("delete nonexistent bean", func(t *testing.T) {
 		mr := resolver.Mutation()
-		_, err := mr.DeleteBean(ctx, "nonexistent")
+		_, err := mr.DeleteItem(ctx, "nonexistent")
 		if err == nil {
-			t.Error("DeleteBean() expected error for nonexistent bean")
+			t.Error("DeleteItem() expected error for nonexistent bean")
 		}
 	})
 }
 
-func TestSubscriptionBeanChanged(t *testing.T) {
+func TestSubscriptionItemChanged(t *testing.T) {
 	resolver, core := setupTestResolver(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -1098,29 +1098,29 @@ func TestSubscriptionBeanChanged(t *testing.T) {
 	}
 	defer core.Unwatch()
 
-	// Create some test beans before subscribing
-	createTestBean(t, core, "existing-1", "Existing Bean 1", "todo")
-	createTestBean(t, core, "existing-2", "Existing Bean 2", "in-progress")
+	// Create some test items before subscribing
+	createTestItem(t, core, "existing-1", "Existing Bean 1", "todo")
+	createTestItem(t, core, "existing-2", "Existing Bean 2", "in-progress")
 
 	t.Run("includeInitial=true sends INITIAL_SNAPSHOT with all beans", func(t *testing.T) {
 		sr := resolver.Subscription()
 		includeInitial := true
-		ch, err := sr.BeanChanged(ctx, &includeInitial)
+		ch, err := sr.ItemChanged(ctx, &includeInitial)
 		if err != nil {
-			t.Fatalf("BeanChanged() error = %v", err)
+			t.Fatalf("ItemChanged() error = %v", err)
 		}
 
-		// Should receive a single INITIAL_SNAPSHOT event with all beans
+		// Should receive a single INITIAL_SNAPSHOT event with all items
 		select {
 		case event := <-ch:
 			if event.Type != model.ChangeTypeInitialSnapshot {
 				t.Errorf("Expected INITIAL_SNAPSHOT event, got %v", event.Type)
 			}
-			if len(event.Beans) != 2 {
-				t.Fatalf("Expected 2 beans in snapshot, got %d", len(event.Beans))
+			if len(event.Items) != 2 {
+				t.Fatalf("Expected 2 beans in snapshot, got %d", len(event.Items))
 			}
 			received := make(map[string]bool)
-			for _, b := range event.Beans {
+			for _, b := range event.Items {
 				received[b.ID] = true
 			}
 			if !received["existing-1"] || !received["existing-2"] {
@@ -1134,9 +1134,9 @@ func TestSubscriptionBeanChanged(t *testing.T) {
 	t.Run("includeInitial=false skips initial beans", func(t *testing.T) {
 		sr := resolver.Subscription()
 		includeInitial := false
-		ch, err := sr.BeanChanged(ctx, &includeInitial)
+		ch, err := sr.ItemChanged(ctx, &includeInitial)
 		if err != nil {
-			t.Fatalf("BeanChanged() error = %v", err)
+			t.Fatalf("ItemChanged() error = %v", err)
 		}
 
 		// Channel should be waiting for real events, not sending anything immediately
@@ -1154,14 +1154,14 @@ func TestAgentSessionSubscription_DeliversLatestState(t *testing.T) {
 	// eventually receives the latest state (not a stale intermediate).
 	mgr := agent.NewManager("", nil)
 
-	beanID := "test-latest-value"
+	itemID := "test-latest-value"
 	resolver := &Resolver{AgentMgr: mgr}
 	sr := resolver.Subscription()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	ch, err := sr.AgentSessionChanged(ctx, beanID)
+	ch, err := sr.AgentSessionChanged(ctx, itemID)
 	if err != nil {
 		t.Fatalf("AgentSessionChanged() error = %v", err)
 	}
@@ -1169,7 +1169,7 @@ func TestAgentSessionSubscription_DeliversLatestState(t *testing.T) {
 	// No session exists yet, so no initial emission. Fire rapid
 	// notifications by adding multiple info messages without reading.
 	for i := range 10 {
-		mgr.AddInfoMessage(beanID, fmt.Sprintf("msg-%d", i))
+		mgr.AddInfoMessage(itemID, fmt.Sprintf("msg-%d", i))
 	}
 
 	// Drain the channel. Use a short idle timeout: once we stop receiving
@@ -1198,27 +1198,27 @@ func TestRelationshipFieldsWithFilter(t *testing.T) {
 	ctx := context.Background()
 
 	// Create a parent (milestone) with multiple children (tasks) of different statuses
-	parent := &bean.Bean{
+	parent := &item.Item{
 		ID:     "parent-filter-test",
 		Title:  "Parent Milestone",
 		Type:   "milestone",
 		Status: "in-progress",
 	}
-	child1 := &bean.Bean{
+	child1 := &item.Item{
 		ID:     "child-todo",
 		Title:  "Todo Task",
 		Type:   "task",
 		Status: "todo",
 		Parent: "parent-filter-test",
 	}
-	child2 := &bean.Bean{
+	child2 := &item.Item{
 		ID:     "child-completed",
 		Title:  "Completed Task",
 		Type:   "task",
 		Status: "completed",
 		Parent: "parent-filter-test",
 	}
-	child3 := &bean.Bean{
+	child3 := &item.Item{
 		ID:       "child-inprogress",
 		Title:    "In Progress Task",
 		Type:     "task",
@@ -1228,14 +1228,14 @@ func TestRelationshipFieldsWithFilter(t *testing.T) {
 	}
 
 	// Create blocking relationships with different types
-	blocker1 := &bean.Bean{
+	blocker1 := &item.Item{
 		ID:       "blocker-bug",
 		Title:    "Blocking Bug",
 		Type:     "bug",
 		Status:   "todo",
 		Blocking: []string{"child-todo"},
 	}
-	blocker2 := &bean.Bean{
+	blocker2 := &item.Item{
 		ID:       "blocker-task",
 		Title:    "Blocking Task",
 		Type:     "task",
@@ -1243,16 +1243,16 @@ func TestRelationshipFieldsWithFilter(t *testing.T) {
 		Blocking: []string{"child-todo"},
 	}
 
-	for _, b := range []*bean.Bean{parent, child1, child2, child3, blocker1, blocker2} {
+	for _, b := range []*item.Item{parent, child1, child2, child3, blocker1, blocker2} {
 		if err := core.Create(b); err != nil {
 			t.Fatalf("Failed to create bean %s: %v", b.ID, err)
 		}
 	}
 
-	br := resolver.Bean()
+	br := resolver.Item()
 
 	t.Run("children with status filter", func(t *testing.T) {
-		filter := &model.BeanFilter{
+		filter := &model.ItemFilter{
 			Status: []string{"todo"},
 		}
 		got, err := br.Children(ctx, parent, filter)
@@ -1268,7 +1268,7 @@ func TestRelationshipFieldsWithFilter(t *testing.T) {
 	})
 
 	t.Run("children with excludeStatus filter", func(t *testing.T) {
-		filter := &model.BeanFilter{
+		filter := &model.ItemFilter{
 			ExcludeStatus: []string{"completed"},
 		}
 		got, err := br.Children(ctx, parent, filter)
@@ -1281,7 +1281,7 @@ func TestRelationshipFieldsWithFilter(t *testing.T) {
 	})
 
 	t.Run("children with priority filter", func(t *testing.T) {
-		filter := &model.BeanFilter{
+		filter := &model.ItemFilter{
 			Priority: []string{"high"},
 		}
 		got, err := br.Children(ctx, parent, filter)
@@ -1307,7 +1307,7 @@ func TestRelationshipFieldsWithFilter(t *testing.T) {
 	})
 
 	t.Run("blockedBy with type filter", func(t *testing.T) {
-		filter := &model.BeanFilter{
+		filter := &model.ItemFilter{
 			Type: []string{"bug"},
 		}
 		got, err := br.BlockedBy(ctx, child1, filter)
@@ -1323,7 +1323,7 @@ func TestRelationshipFieldsWithFilter(t *testing.T) {
 	})
 
 	t.Run("blockedBy with excludeStatus filter", func(t *testing.T) {
-		filter := &model.BeanFilter{
+		filter := &model.ItemFilter{
 			ExcludeStatus: []string{"completed"},
 		}
 		got, err := br.BlockedBy(ctx, child1, filter)
@@ -1339,7 +1339,7 @@ func TestRelationshipFieldsWithFilter(t *testing.T) {
 	})
 
 	t.Run("blocking with status filter", func(t *testing.T) {
-		filter := &model.BeanFilter{
+		filter := &model.ItemFilter{
 			Status: []string{"todo"},
 		}
 		got, err := br.Blocking(ctx, blocker1, filter)
@@ -1352,7 +1352,7 @@ func TestRelationshipFieldsWithFilter(t *testing.T) {
 	})
 
 	t.Run("blocking filter excludes all", func(t *testing.T) {
-		filter := &model.BeanFilter{
+		filter := &model.ItemFilter{
 			Status: []string{"completed"},
 		}
 		got, err := br.Blocking(ctx, blocker1, filter)
@@ -1366,40 +1366,40 @@ func TestRelationshipFieldsWithFilter(t *testing.T) {
 }
 
 // setupTestResolverWithPrefix creates a test resolver with a configured prefix.
-func setupTestResolverWithPrefix(t *testing.T, prefix string) (*Resolver, *beancore.Core) {
+func setupTestResolverWithPrefix(t *testing.T, prefix string) (*Resolver, *itemcore.Core) {
 	t.Helper()
 	tmpDir := t.TempDir()
-	beansDir := filepath.Join(tmpDir, ".beans")
-	if err := os.MkdirAll(beansDir, 0755); err != nil {
+	itemsDir := filepath.Join(tmpDir, ".beans")
+	if err := os.MkdirAll(itemsDir, 0755); err != nil {
 		t.Fatalf("failed to create test .beans dir: %v", err)
 	}
 
 	cfg := config.DefaultWithPrefix(prefix)
-	core := beancore.New(beansDir, cfg)
+	core := itemcore.New(itemsDir, cfg)
 	if err := core.Load(); err != nil {
 		t.Fatalf("failed to load core: %v", err)
 	}
 
-	return &Resolver{CoreResolver: &beangraph.CoreResolver{Core: core}}, core
+	return &Resolver{CoreResolver: &itemgraph.CoreResolver{Core: core}}, core
 }
 
 // setupTestResolverWithRequireIfMatch creates a test resolver with require_if_match enabled.
-func setupTestResolverWithRequireIfMatch(t *testing.T) (*Resolver, *beancore.Core) {
+func setupTestResolverWithRequireIfMatch(t *testing.T) (*Resolver, *itemcore.Core) {
 	t.Helper()
 	tmpDir := t.TempDir()
-	beansDir := filepath.Join(tmpDir, ".beans")
-	if err := os.MkdirAll(beansDir, 0755); err != nil {
+	itemsDir := filepath.Join(tmpDir, ".beans")
+	if err := os.MkdirAll(itemsDir, 0755); err != nil {
 		t.Fatalf("failed to create test .beans dir: %v", err)
 	}
 
 	cfg := config.Default()
-	cfg.Beans.RequireIfMatch = true
-	core := beancore.New(beansDir, cfg)
+	cfg.Items.RequireIfMatch = true
+	core := itemcore.New(itemsDir, cfg)
 	if err := core.Load(); err != nil {
 		t.Fatalf("failed to load core: %v", err)
 	}
 
-	return &Resolver{CoreResolver: &beangraph.CoreResolver{Core: core}}, core
+	return &Resolver{CoreResolver: &itemgraph.CoreResolver{Core: core}}, core
 }
 
 func TestETagValidation(t *testing.T) {
@@ -1407,7 +1407,7 @@ func TestETagValidation(t *testing.T) {
 		resolver, core := setupTestResolver(t)
 		ctx := context.Background()
 
-		b := &bean.Bean{ID: "etag-test-1", Title: "Test", Status: "todo"}
+		b := &item.Item{ID: "etag-test-1", Title: "Test", Status: "todo"}
 		core.Create(b)
 
 		// Get current etag
@@ -1415,16 +1415,16 @@ func TestETagValidation(t *testing.T) {
 
 		mr := resolver.Mutation()
 		newTitle := "Updated"
-		input := model.UpdateBeanInput{
+		input := model.UpdateItemInput{
 			Title:   &newTitle,
 			IfMatch: &currentETag,
 		}
-		got, err := mr.UpdateBean(ctx, "etag-test-1", input)
+		got, err := mr.UpdateItem(ctx, "etag-test-1", input)
 		if err != nil {
-			t.Fatalf("UpdateBean() with correct etag error = %v", err)
+			t.Fatalf("UpdateItem() with correct etag error = %v", err)
 		}
 		if got.Title != "Updated" {
-			t.Errorf("UpdateBean().Title = %q, want %q", got.Title, "Updated")
+			t.Errorf("UpdateItem().Title = %q, want %q", got.Title, "Updated")
 		}
 	})
 
@@ -1432,19 +1432,19 @@ func TestETagValidation(t *testing.T) {
 		resolver, core := setupTestResolver(t)
 		ctx := context.Background()
 
-		b := &bean.Bean{ID: "etag-test-2", Title: "Test", Status: "todo"}
+		b := &item.Item{ID: "etag-test-2", Title: "Test", Status: "todo"}
 		core.Create(b)
 
 		mr := resolver.Mutation()
 		newTitle := "Updated"
 		wrongETag := "wrongetagvalue1"
-		input := model.UpdateBeanInput{
+		input := model.UpdateItemInput{
 			Title:   &newTitle,
 			IfMatch: &wrongETag,
 		}
-		_, err := mr.UpdateBean(ctx, "etag-test-2", input)
+		_, err := mr.UpdateItem(ctx, "etag-test-2", input)
 		if err == nil {
-			t.Error("UpdateBean() with wrong etag should fail")
+			t.Error("UpdateItem() with wrong etag should fail")
 		}
 		if !strings.Contains(err.Error(), "etag mismatch") {
 			t.Errorf("Error should mention etag mismatch, got: %v", err)
@@ -1455,20 +1455,20 @@ func TestETagValidation(t *testing.T) {
 		resolver, core := setupTestResolver(t)
 		ctx := context.Background()
 
-		b := &bean.Bean{ID: "etag-test-3", Title: "Test", Status: "todo"}
+		b := &item.Item{ID: "etag-test-3", Title: "Test", Status: "todo"}
 		core.Create(b)
 
 		mr := resolver.Mutation()
 		newTitle := "Updated"
-		input := model.UpdateBeanInput{
+		input := model.UpdateItemInput{
 			Title: &newTitle,
 		}
-		got, err := mr.UpdateBean(ctx, "etag-test-3", input)
+		got, err := mr.UpdateItem(ctx, "etag-test-3", input)
 		if err != nil {
-			t.Fatalf("UpdateBean() without etag error = %v", err)
+			t.Fatalf("UpdateItem() without etag error = %v", err)
 		}
 		if got.Title != "Updated" {
-			t.Errorf("UpdateBean().Title = %q, want %q", got.Title, "Updated")
+			t.Errorf("UpdateItem().Title = %q, want %q", got.Title, "Updated")
 		}
 	})
 }
@@ -1478,17 +1478,17 @@ func TestRequireIfMatchConfig(t *testing.T) {
 		resolver, core := setupTestResolverWithRequireIfMatch(t)
 		ctx := context.Background()
 
-		b := &bean.Bean{ID: "require-etag-1", Title: "Test", Status: "todo"}
+		b := &item.Item{ID: "require-etag-1", Title: "Test", Status: "todo"}
 		core.Create(b)
 
 		mr := resolver.Mutation()
 		newTitle := "Updated"
-		input := model.UpdateBeanInput{
+		input := model.UpdateItemInput{
 			Title: &newTitle,
 		}
-		_, err := mr.UpdateBean(ctx, "require-etag-1", input)
+		_, err := mr.UpdateItem(ctx, "require-etag-1", input)
 		if err == nil {
-			t.Error("UpdateBean() without etag should fail when require_if_match is true")
+			t.Error("UpdateItem() without etag should fail when require_if_match is true")
 		}
 		if !strings.Contains(err.Error(), "if-match etag is required") {
 			t.Errorf("Error should mention etag is required, got: %v", err)
@@ -1499,23 +1499,23 @@ func TestRequireIfMatchConfig(t *testing.T) {
 		resolver, core := setupTestResolverWithRequireIfMatch(t)
 		ctx := context.Background()
 
-		b := &bean.Bean{ID: "require-etag-2", Title: "Test", Status: "todo"}
+		b := &item.Item{ID: "require-etag-2", Title: "Test", Status: "todo"}
 		core.Create(b)
 
 		currentETag := b.ETag()
 
 		mr := resolver.Mutation()
 		newTitle := "Updated"
-		input := model.UpdateBeanInput{
+		input := model.UpdateItemInput{
 			Title:   &newTitle,
 			IfMatch: &currentETag,
 		}
-		got, err := mr.UpdateBean(ctx, "require-etag-2", input)
+		got, err := mr.UpdateItem(ctx, "require-etag-2", input)
 		if err != nil {
-			t.Fatalf("UpdateBean() with correct etag error = %v", err)
+			t.Fatalf("UpdateItem() with correct etag error = %v", err)
 		}
 		if got.Title != "Updated" {
-			t.Errorf("UpdateBean().Title = %q, want %q", got.Title, "Updated")
+			t.Errorf("UpdateItem().Title = %q, want %q", got.Title, "Updated")
 		}
 	})
 
@@ -1523,8 +1523,8 @@ func TestRequireIfMatchConfig(t *testing.T) {
 		resolver, core := setupTestResolverWithRequireIfMatch(t)
 		ctx := context.Background()
 
-		parent := &bean.Bean{ID: "req-parent", Title: "Parent", Status: "todo", Type: "epic"}
-		child := &bean.Bean{ID: "req-child", Title: "Child", Status: "todo", Type: "task"}
+		parent := &item.Item{ID: "req-parent", Title: "Parent", Status: "todo", Type: "epic"}
+		child := &item.Item{ID: "req-child", Title: "Child", Status: "todo", Type: "task"}
 		core.Create(parent)
 		core.Create(child)
 
@@ -1540,8 +1540,8 @@ func TestRequireIfMatchConfig(t *testing.T) {
 		resolver, core := setupTestResolverWithRequireIfMatch(t)
 		ctx := context.Background()
 
-		b1 := &bean.Bean{ID: "req-blocker", Title: "Blocker", Status: "todo"}
-		b2 := &bean.Bean{ID: "req-target", Title: "Target", Status: "todo"}
+		b1 := &item.Item{ID: "req-blocker", Title: "Blocker", Status: "todo"}
+		b2 := &item.Item{ID: "req-target", Title: "Target", Status: "todo"}
 		core.Create(b1)
 		core.Create(b2)
 
@@ -1556,8 +1556,8 @@ func TestRequireIfMatchConfig(t *testing.T) {
 		resolver, core := setupTestResolverWithRequireIfMatch(t)
 		ctx := context.Background()
 
-		b1 := &bean.Bean{ID: "req-blocker2", Title: "Blocker", Status: "todo", Blocking: []string{"req-target2"}}
-		b2 := &bean.Bean{ID: "req-target2", Title: "Target", Status: "todo"}
+		b1 := &item.Item{ID: "req-blocker2", Title: "Blocker", Status: "todo", Blocking: []string{"req-target2"}}
+		b2 := &item.Item{ID: "req-target2", Title: "Target", Status: "todo"}
 		core.Create(b1)
 		core.Create(b2)
 
@@ -1574,10 +1574,10 @@ func TestShortIDNormalization(t *testing.T) {
 	resolver, core := setupTestResolverWithPrefix(t, "beans-")
 	ctx := context.Background()
 
-	// Create test beans with full IDs (prefix + short ID)
-	parent := &bean.Bean{ID: "beans-parent1", Title: "Parent", Status: "todo", Type: "epic"}
-	child := &bean.Bean{ID: "beans-child1", Title: "Child", Status: "todo", Type: "task"}
-	target := &bean.Bean{ID: "beans-target1", Title: "Target", Status: "todo", Type: "task"}
+	// Create test items with full IDs (prefix + short ID)
+	parent := &item.Item{ID: "beans-parent1", Title: "Parent", Status: "todo", Type: "epic"}
+	child := &item.Item{ID: "beans-child1", Title: "Child", Status: "todo", Type: "task"}
+	target := &item.Item{ID: "beans-target1", Title: "Target", Status: "todo", Type: "task"}
 	core.Create(parent)
 	core.Create(child)
 	core.Create(target)
@@ -1624,51 +1624,51 @@ func TestShortIDNormalization(t *testing.T) {
 		}
 	})
 
-	t.Run("CreateBean normalizes parent short ID", func(t *testing.T) {
+	t.Run("CreateItem normalizes parent short ID", func(t *testing.T) {
 		mr := resolver.Mutation()
-		beanType := "task"
+		itemType := "task"
 		shortParentID := "parent1"
-		input := model.CreateBeanInput{
+		input := model.CreateItemInput{
 			Title:  "New Child",
-			Type:   &beanType,
+			Type:   &itemType,
 			Parent: &shortParentID,
 		}
-		got, err := mr.CreateBean(ctx, input)
+		got, err := mr.CreateItem(ctx, input)
 		if err != nil {
-			t.Fatalf("CreateBean() error = %v", err)
+			t.Fatalf("CreateItem() error = %v", err)
 		}
 		if got.Parent != "beans-parent1" {
-			t.Errorf("CreateBean().Parent = %q, want %q", got.Parent, "beans-parent1")
+			t.Errorf("CreateItem().Parent = %q, want %q", got.Parent, "beans-parent1")
 		}
 	})
 
-	t.Run("CreateBean normalizes blocking short IDs", func(t *testing.T) {
+	t.Run("CreateItem normalizes blocking short IDs", func(t *testing.T) {
 		mr := resolver.Mutation()
-		beanType := "task"
-		input := model.CreateBeanInput{
+		itemType := "task"
+		input := model.CreateItemInput{
 			Title:    "Blocker Bean",
-			Type:     &beanType,
+			Type:     &itemType,
 			Blocking: []string{"target1"},
 		}
-		got, err := mr.CreateBean(ctx, input)
+		got, err := mr.CreateItem(ctx, input)
 		if err != nil {
-			t.Fatalf("CreateBean() error = %v", err)
+			t.Fatalf("CreateItem() error = %v", err)
 		}
 		if len(got.Blocking) != 1 {
-			t.Fatalf("CreateBean().Blocking count = %d, want 1", len(got.Blocking))
+			t.Fatalf("CreateItem().Blocking count = %d, want 1", len(got.Blocking))
 		}
 		if got.Blocking[0] != "beans-target1" {
-			t.Errorf("CreateBean().Blocking[0] = %q, want %q", got.Blocking[0], "beans-target1")
+			t.Errorf("CreateItem().Blocking[0] = %q, want %q", got.Blocking[0], "beans-target1")
 		}
 	})
 }
 
-func TestUpdateBeanWithBodyMod(t *testing.T) {
+func TestUpdateItemWithBodyMod(t *testing.T) {
 	resolver, core := setupTestResolver(t)
 	ctx := context.Background()
 
 	t.Run("bodyMod with single replacement only", func(t *testing.T) {
-		b := &bean.Bean{
+		b := &item.Item{
 			ID:     "bodymod-test-1",
 			Title:  "Test",
 			Status: "todo",
@@ -1676,7 +1676,7 @@ func TestUpdateBeanWithBodyMod(t *testing.T) {
 		}
 		core.Create(b)
 
-		input := model.UpdateBeanInput{
+		input := model.UpdateItemInput{
 			BodyMod: &model.BodyModification{
 				Replace: []*model.ReplaceOperation{
 					{Old: "- [ ] Task 1", New: "- [x] Task 1"},
@@ -1684,18 +1684,18 @@ func TestUpdateBeanWithBodyMod(t *testing.T) {
 			},
 		}
 
-		got, err := resolver.Mutation().UpdateBean(ctx, "bodymod-test-1", input)
+		got, err := resolver.Mutation().UpdateItem(ctx, "bodymod-test-1", input)
 		if err != nil {
-			t.Fatalf("UpdateBean() error = %v", err)
+			t.Fatalf("UpdateItem() error = %v", err)
 		}
 		want := "## Tasks\n- [x] Task 1\n- [ ] Task 2"
 		if got.Body != want {
-			t.Errorf("UpdateBean().Body = %q, want %q", got.Body, want)
+			t.Errorf("UpdateItem().Body = %q, want %q", got.Body, want)
 		}
 	})
 
 	t.Run("bodyMod with append only", func(t *testing.T) {
-		b := &bean.Bean{
+		b := &item.Item{
 			ID:     "bodymod-test-2",
 			Title:  "Test",
 			Status: "todo",
@@ -1704,24 +1704,24 @@ func TestUpdateBeanWithBodyMod(t *testing.T) {
 		core.Create(b)
 
 		appendText := "## Notes\n\nNew section"
-		input := model.UpdateBeanInput{
+		input := model.UpdateItemInput{
 			BodyMod: &model.BodyModification{
 				Append: &appendText,
 			},
 		}
 
-		got, err := resolver.Mutation().UpdateBean(ctx, "bodymod-test-2", input)
+		got, err := resolver.Mutation().UpdateItem(ctx, "bodymod-test-2", input)
 		if err != nil {
-			t.Fatalf("UpdateBean() error = %v", err)
+			t.Fatalf("UpdateItem() error = %v", err)
 		}
 		want := "Existing content\n\n## Notes\n\nNew section"
 		if got.Body != want {
-			t.Errorf("UpdateBean().Body = %q, want %q", got.Body, want)
+			t.Errorf("UpdateItem().Body = %q, want %q", got.Body, want)
 		}
 	})
 
 	t.Run("bodyMod with replacement and append combined", func(t *testing.T) {
-		b := &bean.Bean{
+		b := &item.Item{
 			ID:     "bodymod-test-3",
 			Title:  "Test",
 			Status: "todo",
@@ -1730,7 +1730,7 @@ func TestUpdateBeanWithBodyMod(t *testing.T) {
 		core.Create(b)
 
 		appendText := "## Summary\n\nCompleted"
-		input := model.UpdateBeanInput{
+		input := model.UpdateItemInput{
 			BodyMod: &model.BodyModification{
 				Replace: []*model.ReplaceOperation{
 					{Old: "- [ ] Deploy", New: "- [x] Deploy"},
@@ -1739,18 +1739,18 @@ func TestUpdateBeanWithBodyMod(t *testing.T) {
 			},
 		}
 
-		got, err := resolver.Mutation().UpdateBean(ctx, "bodymod-test-3", input)
+		got, err := resolver.Mutation().UpdateItem(ctx, "bodymod-test-3", input)
 		if err != nil {
-			t.Fatalf("UpdateBean() error = %v", err)
+			t.Fatalf("UpdateItem() error = %v", err)
 		}
 		want := "## Tasks\n- [x] Deploy\n\n## Summary\n\nCompleted"
 		if got.Body != want {
-			t.Errorf("UpdateBean().Body = %q, want %q", got.Body, want)
+			t.Errorf("UpdateItem().Body = %q, want %q", got.Body, want)
 		}
 	})
 
 	t.Run("bodyMod with multiple replacements sequential", func(t *testing.T) {
-		b := &bean.Bean{
+		b := &item.Item{
 			ID:     "bodymod-test-4",
 			Title:  "Test",
 			Status: "todo",
@@ -1758,7 +1758,7 @@ func TestUpdateBeanWithBodyMod(t *testing.T) {
 		}
 		core.Create(b)
 
-		input := model.UpdateBeanInput{
+		input := model.UpdateItemInput{
 			BodyMod: &model.BodyModification{
 				Replace: []*model.ReplaceOperation{
 					{Old: "- [ ] Task 1", New: "- [x] Task 1"},
@@ -1768,18 +1768,18 @@ func TestUpdateBeanWithBodyMod(t *testing.T) {
 			},
 		}
 
-		got, err := resolver.Mutation().UpdateBean(ctx, "bodymod-test-4", input)
+		got, err := resolver.Mutation().UpdateItem(ctx, "bodymod-test-4", input)
 		if err != nil {
-			t.Fatalf("UpdateBean() error = %v", err)
+			t.Fatalf("UpdateItem() error = %v", err)
 		}
 		want := "- [x] Task 1\n- [x] Task 2\n- [x] Task 3"
 		if got.Body != want {
-			t.Errorf("UpdateBean().Body = %q, want %q", got.Body, want)
+			t.Errorf("UpdateItem().Body = %q, want %q", got.Body, want)
 		}
 	})
 
 	t.Run("bodyMod with metadata update", func(t *testing.T) {
-		b := &bean.Bean{
+		b := &item.Item{
 			ID:     "bodymod-test-5",
 			Title:  "Test",
 			Status: "todo",
@@ -1789,7 +1789,7 @@ func TestUpdateBeanWithBodyMod(t *testing.T) {
 
 		status := "completed"
 		appendText := "## Done"
-		input := model.UpdateBeanInput{
+		input := model.UpdateItemInput{
 			Status: &status,
 			BodyMod: &model.BodyModification{
 				Replace: []*model.ReplaceOperation{
@@ -1799,21 +1799,21 @@ func TestUpdateBeanWithBodyMod(t *testing.T) {
 			},
 		}
 
-		got, err := resolver.Mutation().UpdateBean(ctx, "bodymod-test-5", input)
+		got, err := resolver.Mutation().UpdateItem(ctx, "bodymod-test-5", input)
 		if err != nil {
-			t.Fatalf("UpdateBean() error = %v", err)
+			t.Fatalf("UpdateItem() error = %v", err)
 		}
 		if got.Status != "completed" {
-			t.Errorf("UpdateBean().Status = %q, want %q", got.Status, "completed")
+			t.Errorf("UpdateItem().Status = %q, want %q", got.Status, "completed")
 		}
 		want := "- [x] Task\n\n## Done"
 		if got.Body != want {
-			t.Errorf("UpdateBean().Body = %q, want %q", got.Body, want)
+			t.Errorf("UpdateItem().Body = %q, want %q", got.Body, want)
 		}
 	})
 
 	t.Run("error when both body and bodyMod provided", func(t *testing.T) {
-		b := &bean.Bean{
+		b := &item.Item{
 			ID:     "bodymod-test-6",
 			Title:  "Test",
 			Status: "todo",
@@ -1823,16 +1823,16 @@ func TestUpdateBeanWithBodyMod(t *testing.T) {
 
 		bodyText := "New body"
 		appendText := "Append"
-		input := model.UpdateBeanInput{
+		input := model.UpdateItemInput{
 			Body: &bodyText,
 			BodyMod: &model.BodyModification{
 				Append: &appendText,
 			},
 		}
 
-		_, err := resolver.Mutation().UpdateBean(ctx, "bodymod-test-6", input)
+		_, err := resolver.Mutation().UpdateItem(ctx, "bodymod-test-6", input)
 		if err == nil {
-			t.Error("UpdateBean() expected error when both body and bodyMod provided")
+			t.Error("UpdateItem() expected error when both body and bodyMod provided")
 		}
 		if !strings.Contains(err.Error(), "cannot specify both body and bodyMod") {
 			t.Errorf("Error should mention mutual exclusivity, got: %v", err)
@@ -1840,7 +1840,7 @@ func TestUpdateBeanWithBodyMod(t *testing.T) {
 	})
 
 	t.Run("error when replacement text not found", func(t *testing.T) {
-		b := &bean.Bean{
+		b := &item.Item{
 			ID:     "bodymod-test-7",
 			Title:  "Test",
 			Status: "todo",
@@ -1848,7 +1848,7 @@ func TestUpdateBeanWithBodyMod(t *testing.T) {
 		}
 		core.Create(b)
 
-		input := model.UpdateBeanInput{
+		input := model.UpdateItemInput{
 			BodyMod: &model.BodyModification{
 				Replace: []*model.ReplaceOperation{
 					{Old: "nonexistent", New: "fail"},
@@ -1856,9 +1856,9 @@ func TestUpdateBeanWithBodyMod(t *testing.T) {
 			},
 		}
 
-		_, err := resolver.Mutation().UpdateBean(ctx, "bodymod-test-7", input)
+		_, err := resolver.Mutation().UpdateItem(ctx, "bodymod-test-7", input)
 		if err == nil {
-			t.Error("UpdateBean() expected error when replacement text not found")
+			t.Error("UpdateItem() expected error when replacement text not found")
 		}
 		if !strings.Contains(err.Error(), "text not found") {
 			t.Errorf("Error should mention text not found, got: %v", err)
@@ -1866,7 +1866,7 @@ func TestUpdateBeanWithBodyMod(t *testing.T) {
 	})
 
 	t.Run("error when replacement text found multiple times", func(t *testing.T) {
-		b := &bean.Bean{
+		b := &item.Item{
 			ID:     "bodymod-test-8",
 			Title:  "Test",
 			Status: "todo",
@@ -1874,7 +1874,7 @@ func TestUpdateBeanWithBodyMod(t *testing.T) {
 		}
 		core.Create(b)
 
-		input := model.UpdateBeanInput{
+		input := model.UpdateItemInput{
 			BodyMod: &model.BodyModification{
 				Replace: []*model.ReplaceOperation{
 					{Old: "foo", New: "bar"},
@@ -1882,9 +1882,9 @@ func TestUpdateBeanWithBodyMod(t *testing.T) {
 			},
 		}
 
-		_, err := resolver.Mutation().UpdateBean(ctx, "bodymod-test-8", input)
+		_, err := resolver.Mutation().UpdateItem(ctx, "bodymod-test-8", input)
 		if err == nil {
-			t.Error("UpdateBean() expected error when replacement text found multiple times")
+			t.Error("UpdateItem() expected error when replacement text found multiple times")
 		}
 		if !strings.Contains(err.Error(), "found 3 times") {
 			t.Errorf("Error should mention multiple matches, got: %v", err)
@@ -1892,7 +1892,7 @@ func TestUpdateBeanWithBodyMod(t *testing.T) {
 	})
 
 	t.Run("transactional: later replacement fails, nothing saved", func(t *testing.T) {
-		b := &bean.Bean{
+		b := &item.Item{
 			ID:     "bodymod-test-9",
 			Title:  "Test",
 			Status: "todo",
@@ -1901,7 +1901,7 @@ func TestUpdateBeanWithBodyMod(t *testing.T) {
 		core.Create(b)
 		originalBody := b.Body
 
-		input := model.UpdateBeanInput{
+		input := model.UpdateItemInput{
 			BodyMod: &model.BodyModification{
 				Replace: []*model.ReplaceOperation{
 					{Old: "Task 1", New: "Done 1"},    // This should succeed
@@ -1910,12 +1910,12 @@ func TestUpdateBeanWithBodyMod(t *testing.T) {
 			},
 		}
 
-		_, err := resolver.Mutation().UpdateBean(ctx, "bodymod-test-9", input)
+		_, err := resolver.Mutation().UpdateItem(ctx, "bodymod-test-9", input)
 		if err == nil {
-			t.Error("UpdateBean() expected error")
+			t.Error("UpdateItem() expected error")
 		}
 
-		// Verify bean wasn't modified
+		// Verify item wasn't modified
 		updated, _ := core.Get("bodymod-test-9")
 		if updated.Body != originalBody {
 			t.Errorf("Bean body was modified despite error. Got %q, want %q", updated.Body, originalBody)
@@ -1923,7 +1923,7 @@ func TestUpdateBeanWithBodyMod(t *testing.T) {
 	})
 
 	t.Run("empty append is no-op", func(t *testing.T) {
-		b := &bean.Bean{
+		b := &item.Item{
 			ID:     "bodymod-test-10",
 			Title:  "Test",
 			Status: "todo",
@@ -1932,23 +1932,23 @@ func TestUpdateBeanWithBodyMod(t *testing.T) {
 		core.Create(b)
 
 		emptyAppend := ""
-		input := model.UpdateBeanInput{
+		input := model.UpdateItemInput{
 			BodyMod: &model.BodyModification{
 				Append: &emptyAppend,
 			},
 		}
 
-		got, err := resolver.Mutation().UpdateBean(ctx, "bodymod-test-10", input)
+		got, err := resolver.Mutation().UpdateItem(ctx, "bodymod-test-10", input)
 		if err != nil {
-			t.Fatalf("UpdateBean() error = %v", err)
+			t.Fatalf("UpdateItem() error = %v", err)
 		}
 		if got.Body != "Original content" {
-			t.Errorf("UpdateBean().Body = %q, want %q (no-op for empty append)", got.Body, "Original content")
+			t.Errorf("UpdateItem().Body = %q, want %q (no-op for empty append)", got.Body, "Original content")
 		}
 	})
 
 	t.Run("transactional: later replacement fails, nothing saved", func(t *testing.T) {
-		b := &bean.Bean{
+		b := &item.Item{
 			ID:     "bodymod-test-9",
 			Title:  "Test",
 			Status: "todo",
@@ -1957,7 +1957,7 @@ func TestUpdateBeanWithBodyMod(t *testing.T) {
 		core.Create(b)
 		originalBody := b.Body
 
-		input := model.UpdateBeanInput{
+		input := model.UpdateItemInput{
 			BodyMod: &model.BodyModification{
 				Replace: []*model.ReplaceOperation{
 					{Old: "Task 1", New: "Done 1"},    // This should succeed
@@ -1966,12 +1966,12 @@ func TestUpdateBeanWithBodyMod(t *testing.T) {
 			},
 		}
 
-		_, err := resolver.Mutation().UpdateBean(ctx, "bodymod-test-9", input)
+		_, err := resolver.Mutation().UpdateItem(ctx, "bodymod-test-9", input)
 		if err == nil {
-			t.Error("UpdateBean() expected error")
+			t.Error("UpdateItem() expected error")
 		}
 
-		// Verify bean wasn't modified
+		// Verify item wasn't modified
 		updated, _ := core.Get("bodymod-test-9")
 		if updated.Body != originalBody {
 			t.Errorf("Bean body was modified despite error. Got %q, want %q", updated.Body, originalBody)
@@ -1979,49 +1979,49 @@ func TestUpdateBeanWithBodyMod(t *testing.T) {
 	})
 }
 
-func TestUpdateBeanWithRelationships(t *testing.T) {
+func TestUpdateItemWithRelationships(t *testing.T) {
 	resolver, core := setupTestResolver(t)
 	ctx := context.Background()
 
 	t.Run("atomic update with parent and blocking", func(t *testing.T) {
-		epic := &bean.Bean{ID: "epic-1", Title: "Epic", Type: "epic", Status: "todo"}
-		task := &bean.Bean{ID: "task-1", Title: "Task", Type: "task", Status: "todo"}
-		blocker := &bean.Bean{ID: "blocker-1", Title: "Blocker", Type: "task", Status: "todo"}
+		epic := &item.Item{ID: "epic-1", Title: "Epic", Type: "epic", Status: "todo"}
+		task := &item.Item{ID: "task-1", Title: "Task", Type: "task", Status: "todo"}
+		blocker := &item.Item{ID: "blocker-1", Title: "Blocker", Type: "task", Status: "todo"}
 		core.Create(epic)
 		core.Create(task)
 		core.Create(blocker)
 
-		input := model.UpdateBeanInput{
+		input := model.UpdateItemInput{
 			Status:      stringPtr("in-progress"),
 			Parent:      stringPtr("epic-1"),
 			AddBlocking: []string{"blocker-1"},
 		}
 
-		got, err := resolver.Mutation().UpdateBean(ctx, "task-1", input)
+		got, err := resolver.Mutation().UpdateItem(ctx, "task-1", input)
 		if err != nil {
-			t.Fatalf("UpdateBean() error = %v", err)
+			t.Fatalf("UpdateItem() error = %v", err)
 		}
 
 		if got.Status != "in-progress" {
-			t.Errorf("UpdateBean().Status = %q, want %q", got.Status, "in-progress")
+			t.Errorf("UpdateItem().Status = %q, want %q", got.Status, "in-progress")
 		}
 		if got.Parent != "epic-1" {
-			t.Errorf("UpdateBean().Parent = %q, want %q", got.Parent, "epic-1")
+			t.Errorf("UpdateItem().Parent = %q, want %q", got.Parent, "epic-1")
 		}
 		if len(got.Blocking) != 1 || got.Blocking[0] != "blocker-1" {
-			t.Errorf("UpdateBean().Blocking = %v, want [blocker-1]", got.Blocking)
+			t.Errorf("UpdateItem().Blocking = %v, want [blocker-1]", got.Blocking)
 		}
 	})
 
 	t.Run("atomic update with bodyMod and relationships", func(t *testing.T) {
-		epic := &bean.Bean{ID: "epic-2", Title: "Epic", Type: "epic", Status: "todo"}
-		task := &bean.Bean{ID: "task-2", Title: "Task", Type: "task", Status: "todo", Body: "- [ ] Step 1"}
-		blocker := &bean.Bean{ID: "blocker-2", Title: "Blocker", Type: "task", Status: "todo"}
+		epic := &item.Item{ID: "epic-2", Title: "Epic", Type: "epic", Status: "todo"}
+		task := &item.Item{ID: "task-2", Title: "Task", Type: "task", Status: "todo", Body: "- [ ] Step 1"}
+		blocker := &item.Item{ID: "blocker-2", Title: "Blocker", Type: "task", Status: "todo"}
 		core.Create(epic)
 		core.Create(task)
 		core.Create(blocker)
 
-		input := model.UpdateBeanInput{
+		input := model.UpdateItemInput{
 			Status: stringPtr("completed"),
 			Parent: stringPtr("epic-2"),
 			BodyMod: &model.BodyModification{
@@ -2033,9 +2033,9 @@ func TestUpdateBeanWithRelationships(t *testing.T) {
 			AddBlocking: []string{"blocker-2"},
 		}
 
-		got, err := resolver.Mutation().UpdateBean(ctx, "task-2", input)
+		got, err := resolver.Mutation().UpdateItem(ctx, "task-2", input)
 		if err != nil {
-			t.Fatalf("UpdateBean() error = %v", err)
+			t.Fatalf("UpdateItem() error = %v", err)
 		}
 
 		if got.Status != "completed" {
@@ -2056,32 +2056,32 @@ func TestUpdateBeanWithRelationships(t *testing.T) {
 	})
 
 	t.Run("parent validation fails for invalid type hierarchy", func(t *testing.T) {
-		task1 := &bean.Bean{ID: "task-invalid-1", Title: "Task 1", Type: "task", Status: "todo"}
-		task2 := &bean.Bean{ID: "task-invalid-2", Title: "Task 2", Type: "task", Status: "todo"}
+		task1 := &item.Item{ID: "task-invalid-1", Title: "Task 1", Type: "task", Status: "todo"}
+		task2 := &item.Item{ID: "task-invalid-2", Title: "Task 2", Type: "task", Status: "todo"}
 		core.Create(task1)
 		core.Create(task2)
 
-		input := model.UpdateBeanInput{
+		input := model.UpdateItemInput{
 			Parent: stringPtr("task-invalid-2"),
 		}
 
-		_, err := resolver.Mutation().UpdateBean(ctx, "task-invalid-1", input)
+		_, err := resolver.Mutation().UpdateItem(ctx, "task-invalid-1", input)
 		if err == nil {
-			t.Error("UpdateBean() should fail for invalid parent type")
+			t.Error("UpdateItem() should fail for invalid parent type")
 		}
 	})
 
 	t.Run("blocking self-reference validation", func(t *testing.T) {
-		task := &bean.Bean{ID: "task-self", Title: "Task", Type: "task", Status: "todo"}
+		task := &item.Item{ID: "task-self", Title: "Task", Type: "task", Status: "todo"}
 		core.Create(task)
 
-		input := model.UpdateBeanInput{
+		input := model.UpdateItemInput{
 			AddBlocking: []string{"task-self"},
 		}
 
-		_, err := resolver.Mutation().UpdateBean(ctx, "task-self", input)
+		_, err := resolver.Mutation().UpdateItem(ctx, "task-self", input)
 		if err == nil {
-			t.Error("UpdateBean() should fail when bean blocks itself")
+			t.Error("UpdateItem() should fail when bean blocks itself")
 		}
 		if !strings.Contains(err.Error(), "block itself") {
 			t.Errorf("Error should mention self-blocking, got: %v", err)
@@ -2089,19 +2089,19 @@ func TestUpdateBeanWithRelationships(t *testing.T) {
 	})
 
 	t.Run("blocking cycle detection", func(t *testing.T) {
-		task1 := &bean.Bean{ID: "task-block-1", Title: "Task 1", Type: "task", Status: "todo"}
-		task2 := &bean.Bean{ID: "task-block-2", Title: "Task 2", Type: "task", Status: "todo", Blocking: []string{"task-block-1"}}
+		task1 := &item.Item{ID: "task-block-1", Title: "Task 1", Type: "task", Status: "todo"}
+		task2 := &item.Item{ID: "task-block-2", Title: "Task 2", Type: "task", Status: "todo", Blocking: []string{"task-block-1"}}
 		core.Create(task1)
 		core.Create(task2)
 
 		// Try to make task-1 block task-2 (would create cycle)
-		input := model.UpdateBeanInput{
+		input := model.UpdateItemInput{
 			AddBlocking: []string{"task-block-2"},
 		}
 
-		_, err := resolver.Mutation().UpdateBean(ctx, "task-block-1", input)
+		_, err := resolver.Mutation().UpdateItem(ctx, "task-block-1", input)
 		if err == nil {
-			t.Error("UpdateBean() should fail when creating blocking cycle")
+			t.Error("UpdateItem() should fail when creating blocking cycle")
 		}
 		if !strings.Contains(err.Error(), "cycle") {
 			t.Errorf("Error should mention cycle, got: %v", err)
@@ -2109,16 +2109,16 @@ func TestUpdateBeanWithRelationships(t *testing.T) {
 	})
 
 	t.Run("blocking target not found", func(t *testing.T) {
-		task := &bean.Bean{ID: "task-notfound", Title: "Task", Type: "task", Status: "todo"}
+		task := &item.Item{ID: "task-notfound", Title: "Task", Type: "task", Status: "todo"}
 		core.Create(task)
 
-		input := model.UpdateBeanInput{
+		input := model.UpdateItemInput{
 			AddBlocking: []string{"nonexistent"},
 		}
 
-		_, err := resolver.Mutation().UpdateBean(ctx, "task-notfound", input)
+		_, err := resolver.Mutation().UpdateItem(ctx, "task-notfound", input)
 		if err == nil {
-			t.Error("UpdateBean() should fail when blocking target doesn't exist")
+			t.Error("UpdateItem() should fail when blocking target doesn't exist")
 		}
 		if !strings.Contains(err.Error(), "not found") {
 			t.Errorf("Error should mention not found, got: %v", err)
@@ -2126,20 +2126,20 @@ func TestUpdateBeanWithRelationships(t *testing.T) {
 	})
 
 	t.Run("remove blocking relationships", func(t *testing.T) {
-		task := &bean.Bean{ID: "task-remove-1", Title: "Task", Type: "task", Status: "todo", Blocking: []string{"other-1", "other-2"}}
-		other1 := &bean.Bean{ID: "other-1", Title: "Other 1", Type: "task", Status: "todo"}
-		other2 := &bean.Bean{ID: "other-2", Title: "Other 2", Type: "task", Status: "todo"}
+		task := &item.Item{ID: "task-remove-1", Title: "Task", Type: "task", Status: "todo", Blocking: []string{"other-1", "other-2"}}
+		other1 := &item.Item{ID: "other-1", Title: "Other 1", Type: "task", Status: "todo"}
+		other2 := &item.Item{ID: "other-2", Title: "Other 2", Type: "task", Status: "todo"}
 		core.Create(task)
 		core.Create(other1)
 		core.Create(other2)
 
-		input := model.UpdateBeanInput{
+		input := model.UpdateItemInput{
 			RemoveBlocking: []string{"other-1"},
 		}
 
-		got, err := resolver.Mutation().UpdateBean(ctx, "task-remove-1", input)
+		got, err := resolver.Mutation().UpdateItem(ctx, "task-remove-1", input)
 		if err != nil {
-			t.Fatalf("UpdateBean() error = %v", err)
+			t.Fatalf("UpdateItem() error = %v", err)
 		}
 
 		if len(got.Blocking) != 1 || got.Blocking[0] != "other-2" {
@@ -2148,16 +2148,16 @@ func TestUpdateBeanWithRelationships(t *testing.T) {
 	})
 
 	t.Run("blockedBy self-reference validation", func(t *testing.T) {
-		task := &bean.Bean{ID: "task-blockedby-self", Title: "Task", Type: "task", Status: "todo"}
+		task := &item.Item{ID: "task-blockedby-self", Title: "Task", Type: "task", Status: "todo"}
 		core.Create(task)
 
-		input := model.UpdateBeanInput{
+		input := model.UpdateItemInput{
 			AddBlockedBy: []string{"task-blockedby-self"},
 		}
 
-		_, err := resolver.Mutation().UpdateBean(ctx, "task-blockedby-self", input)
+		_, err := resolver.Mutation().UpdateItem(ctx, "task-blockedby-self", input)
 		if err == nil {
-			t.Error("UpdateBean() should fail when bean is blocked by itself")
+			t.Error("UpdateItem() should fail when bean is blocked by itself")
 		}
 		if !strings.Contains(err.Error(), "blocked by itself") {
 			t.Errorf("Error should mention self-blocking, got: %v", err)
@@ -2165,16 +2165,16 @@ func TestUpdateBeanWithRelationships(t *testing.T) {
 	})
 
 	t.Run("blockedBy target not found", func(t *testing.T) {
-		task := &bean.Bean{ID: "task-blockedby-notfound", Title: "Task", Type: "task", Status: "todo"}
+		task := &item.Item{ID: "task-blockedby-notfound", Title: "Task", Type: "task", Status: "todo"}
 		core.Create(task)
 
-		input := model.UpdateBeanInput{
+		input := model.UpdateItemInput{
 			AddBlockedBy: []string{"nonexistent"},
 		}
 
-		_, err := resolver.Mutation().UpdateBean(ctx, "task-blockedby-notfound", input)
+		_, err := resolver.Mutation().UpdateItem(ctx, "task-blockedby-notfound", input)
 		if err == nil {
-			t.Error("UpdateBean() should fail when blocker doesn't exist")
+			t.Error("UpdateItem() should fail when blocker doesn't exist")
 		}
 		if !strings.Contains(err.Error(), "not found") {
 			t.Errorf("Error should mention not found, got: %v", err)
@@ -2182,21 +2182,21 @@ func TestUpdateBeanWithRelationships(t *testing.T) {
 	})
 
 	t.Run("combined add and remove operations", func(t *testing.T) {
-		task := &bean.Bean{ID: "task-combined", Title: "Task", Type: "task", Status: "todo", Blocking: []string{"old-1"}}
-		old1 := &bean.Bean{ID: "old-1", Title: "Old", Type: "task", Status: "todo"}
-		new1 := &bean.Bean{ID: "new-1", Title: "New", Type: "task", Status: "todo"}
+		task := &item.Item{ID: "task-combined", Title: "Task", Type: "task", Status: "todo", Blocking: []string{"old-1"}}
+		old1 := &item.Item{ID: "old-1", Title: "Old", Type: "task", Status: "todo"}
+		new1 := &item.Item{ID: "new-1", Title: "New", Type: "task", Status: "todo"}
 		core.Create(task)
 		core.Create(old1)
 		core.Create(new1)
 
-		input := model.UpdateBeanInput{
+		input := model.UpdateItemInput{
 			RemoveBlocking: []string{"old-1"},
 			AddBlocking:    []string{"new-1"},
 		}
 
-		got, err := resolver.Mutation().UpdateBean(ctx, "task-combined", input)
+		got, err := resolver.Mutation().UpdateItem(ctx, "task-combined", input)
 		if err != nil {
-			t.Fatalf("UpdateBean() error = %v", err)
+			t.Fatalf("UpdateItem() error = %v", err)
 		}
 
 		if len(got.Blocking) != 1 || got.Blocking[0] != "new-1" {
@@ -2205,19 +2205,19 @@ func TestUpdateBeanWithRelationships(t *testing.T) {
 	})
 
 	t.Run("blockedBy cycle detection", func(t *testing.T) {
-		task1 := &bean.Bean{ID: "task-blockedby-cycle-1", Title: "Task 1", Type: "task", Status: "todo"}
-		task2 := &bean.Bean{ID: "task-blockedby-cycle-2", Title: "Task 2", Type: "task", Status: "todo", BlockedBy: []string{"task-blockedby-cycle-1"}}
+		task1 := &item.Item{ID: "task-blockedby-cycle-1", Title: "Task 1", Type: "task", Status: "todo"}
+		task2 := &item.Item{ID: "task-blockedby-cycle-2", Title: "Task 2", Type: "task", Status: "todo", BlockedBy: []string{"task-blockedby-cycle-1"}}
 		core.Create(task1)
 		core.Create(task2)
 
 		// Try to make task-1 blocked by task-2 (would create cycle)
-		input := model.UpdateBeanInput{
+		input := model.UpdateItemInput{
 			AddBlockedBy: []string{"task-blockedby-cycle-2"},
 		}
 
-		_, err := resolver.Mutation().UpdateBean(ctx, "task-blockedby-cycle-1", input)
+		_, err := resolver.Mutation().UpdateItem(ctx, "task-blockedby-cycle-1", input)
 		if err == nil {
-			t.Error("UpdateBean() should fail when creating blockedBy cycle")
+			t.Error("UpdateItem() should fail when creating blockedBy cycle")
 		}
 		if !strings.Contains(err.Error(), "cycle") {
 			t.Errorf("Error should mention cycle, got: %v", err)
@@ -2225,20 +2225,20 @@ func TestUpdateBeanWithRelationships(t *testing.T) {
 	})
 
 	t.Run("remove parent", func(t *testing.T) {
-		epic := &bean.Bean{ID: "epic-parent-remove", Title: "Epic", Type: "epic", Status: "todo"}
-		task := &bean.Bean{ID: "task-parent-remove", Title: "Task", Type: "task", Status: "todo", Parent: "epic-parent-remove"}
+		epic := &item.Item{ID: "epic-parent-remove", Title: "Epic", Type: "epic", Status: "todo"}
+		task := &item.Item{ID: "task-parent-remove", Title: "Task", Type: "task", Status: "todo", Parent: "epic-parent-remove"}
 		core.Create(epic)
 		core.Create(task)
 
 		// Remove parent by setting to empty string
 		emptyParent := ""
-		input := model.UpdateBeanInput{
+		input := model.UpdateItemInput{
 			Parent: &emptyParent,
 		}
 
-		got, err := resolver.Mutation().UpdateBean(ctx, "task-parent-remove", input)
+		got, err := resolver.Mutation().UpdateItem(ctx, "task-parent-remove", input)
 		if err != nil {
-			t.Fatalf("UpdateBean() error = %v", err)
+			t.Fatalf("UpdateItem() error = %v", err)
 		}
 
 		if got.Parent != "" {
@@ -2247,20 +2247,20 @@ func TestUpdateBeanWithRelationships(t *testing.T) {
 	})
 
 	t.Run("remove blockedBy relationships", func(t *testing.T) {
-		task := &bean.Bean{ID: "task-remove-blockedby", Title: "Task", Type: "task", Status: "todo", BlockedBy: []string{"blocker-1", "blocker-2"}}
-		blocker1 := &bean.Bean{ID: "blocker-1", Title: "Blocker 1", Type: "task", Status: "todo"}
-		blocker2 := &bean.Bean{ID: "blocker-2", Title: "Blocker 2", Type: "task", Status: "todo"}
+		task := &item.Item{ID: "task-remove-blockedby", Title: "Task", Type: "task", Status: "todo", BlockedBy: []string{"blocker-1", "blocker-2"}}
+		blocker1 := &item.Item{ID: "blocker-1", Title: "Blocker 1", Type: "task", Status: "todo"}
+		blocker2 := &item.Item{ID: "blocker-2", Title: "Blocker 2", Type: "task", Status: "todo"}
 		core.Create(task)
 		core.Create(blocker1)
 		core.Create(blocker2)
 
-		input := model.UpdateBeanInput{
+		input := model.UpdateItemInput{
 			RemoveBlockedBy: []string{"blocker-1"},
 		}
 
-		got, err := resolver.Mutation().UpdateBean(ctx, "task-remove-blockedby", input)
+		got, err := resolver.Mutation().UpdateItem(ctx, "task-remove-blockedby", input)
 		if err != nil {
-			t.Fatalf("UpdateBean() error = %v", err)
+			t.Fatalf("UpdateItem() error = %v", err)
 		}
 
 		if len(got.BlockedBy) != 1 || got.BlockedBy[0] != "blocker-2" {
@@ -2269,20 +2269,20 @@ func TestUpdateBeanWithRelationships(t *testing.T) {
 	})
 
 	t.Run("multiple blocking additions", func(t *testing.T) {
-		task := &bean.Bean{ID: "task-multi-blocking", Title: "Task", Type: "task", Status: "todo"}
-		target1 := &bean.Bean{ID: "target-1", Title: "Target 1", Type: "task", Status: "todo"}
-		target2 := &bean.Bean{ID: "target-2", Title: "Target 2", Type: "task", Status: "todo"}
+		task := &item.Item{ID: "task-multi-blocking", Title: "Task", Type: "task", Status: "todo"}
+		target1 := &item.Item{ID: "target-1", Title: "Target 1", Type: "task", Status: "todo"}
+		target2 := &item.Item{ID: "target-2", Title: "Target 2", Type: "task", Status: "todo"}
 		core.Create(task)
 		core.Create(target1)
 		core.Create(target2)
 
-		input := model.UpdateBeanInput{
+		input := model.UpdateItemInput{
 			AddBlocking: []string{"target-1", "target-2"},
 		}
 
-		got, err := resolver.Mutation().UpdateBean(ctx, "task-multi-blocking", input)
+		got, err := resolver.Mutation().UpdateItem(ctx, "task-multi-blocking", input)
 		if err != nil {
-			t.Fatalf("UpdateBean() error = %v", err)
+			t.Fatalf("UpdateItem() error = %v", err)
 		}
 
 		if len(got.Blocking) != 2 {
@@ -2291,18 +2291,18 @@ func TestUpdateBeanWithRelationships(t *testing.T) {
 	})
 
 	t.Run("all relationship types combined", func(t *testing.T) {
-		epic := &bean.Bean{ID: "epic-all", Title: "Epic", Type: "epic", Status: "todo"}
-		task := &bean.Bean{ID: "task-all", Title: "Task", Type: "task", Status: "todo", Blocking: []string{"old-blocking"}}
-		blocker := &bean.Bean{ID: "new-blocker", Title: "Blocker", Type: "task", Status: "todo"}
-		blocked := &bean.Bean{ID: "new-blocked", Title: "Blocked", Type: "task", Status: "todo"}
-		oldBlocking := &bean.Bean{ID: "old-blocking", Title: "Old Blocking", Type: "task", Status: "todo"}
+		epic := &item.Item{ID: "epic-all", Title: "Epic", Type: "epic", Status: "todo"}
+		task := &item.Item{ID: "task-all", Title: "Task", Type: "task", Status: "todo", Blocking: []string{"old-blocking"}}
+		blocker := &item.Item{ID: "new-blocker", Title: "Blocker", Type: "task", Status: "todo"}
+		blocked := &item.Item{ID: "new-blocked", Title: "Blocked", Type: "task", Status: "todo"}
+		oldBlocking := &item.Item{ID: "old-blocking", Title: "Old Blocking", Type: "task", Status: "todo"}
 		core.Create(epic)
 		core.Create(task)
 		core.Create(blocker)
 		core.Create(blocked)
 		core.Create(oldBlocking)
 
-		input := model.UpdateBeanInput{
+		input := model.UpdateItemInput{
 			Status:         stringPtr("in-progress"),
 			Parent:         stringPtr("epic-all"),
 			AddBlocking:    []string{"new-blocked"},
@@ -2310,9 +2310,9 @@ func TestUpdateBeanWithRelationships(t *testing.T) {
 			AddBlockedBy:   []string{"new-blocker"},
 		}
 
-		got, err := resolver.Mutation().UpdateBean(ctx, "task-all", input)
+		got, err := resolver.Mutation().UpdateItem(ctx, "task-all", input)
 		if err != nil {
-			t.Fatalf("UpdateBean() error = %v", err)
+			t.Fatalf("UpdateItem() error = %v", err)
 		}
 
 		if got.Status != "in-progress" {
@@ -2330,16 +2330,16 @@ func TestUpdateBeanWithRelationships(t *testing.T) {
 	})
 
 	t.Run("add tags", func(t *testing.T) {
-		task := &bean.Bean{ID: "task-tags-1", Title: "Task", Type: "task", Status: "todo", Tags: []string{"existing"}}
+		task := &item.Item{ID: "task-tags-1", Title: "Task", Type: "task", Status: "todo", Tags: []string{"existing"}}
 		core.Create(task)
 
-		input := model.UpdateBeanInput{
+		input := model.UpdateItemInput{
 			AddTags: []string{"new1", "new2"},
 		}
 
-		got, err := resolver.Mutation().UpdateBean(ctx, "task-tags-1", input)
+		got, err := resolver.Mutation().UpdateItem(ctx, "task-tags-1", input)
 		if err != nil {
-			t.Fatalf("UpdateBean() error = %v", err)
+			t.Fatalf("UpdateItem() error = %v", err)
 		}
 
 		if len(got.Tags) != 3 {
@@ -2355,16 +2355,16 @@ func TestUpdateBeanWithRelationships(t *testing.T) {
 	})
 
 	t.Run("remove tags", func(t *testing.T) {
-		task := &bean.Bean{ID: "task-tags-2", Title: "Task", Type: "task", Status: "todo", Tags: []string{"tag1", "tag2", "tag3"}}
+		task := &item.Item{ID: "task-tags-2", Title: "Task", Type: "task", Status: "todo", Tags: []string{"tag1", "tag2", "tag3"}}
 		core.Create(task)
 
-		input := model.UpdateBeanInput{
+		input := model.UpdateItemInput{
 			RemoveTags: []string{"tag2"},
 		}
 
-		got, err := resolver.Mutation().UpdateBean(ctx, "task-tags-2", input)
+		got, err := resolver.Mutation().UpdateItem(ctx, "task-tags-2", input)
 		if err != nil {
-			t.Fatalf("UpdateBean() error = %v", err)
+			t.Fatalf("UpdateItem() error = %v", err)
 		}
 
 		if len(got.Tags) != 2 {
@@ -2378,17 +2378,17 @@ func TestUpdateBeanWithRelationships(t *testing.T) {
 	})
 
 	t.Run("add and remove tags in one operation", func(t *testing.T) {
-		task := &bean.Bean{ID: "task-tags-3", Title: "Task", Type: "task", Status: "todo", Tags: []string{"old1", "old2", "keep"}}
+		task := &item.Item{ID: "task-tags-3", Title: "Task", Type: "task", Status: "todo", Tags: []string{"old1", "old2", "keep"}}
 		core.Create(task)
 
-		input := model.UpdateBeanInput{
+		input := model.UpdateItemInput{
 			AddTags:    []string{"new1", "new2"},
 			RemoveTags: []string{"old1", "old2"},
 		}
 
-		got, err := resolver.Mutation().UpdateBean(ctx, "task-tags-3", input)
+		got, err := resolver.Mutation().UpdateItem(ctx, "task-tags-3", input)
 		if err != nil {
-			t.Fatalf("UpdateBean() error = %v", err)
+			t.Fatalf("UpdateItem() error = %v", err)
 		}
 
 		if len(got.Tags) != 3 {
@@ -2407,17 +2407,17 @@ func TestUpdateBeanWithRelationships(t *testing.T) {
 	})
 
 	t.Run("tags and addTags are mutually exclusive", func(t *testing.T) {
-		task := &bean.Bean{ID: "task-tags-4", Title: "Task", Type: "task", Status: "todo"}
+		task := &item.Item{ID: "task-tags-4", Title: "Task", Type: "task", Status: "todo"}
 		core.Create(task)
 
-		input := model.UpdateBeanInput{
+		input := model.UpdateItemInput{
 			Tags:    []string{"tag1"},
 			AddTags: []string{"tag2"},
 		}
 
-		_, err := resolver.Mutation().UpdateBean(ctx, "task-tags-4", input)
+		_, err := resolver.Mutation().UpdateItem(ctx, "task-tags-4", input)
 		if err == nil {
-			t.Error("UpdateBean() should fail when both tags and addTags are specified")
+			t.Error("UpdateItem() should fail when both tags and addTags are specified")
 		}
 		if !strings.Contains(err.Error(), "cannot specify both") {
 			t.Errorf("Error should mention conflict, got: %v", err)
@@ -2435,7 +2435,7 @@ func TestBlockedByCycleDetection(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("blocked_by self-reference fails", func(t *testing.T) {
-		b := &bean.Bean{ID: "self-ref", Title: "Self Reference", Status: "todo"}
+		b := &item.Item{ID: "self-ref", Title: "Self Reference", Status: "todo"}
 		core.Create(b)
 
 		mr := resolver.Mutation()
@@ -2450,8 +2450,8 @@ func TestBlockedByCycleDetection(t *testing.T) {
 
 	t.Run("blocked_by cycle via blocked_by only is detected", func(t *testing.T) {
 		// This tests the scenario where cycles are created using only blocked_by
-		a := &bean.Bean{ID: "cycle-a", Title: "Bean A", Status: "todo"}
-		b := &bean.Bean{ID: "cycle-b", Title: "Bean B", Status: "todo"}
+		a := &item.Item{ID: "cycle-a", Title: "Bean A", Status: "todo"}
+		b := &item.Item{ID: "cycle-b", Title: "Bean B", Status: "todo"}
 		core.Create(a)
 		core.Create(b)
 
@@ -2475,8 +2475,8 @@ func TestBlockedByCycleDetection(t *testing.T) {
 
 	t.Run("blocked_by cycle via blocking is detected", func(t *testing.T) {
 		// A blocks B, then B is blocked_by A creates a conflict
-		a := &bean.Bean{ID: "cross-a", Title: "Bean A", Status: "todo"}
-		b := &bean.Bean{ID: "cross-b", Title: "Bean B", Status: "todo"}
+		a := &item.Item{ID: "cross-a", Title: "Bean A", Status: "todo"}
+		b := &item.Item{ID: "cross-b", Title: "Bean B", Status: "todo"}
 		core.Create(a)
 		core.Create(b)
 
@@ -2500,8 +2500,8 @@ func TestBlockedByCycleDetection(t *testing.T) {
 
 	t.Run("blocking cycle via blocked_by is detected", func(t *testing.T) {
 		// A is blocked_by B, then A blocking B creates a conflict
-		a := &bean.Bean{ID: "cross2-a", Title: "Bean A", Status: "todo"}
-		b := &bean.Bean{ID: "cross2-b", Title: "Bean B", Status: "todo"}
+		a := &item.Item{ID: "cross2-a", Title: "Bean A", Status: "todo"}
+		b := &item.Item{ID: "cross2-b", Title: "Bean B", Status: "todo"}
 		core.Create(a)
 		core.Create(b)
 
@@ -2524,7 +2524,7 @@ func TestBlockedByCycleDetection(t *testing.T) {
 	})
 
 	t.Run("blocker bean not found fails", func(t *testing.T) {
-		a := &bean.Bean{ID: "exists-a", Title: "Bean A", Status: "todo"}
+		a := &item.Item{ID: "exists-a", Title: "Bean A", Status: "todo"}
 		core.Create(a)
 
 		mr := resolver.Mutation()
@@ -2538,19 +2538,19 @@ func TestBlockedByCycleDetection(t *testing.T) {
 	})
 }
 
-func TestCreateBeanBlockedByValidation(t *testing.T) {
+func TestCreateItemBlockedByValidation(t *testing.T) {
 	resolver, core := setupTestResolver(t)
 	ctx := context.Background()
 
 	t.Run("create with blocked_by referencing nonexistent bean fails", func(t *testing.T) {
 		mr := resolver.Mutation()
-		input := model.CreateBeanInput{
+		input := model.CreateItemInput{
 			Title:     "New Bean",
 			BlockedBy: []string{"nonexistent"},
 		}
-		_, err := mr.CreateBean(ctx, input)
+		_, err := mr.CreateItem(ctx, input)
 		if err == nil {
-			t.Error("CreateBean() should fail when blocked_by references nonexistent bean")
+			t.Error("CreateItem() should fail when blocked_by references nonexistent bean")
 		}
 		if !strings.Contains(err.Error(), "not found") {
 			t.Errorf("Error should mention not found, got: %v", err)
@@ -2559,13 +2559,13 @@ func TestCreateBeanBlockedByValidation(t *testing.T) {
 
 	t.Run("create with blocking referencing nonexistent bean fails", func(t *testing.T) {
 		mr := resolver.Mutation()
-		input := model.CreateBeanInput{
+		input := model.CreateItemInput{
 			Title:    "New Bean",
 			Blocking: []string{"nonexistent"},
 		}
-		_, err := mr.CreateBean(ctx, input)
+		_, err := mr.CreateItem(ctx, input)
 		if err == nil {
-			t.Error("CreateBean() should fail when blocking references nonexistent bean")
+			t.Error("CreateItem() should fail when blocking references nonexistent bean")
 		}
 		if !strings.Contains(err.Error(), "not found") {
 			t.Errorf("Error should mention not found, got: %v", err)
@@ -2573,18 +2573,18 @@ func TestCreateBeanBlockedByValidation(t *testing.T) {
 	})
 
 	t.Run("create with same bean in both blocking and blocked_by fails", func(t *testing.T) {
-		target := &bean.Bean{ID: "target-bean", Title: "Target", Status: "todo"}
+		target := &item.Item{ID: "target-bean", Title: "Target", Status: "todo"}
 		core.Create(target)
 
 		mr := resolver.Mutation()
-		input := model.CreateBeanInput{
+		input := model.CreateItemInput{
 			Title:     "Cyclic Bean",
 			Blocking:  []string{"target-bean"},
 			BlockedBy: []string{"target-bean"},
 		}
-		_, err := mr.CreateBean(ctx, input)
+		_, err := mr.CreateItem(ctx, input)
 		if err == nil {
-			t.Error("CreateBean() should fail when same bean is in both blocking and blocked_by")
+			t.Error("CreateItem() should fail when same bean is in both blocking and blocked_by")
 		}
 		if !strings.Contains(err.Error(), "cycle") {
 			t.Errorf("Error should mention cycle, got: %v", err)
@@ -2592,23 +2592,23 @@ func TestCreateBeanBlockedByValidation(t *testing.T) {
 	})
 
 	t.Run("create with valid blocked_by succeeds", func(t *testing.T) {
-		blocker := &bean.Bean{ID: "valid-blocker", Title: "Blocker", Status: "todo"}
+		blocker := &item.Item{ID: "valid-blocker", Title: "Blocker", Status: "todo"}
 		core.Create(blocker)
 
 		mr := resolver.Mutation()
-		input := model.CreateBeanInput{
+		input := model.CreateItemInput{
 			Title:     "Blocked Bean",
 			BlockedBy: []string{"valid-blocker"},
 		}
-		got, err := mr.CreateBean(ctx, input)
+		got, err := mr.CreateItem(ctx, input)
 		if err != nil {
-			t.Fatalf("CreateBean() error = %v", err)
+			t.Fatalf("CreateItem() error = %v", err)
 		}
 		if len(got.BlockedBy) != 1 {
-			t.Errorf("CreateBean().BlockedBy count = %d, want 1", len(got.BlockedBy))
+			t.Errorf("CreateItem().BlockedBy count = %d, want 1", len(got.BlockedBy))
 		}
 		if got.BlockedBy[0] != "valid-blocker" {
-			t.Errorf("CreateBean().BlockedBy[0] = %q, want %q", got.BlockedBy[0], "valid-blocker")
+			t.Errorf("CreateItem().BlockedBy[0] = %q, want %q", got.BlockedBy[0], "valid-blocker")
 		}
 	})
 }
@@ -2617,9 +2617,9 @@ func TestMutationAddRemoveBlockedBy(t *testing.T) {
 	resolver, core := setupTestResolver(t)
 	ctx := context.Background()
 
-	// Create test beans
-	blocked := &bean.Bean{ID: "blocked-1", Title: "Blocked", Status: "todo"}
-	blocker := &bean.Bean{ID: "blocker-1", Title: "Blocker", Status: "todo"}
+	// Create test items
+	blocked := &item.Item{ID: "blocked-1", Title: "Blocked", Status: "todo"}
+	blocker := &item.Item{ID: "blocker-1", Title: "Blocker", Status: "todo"}
 	core.Create(blocked)
 	core.Create(blocker)
 
@@ -2662,12 +2662,12 @@ func TestBlockedByResolverCombinesBothDirections(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("blocked_by field is resolved by blockedBy resolver", func(t *testing.T) {
-		blocker := &bean.Bean{ID: "blocker-r1", Title: "Blocker", Status: "todo", Type: "task"}
-		blocked := &bean.Bean{ID: "blocked-r1", Title: "Blocked", Status: "todo", Type: "task", BlockedBy: []string{"blocker-r1"}}
+		blocker := &item.Item{ID: "blocker-r1", Title: "Blocker", Status: "todo", Type: "task"}
+		blocked := &item.Item{ID: "blocked-r1", Title: "Blocked", Status: "todo", Type: "task", BlockedBy: []string{"blocker-r1"}}
 		core.Create(blocker)
 		core.Create(blocked)
 
-		br := resolver.Bean()
+		br := resolver.Item()
 		result, err := br.BlockedBy(ctx, blocked, nil)
 		if err != nil {
 			t.Fatalf("BlockedBy() error = %v", err)
@@ -2678,12 +2678,12 @@ func TestBlockedByResolverCombinesBothDirections(t *testing.T) {
 	})
 
 	t.Run("incoming blocking links are resolved by blockedBy resolver", func(t *testing.T) {
-		blocker := &bean.Bean{ID: "blocker-r2", Title: "Blocker", Status: "todo", Type: "task", Blocking: []string{"blocked-r2"}}
-		blocked := &bean.Bean{ID: "blocked-r2", Title: "Blocked", Status: "todo", Type: "task"}
+		blocker := &item.Item{ID: "blocker-r2", Title: "Blocker", Status: "todo", Type: "task", Blocking: []string{"blocked-r2"}}
+		blocked := &item.Item{ID: "blocked-r2", Title: "Blocked", Status: "todo", Type: "task"}
 		core.Create(blocker)
 		core.Create(blocked)
 
-		br := resolver.Bean()
+		br := resolver.Item()
 		result, err := br.BlockedBy(ctx, blocked, nil)
 		if err != nil {
 			t.Fatalf("BlockedBy() error = %v", err)
@@ -2695,12 +2695,12 @@ func TestBlockedByResolverCombinesBothDirections(t *testing.T) {
 
 	t.Run("both directions are combined and deduplicated", func(t *testing.T) {
 		// blocker blocks target via both directions
-		blocker := &bean.Bean{ID: "blocker-r3", Title: "Blocker", Status: "todo", Type: "task", Blocking: []string{"blocked-r3"}}
-		blocked := &bean.Bean{ID: "blocked-r3", Title: "Blocked", Status: "todo", Type: "task", BlockedBy: []string{"blocker-r3"}}
+		blocker := &item.Item{ID: "blocker-r3", Title: "Blocker", Status: "todo", Type: "task", Blocking: []string{"blocked-r3"}}
+		blocked := &item.Item{ID: "blocked-r3", Title: "Blocked", Status: "todo", Type: "task", BlockedBy: []string{"blocker-r3"}}
 		core.Create(blocker)
 		core.Create(blocked)
 
-		br := resolver.Bean()
+		br := resolver.Item()
 		result, err := br.BlockedBy(ctx, blocked, nil)
 		if err != nil {
 			t.Fatalf("BlockedBy() error = %v", err)
@@ -2711,12 +2711,12 @@ func TestBlockedByResolverCombinesBothDirections(t *testing.T) {
 	})
 }
 
-func TestUpdateBeanWithETag(t *testing.T) {
+func TestUpdateItemWithETag(t *testing.T) {
 	resolver, core := setupTestResolver(t)
 	ctx := context.Background()
 
 	t.Run("update with correct etag succeeds", func(t *testing.T) {
-		b := &bean.Bean{
+		b := &item.Item{
 			ID:     "etag-update-1",
 			Title:  "Test",
 			Status: "todo",
@@ -2725,22 +2725,22 @@ func TestUpdateBeanWithETag(t *testing.T) {
 
 		currentETag := b.ETag()
 		newTitle := "Updated"
-		input := model.UpdateBeanInput{
+		input := model.UpdateItemInput{
 			Title:   &newTitle,
 			IfMatch: &currentETag,
 		}
 
-		got, err := resolver.Mutation().UpdateBean(ctx, "etag-update-1", input)
+		got, err := resolver.Mutation().UpdateItem(ctx, "etag-update-1", input)
 		if err != nil {
-			t.Fatalf("UpdateBean() with correct etag failed: %v", err)
+			t.Fatalf("UpdateItem() with correct etag failed: %v", err)
 		}
 		if got.Title != "Updated" {
-			t.Errorf("UpdateBean().Title = %q, want %q", got.Title, "Updated")
+			t.Errorf("UpdateItem().Title = %q, want %q", got.Title, "Updated")
 		}
 	})
 
 	t.Run("update with wrong etag fails", func(t *testing.T) {
-		b := &bean.Bean{
+		b := &item.Item{
 			ID:     "etag-update-2",
 			Title:  "Test",
 			Status: "todo",
@@ -2749,17 +2749,17 @@ func TestUpdateBeanWithETag(t *testing.T) {
 
 		wrongETag := "wrongetag123"
 		newTitle := "Should Fail"
-		input := model.UpdateBeanInput{
+		input := model.UpdateItemInput{
 			Title:   &newTitle,
 			IfMatch: &wrongETag,
 		}
 
-		_, err := resolver.Mutation().UpdateBean(ctx, "etag-update-2", input)
+		_, err := resolver.Mutation().UpdateItem(ctx, "etag-update-2", input)
 		if err == nil {
-			t.Error("UpdateBean() with wrong etag should fail")
+			t.Error("UpdateItem() with wrong etag should fail")
 		}
 
-		var mismatchErr *beancore.ETagMismatchError
+		var mismatchErr *itemcore.ETagMismatchError
 		if !errors.As(err, &mismatchErr) {
 			t.Errorf("Expected ETagMismatchError, got %T: %v", err, err)
 		}
@@ -2771,7 +2771,7 @@ func TestSetParentWithETag(t *testing.T) {
 	ctx := context.Background()
 
 	// Create parent
-	parent := &bean.Bean{
+	parent := &item.Item{
 		ID:     "parent-etag",
 		Title:  "Parent",
 		Status: "todo",
@@ -2780,7 +2780,7 @@ func TestSetParentWithETag(t *testing.T) {
 	core.Create(parent)
 
 	t.Run("setParent with correct etag succeeds", func(t *testing.T) {
-		child := &bean.Bean{
+		child := &item.Item{
 			ID:     "child-etag-1",
 			Title:  "Child",
 			Status: "todo",
@@ -2801,7 +2801,7 @@ func TestSetParentWithETag(t *testing.T) {
 	})
 
 	t.Run("setParent with wrong etag fails", func(t *testing.T) {
-		child := &bean.Bean{
+		child := &item.Item{
 			ID:     "child-etag-2",
 			Title:  "Child",
 			Status: "todo",
@@ -2817,7 +2817,7 @@ func TestSetParentWithETag(t *testing.T) {
 			t.Error("SetParent() with wrong etag should fail")
 		}
 
-		var mismatchErr *beancore.ETagMismatchError
+		var mismatchErr *itemcore.ETagMismatchError
 		if !errors.As(err, &mismatchErr) {
 			t.Errorf("Expected ETagMismatchError, got %T: %v", err, err)
 		}
@@ -2828,8 +2828,8 @@ func TestAddBlockingWithETag(t *testing.T) {
 	resolver, core := setupTestResolver(t)
 	ctx := context.Background()
 
-	// Create target bean
-	target := &bean.Bean{
+	// Create target item
+	target := &item.Item{
 		ID:     "target-etag",
 		Title:  "Target",
 		Status: "todo",
@@ -2838,7 +2838,7 @@ func TestAddBlockingWithETag(t *testing.T) {
 	core.Create(target)
 
 	t.Run("addBlocking with correct etag succeeds", func(t *testing.T) {
-		blocker := &bean.Bean{
+		blocker := &item.Item{
 			ID:     "blocker-etag-1",
 			Title:  "Blocker",
 			Status: "todo",
@@ -2858,7 +2858,7 @@ func TestAddBlockingWithETag(t *testing.T) {
 	})
 
 	t.Run("addBlocking with wrong etag fails", func(t *testing.T) {
-		blocker := &bean.Bean{
+		blocker := &item.Item{
 			ID:     "blocker-etag-2",
 			Title:  "Blocker",
 			Status: "todo",
@@ -2873,7 +2873,7 @@ func TestAddBlockingWithETag(t *testing.T) {
 			t.Error("AddBlocking() with wrong etag should fail")
 		}
 
-		var mismatchErr *beancore.ETagMismatchError
+		var mismatchErr *itemcore.ETagMismatchError
 		if !errors.As(err, &mismatchErr) {
 			t.Errorf("Expected ETagMismatchError, got %T: %v", err, err)
 		}
@@ -3084,8 +3084,8 @@ func TestRemoveBlockingWithETag(t *testing.T) {
 	resolver, core := setupTestResolver(t)
 	ctx := context.Background()
 
-	// Create target bean
-	target := &bean.Bean{
+	// Create target item
+	target := &item.Item{
 		ID:     "target-rm-etag",
 		Title:  "Target",
 		Status: "todo",
@@ -3094,7 +3094,7 @@ func TestRemoveBlockingWithETag(t *testing.T) {
 	core.Create(target)
 
 	t.Run("removeBlocking with correct etag succeeds", func(t *testing.T) {
-		blocker := &bean.Bean{
+		blocker := &item.Item{
 			ID:       "blocker-rm-etag-1",
 			Title:    "Blocker",
 			Status:   "todo",
@@ -3115,7 +3115,7 @@ func TestRemoveBlockingWithETag(t *testing.T) {
 	})
 
 	t.Run("removeBlocking with wrong etag fails", func(t *testing.T) {
-		blocker := &bean.Bean{
+		blocker := &item.Item{
 			ID:       "blocker-rm-etag-2",
 			Title:    "Blocker",
 			Status:   "todo",
@@ -3131,7 +3131,7 @@ func TestRemoveBlockingWithETag(t *testing.T) {
 			t.Error("RemoveBlocking() with wrong etag should fail")
 		}
 
-		var mismatchErr *beancore.ETagMismatchError
+		var mismatchErr *itemcore.ETagMismatchError
 		if !errors.As(err, &mismatchErr) {
 			t.Errorf("Expected ETagMismatchError, got %T: %v", err, err)
 		}
@@ -3176,7 +3176,7 @@ func TestListFiles(t *testing.T) {
 	run("commit", "-m", "init")
 
 	resolver := &Resolver{
-		CoreResolver: &beangraph.CoreResolver{},
+		CoreResolver: &itemgraph.CoreResolver{},
 		ProjectRoot:  tmpDir,
 	}
 	qr := resolver.Query().(*queryResolver)
@@ -3252,11 +3252,11 @@ func TestListFiles(t *testing.T) {
 	})
 }
 
-func TestQueryBeanExtra(t *testing.T) {
+func TestQueryItemExtra(t *testing.T) {
 	resolver, core := setupTestResolver(t)
 	ctx := context.Background()
 
-	b := &bean.Bean{
+	b := &item.Item{
 		ID:     "extra-test",
 		Title:  "Bean With Extra",
 		Status: "todo",
@@ -3267,23 +3267,23 @@ func TestQueryBeanExtra(t *testing.T) {
 	}
 
 	qr := resolver.Query()
-	got, err := qr.Bean(ctx, "extra-test")
+	got, err := qr.Item(ctx, "extra-test")
 	if err != nil {
-		t.Fatalf("Bean() error = %v", err)
+		t.Fatalf("Item() error = %v", err)
 	}
 	if got == nil {
-		t.Fatal("Bean() returned nil")
+		t.Fatal("Item() returned nil")
 	}
 	if got.Extra["release"] != "0-4-1" {
 		t.Errorf("Bean().Extra[release] = %v, want %q", got.Extra["release"], "0-4-1")
 	}
 }
 
-func TestMutationUpdateBeanPreservesExtra(t *testing.T) {
+func TestMutationUpdateItemPreservesExtra(t *testing.T) {
 	resolver, core := setupTestResolver(t)
 	ctx := context.Background()
 
-	b := &bean.Bean{
+	b := &item.Item{
 		ID:       "extra-update-test",
 		Title:    "Original Title",
 		Status:   "todo",
@@ -3296,24 +3296,24 @@ func TestMutationUpdateBeanPreservesExtra(t *testing.T) {
 
 	mr := resolver.Mutation()
 	newPriority := "high"
-	input := model.UpdateBeanInput{
+	input := model.UpdateItemInput{
 		Priority: &newPriority,
 	}
-	got, err := mr.UpdateBean(ctx, "extra-update-test", input)
+	got, err := mr.UpdateItem(ctx, "extra-update-test", input)
 	if err != nil {
-		t.Fatalf("UpdateBean() error = %v", err)
+		t.Fatalf("UpdateItem() error = %v", err)
 	}
 	if got.Priority != "high" {
-		t.Errorf("UpdateBean().Priority = %q, want %q", got.Priority, "high")
+		t.Errorf("UpdateItem().Priority = %q, want %q", got.Priority, "high")
 	}
 	if got.Extra["release"] != "0-4-1" {
-		t.Errorf("UpdateBean().Extra[release] = %v, want %q (extra keys must survive a mutation of unrelated fields)", got.Extra["release"], "0-4-1")
+		t.Errorf("UpdateItem().Extra[release] = %v, want %q (extra keys must survive a mutation of unrelated fields)", got.Extra["release"], "0-4-1")
 	}
 
 	// Verify the extra key is preserved on disk
-	beansDir := filepath.Join(core.Root(), "")
-	filename := bean.BuildFilename("extra-update-test", got.Slug)
-	filePath := filepath.Join(beansDir, filename)
+	itemsDir := filepath.Join(core.Root(), "")
+	filename := item.BuildFilename("extra-update-test", got.Slug)
+	filePath := filepath.Join(itemsDir, filename)
 	fileContent, err := os.ReadFile(filePath)
 	if err != nil {
 		t.Fatalf("failed to read bean file from disk: %v", err)

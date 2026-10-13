@@ -10,25 +10,25 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/xRiErOS/beans/internal/output"
-	"github.com/xRiErOS/beans/pkg/bean"
-	"github.com/xRiErOS/beans/pkg/beancore"
-	"github.com/xRiErOS/beans/pkg/config"
+	"github.com/xRiErOS/lif/internal/output"
+	"github.com/xRiErOS/lif/pkg/config"
+	"github.com/xRiErOS/lif/pkg/item"
+	"github.com/xRiErOS/lif/pkg/itemcore"
 )
 
 // setupCompleteTest installs a throwaway core and default config into the
-// package globals completeCmd.RunE reads, and returns a bean already persisted
+// package globals completeCmd.RunE reads, and returns an item already persisted
 // in that core.
-func setupCompleteTest(t *testing.T) *bean.Bean {
+func setupCompleteTest(t *testing.T) *item.Item {
 	t.Helper()
 	tmpDir := t.TempDir()
-	beansDir := filepath.Join(tmpDir, ".beans")
-	if err := os.MkdirAll(beansDir, 0755); err != nil {
+	itemsDir := filepath.Join(tmpDir, ".beans")
+	if err := os.MkdirAll(itemsDir, 0755); err != nil {
 		t.Fatalf("failed to create test .beans dir: %v", err)
 	}
 
 	testCfg := config.Default()
-	testCore := beancore.New(beansDir, testCfg)
+	testCore := itemcore.New(itemsDir, testCfg)
 	if err := testCore.Load(); err != nil {
 		t.Fatalf("failed to load core: %v", err)
 	}
@@ -37,9 +37,9 @@ func setupCompleteTest(t *testing.T) *bean.Bean {
 	core, cfg = testCore, testCfg
 	t.Cleanup(func() { core, cfg = oldCore, oldCfg })
 
-	b := &bean.Bean{
+	b := &item.Item{
 		ID:     "beans-test1",
-		Slug:   bean.Slugify("A test bean"),
+		Slug:   item.Slugify("A test bean"),
 		Title:  "A test bean",
 		Status: "todo",
 		Type:   "task",
@@ -65,7 +65,7 @@ func resetCompleteFlags(t *testing.T) {
 	})
 }
 
-// TestCompleteSetsStatus verifies that beans complete <id> sets status to completed.
+// TestCompleteSetsStatus verifies that lif complete <id> sets status to completed.
 func TestCompleteSetsStatus(t *testing.T) {
 	b := setupCompleteTest(t)
 	resetCompleteFlags(t)
@@ -108,7 +108,7 @@ func TestCompleteWithSummaryAppendsSection(t *testing.T) {
 	}
 }
 
-// TestCompleteRejectsUnknownID verifies that unknown bean ID returns an error.
+// TestCompleteRejectsUnknownID verifies that unknown item ID returns an error.
 func TestCompleteRejectsUnknownID(t *testing.T) {
 	setupCompleteTest(t)
 	resetCompleteFlags(t)
@@ -119,7 +119,7 @@ func TestCompleteRejectsUnknownID(t *testing.T) {
 }
 
 // TestCompleteJSONOutput verifies that --json flag produces valid JSON with
-// expected shape, and that the bean it names really was written to disk.
+// expected shape, and that the item it names really was written to disk.
 func TestCompleteJSONOutput(t *testing.T) {
 	b := setupCompleteTest(t)
 	resetCompleteFlags(t)
@@ -150,10 +150,10 @@ func TestCompleteJSONOutput(t *testing.T) {
 		t.Fatalf("completeCmd.RunE() error = %v", runErr)
 	}
 
-	// Parse the JSON output: D05 makes this the bare bean document, the same
-	// shape `beans show --json` emits, with no envelope around it.
+	// Parse the JSON output: D05 makes this the bare item document, the same
+	// shape `lif show --json` emits, with no envelope around it.
 	dec := json.NewDecoder(bytes.NewReader(captured))
-	var doc bean.Bean
+	var doc item.Item
 	if err := dec.Decode(&doc); err != nil {
 		t.Fatalf("decoding JSON output error = %v; output = %s", err, captured)
 	}
@@ -166,7 +166,7 @@ func TestCompleteJSONOutput(t *testing.T) {
 		t.Errorf("response bean status = %q, want %q", doc.Status, "completed")
 	}
 
-	// Also verify the bean was actually persisted with correct status
+	// Also verify the item was actually persisted with correct status
 	got, err := core.Get(b.ID)
 	if err != nil {
 		t.Fatalf("core.Get() error = %v", err)
@@ -178,17 +178,17 @@ func TestCompleteJSONOutput(t *testing.T) {
 
 // setupCompleteTestWithCommitPolicy is like setupCompleteTest but installs a
 // require_fields_on policy requiring "commit" on completion.
-func setupCompleteTestWithCommitPolicy(t *testing.T) *bean.Bean {
+func setupCompleteTestWithCommitPolicy(t *testing.T) *item.Item {
 	t.Helper()
 	tmpDir := t.TempDir()
-	beansDir := filepath.Join(tmpDir, ".beans")
-	if err := os.MkdirAll(beansDir, 0755); err != nil {
+	itemsDir := filepath.Join(tmpDir, ".beans")
+	if err := os.MkdirAll(itemsDir, 0755); err != nil {
 		t.Fatalf("failed to create test .beans dir: %v", err)
 	}
 
 	testCfg := config.Default()
-	testCfg.Beans.RequireFieldsOn = map[string][]string{"completed": {"commit"}}
-	testCore := beancore.New(beansDir, testCfg)
+	testCfg.Items.RequireFieldsOn = map[string][]string{"completed": {"commit"}}
+	testCore := itemcore.New(itemsDir, testCfg)
 	if err := testCore.Load(); err != nil {
 		t.Fatalf("failed to load core: %v", err)
 	}
@@ -197,9 +197,9 @@ func setupCompleteTestWithCommitPolicy(t *testing.T) *bean.Bean {
 	core, cfg = testCore, testCfg
 	t.Cleanup(func() { core, cfg = oldCore, oldCfg })
 
-	b := &bean.Bean{
+	b := &item.Item{
 		ID:     "beans-test1",
-		Slug:   bean.Slugify("A test bean"),
+		Slug:   item.Slugify("A test bean"),
 		Title:  "A test bean",
 		Status: "todo",
 		Type:   "task",
@@ -346,12 +346,12 @@ func captureCompleteStdout(t *testing.T, fn func()) []byte {
 	return data
 }
 
-// mkCompleteBean adds another bean to the store set up by setupCompleteTest.
-func mkCompleteBean(t *testing.T, id, title string) *bean.Bean {
+// mkCompleteItem adds another item to the store set up by setupCompleteTest.
+func mkCompleteItem(t *testing.T, id, title string) *item.Item {
 	t.Helper()
-	b := &bean.Bean{
+	b := &item.Item{
 		ID:     id,
-		Slug:   bean.Slugify(title),
+		Slug:   item.Slugify(title),
 		Title:  title,
 		Status: "todo",
 		Type:   "task",
@@ -372,12 +372,12 @@ func statusOf(t *testing.T, id string) string {
 }
 
 // TestCompleteTakesMultipleIDs verifies the batch signature completes every
-// named bean and applies the shared --summary to each of them.
+// named item and applies the shared --summary to each of them.
 func TestCompleteTakesMultipleIDs(t *testing.T) {
 	first := setupCompleteTest(t)
 	resetCompleteFlags(t)
-	second := mkCompleteBean(t, "beans-btc2", "Second bean")
-	third := mkCompleteBean(t, "beans-btc3", "Third bean")
+	second := mkCompleteItem(t, "beans-btc2", "Second bean")
+	third := mkCompleteItem(t, "beans-btc3", "Third bean")
 
 	completeSummary = "Shipped together"
 	if err := completeCmd.RunE(completeCmd, []string{first.ID, second.ID, third.ID}); err != nil {
@@ -400,7 +400,7 @@ func TestCompleteTakesMultipleIDs(t *testing.T) {
 func TestCompletePreflightRejectsUnknownID(t *testing.T) {
 	first := setupCompleteTest(t)
 	resetCompleteFlags(t)
-	second := mkCompleteBean(t, "beans-brc2", "Second bean")
+	second := mkCompleteItem(t, "beans-brc2", "Second bean")
 
 	err := completeCmd.RunE(completeCmd, []string{first.ID, "beans-nope", second.ID})
 	if err == nil {
@@ -414,7 +414,7 @@ func TestCompletePreflightRejectsUnknownID(t *testing.T) {
 	}
 }
 
-// TestCompleteRejectsDuplicateIDs guards against completing the same bean
+// TestCompleteRejectsDuplicateIDs guards against completing the same item
 // twice in one call, which would append the summary section twice.
 func TestCompleteRejectsDuplicateIDs(t *testing.T) {
 	first := setupCompleteTest(t)
@@ -433,11 +433,11 @@ func TestCompleteRejectsDuplicateIDs(t *testing.T) {
 func TestCompletePreflightCatchesPolicyViolation(t *testing.T) {
 	first := setupCompleteTest(t)
 	resetCompleteFlags(t)
-	second := mkCompleteBean(t, "beans-bpc2", "Second bean")
+	second := mkCompleteItem(t, "beans-bpc2", "Second bean")
 
-	cfg.Beans.RequireFieldsOn = map[string][]string{"completed": {"reviewer"}}
-	// The first bean satisfies the policy, the second does not — so a
-	// per-bean write loop would complete the first before failing.
+	cfg.Items.RequireFieldsOn = map[string][]string{"completed": {"reviewer"}}
+	// The first item satisfies the policy, the second does not — so a
+	// per-item write loop would complete the first before failing.
 	first.Extra = map[string]any{"reviewer": "erik"}
 	if err := core.Update(first, nil); err != nil {
 		t.Fatalf("core.Update(first) error = %v", err)
@@ -455,13 +455,13 @@ func TestCompletePreflightCatchesPolicyViolation(t *testing.T) {
 }
 
 // TestCompletePolicySatisfiedByCommitFlag verifies the preflight sees the
-// fields --commit and --set contribute, rather than judging the stored bean.
+// fields --commit and --set contribute, rather than judging the stored item.
 func TestCompletePolicySatisfiedByCommitFlag(t *testing.T) {
 	first := setupCompleteTest(t)
 	resetCompleteFlags(t)
-	second := mkCompleteBean(t, "beans-bsc2", "Second bean")
+	second := mkCompleteItem(t, "beans-bsc2", "Second bean")
 
-	cfg.Beans.RequireFieldsOn = map[string][]string{"completed": {"reviewer"}}
+	cfg.Items.RequireFieldsOn = map[string][]string{"completed": {"reviewer"}}
 	completeSet = []string{"reviewer=erik"}
 
 	if err := completeCmd.RunE(completeCmd, []string{first.ID, second.ID}); err != nil {
@@ -474,7 +474,7 @@ func TestCompletePolicySatisfiedByCommitFlag(t *testing.T) {
 	}
 }
 
-// TestCompleteJSONShape pins D05 down: one ID gives a bare bean document,
+// TestCompleteJSONShape pins D05 down: one ID gives a bare item document,
 // several IDs give a bare array.
 func TestCompleteJSONShape(t *testing.T) {
 	t.Run("single gives a bare bean", func(t *testing.T) {
@@ -502,7 +502,7 @@ func TestCompleteJSONShape(t *testing.T) {
 	t.Run("multiple gives a bare array", func(t *testing.T) {
 		first := setupCompleteTest(t)
 		resetCompleteFlags(t)
-		second := mkCompleteBean(t, "beans-bjc2", "Second bean")
+		second := mkCompleteItem(t, "beans-bjc2", "Second bean")
 		completeJSON = true
 
 		out := captureCompleteStdout(t, func() {

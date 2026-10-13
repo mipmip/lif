@@ -12,9 +12,9 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
 
-	"github.com/xRiErOS/beans/pkg/bean"
-	"github.com/xRiErOS/beans/pkg/beancore"
-	"github.com/xRiErOS/beans/pkg/config"
+	"github.com/xRiErOS/lif/pkg/config"
+	"github.com/xRiErOS/lif/pkg/item"
+	"github.com/xRiErOS/lif/pkg/itemcore"
 )
 
 // setupPickTest points the package-level core at a fresh temp store and
@@ -24,12 +24,12 @@ func setupPickTest(t *testing.T) {
 	t.Helper()
 	dir := t.TempDir()
 	oldCore := core
-	core = beancore.New(dir, config.Default())
+	core = itemcore.New(dir, config.Default())
 	t.Cleanup(func() { core = oldCore })
 }
 
-func pickTestBean(id, title string) *bean.Bean {
-	return &bean.Bean{ID: id, Title: title, Type: "task", Status: "open"}
+func pickTestItem(id, title string) *item.Item {
+	return &item.Item{ID: id, Title: title, Type: "task", Status: "open"}
 }
 
 // setupPickScopeTest points core AND cfg together at a fresh temp store
@@ -42,7 +42,7 @@ func setupPickScopeTest(t *testing.T) *cobra.Command {
 	t.Helper()
 	dir := t.TempDir()
 	testCfg := config.Default()
-	testCore := beancore.New(dir, testCfg)
+	testCore := itemcore.New(dir, testCfg)
 	if err := testCore.Load(); err != nil {
 		t.Fatalf("failed to load core: %v", err)
 	}
@@ -61,12 +61,12 @@ func setupPickScopeTest(t *testing.T) *cobra.Command {
 }
 
 // createScopeFixture seeds the current core with 2 milestones, 3 epics, 2
-// features, 2 bugs, and 3 tasks (12 beans total): one of every default
+// features, 2 bugs, and 3 tasks (12 items total): one of every default
 // type, at more than one count where useful, so a scope filter's result
 // size is unambiguous.
 func createScopeFixture(t *testing.T) {
 	t.Helper()
-	seed := []*bean.Bean{
+	seed := []*item.Item{
 		{ID: "beans-uq01", Title: "M1", Type: "milestone", Status: "todo"},
 		{ID: "beans-uq02", Title: "M2", Type: "milestone", Status: "todo"},
 		{ID: "beans-uq03", Title: "E1", Type: "epic", Status: "todo"},
@@ -88,7 +88,7 @@ func createScopeFixture(t *testing.T) {
 }
 
 // TestRunPickReflectsStoreResolvedPerInvocation pins SC-03/AC2.1: pick's
-// candidate set comes from whatever store resolveBeansPath resolved for
+// candidate set comes from whatever store resolveStorePath resolved for
 // this invocation via NewRootCmd's PersistentPreRunE, not from a second,
 // independent resolution path. It distinguishes "store A" from "store B"
 // by which of runPick's two early error branches fires -- the empty-store
@@ -107,13 +107,13 @@ func TestRunPickReflectsStoreResolvedPerInvocation(t *testing.T) {
 	if err := os.MkdirAll(populatedDir, 0755); err != nil {
 		t.Fatalf("creating populated store dir: %v", err)
 	}
-	seedCore := beancore.New(populatedDir, config.Default())
-	if err := seedCore.Create(pickTestBean("beans-zzzz", "Populated")); err != nil {
+	seedCore := itemcore.New(populatedDir, config.Default())
+	if err := seedCore.Create(pickTestItem("beans-zzzz", "Populated")); err != nil {
 		t.Fatalf("seeding populated store: %v", err)
 	}
 
 	// A closed-read-end pipe is non-terminal stdin, held constant across
-	// both runs so the only variable between them is --beans-path.
+	// both runs so the only variable between them is --lif-path.
 	r, w, err := os.Pipe()
 	if err != nil {
 		t.Fatalf("os.Pipe() error = %v", err)
@@ -133,7 +133,7 @@ func TestRunPickReflectsStoreResolvedPerInvocation(t *testing.T) {
 		var errBuf bytes.Buffer
 		root.SetOut(io.Discard)
 		root.SetErr(&errBuf)
-		root.SetArgs([]string{"--beans-path", dir, "pick"})
+		root.SetArgs([]string{"--lif-path", dir, "pick"})
 		_, execErr := root.ExecuteC()
 		if execErr == nil {
 			t.Fatalf("expected pick to fail for non-terminal stdin against %s", dir)
@@ -144,10 +144,10 @@ func TestRunPickReflectsStoreResolvedPerInvocation(t *testing.T) {
 	emptyErr := runWith(emptyDir)
 	populatedErr := runWith(populatedDir)
 
-	if !strings.Contains(emptyErr, "no beans to pick from") {
+	if !strings.Contains(emptyErr, "lif pick: store has no items to pick from") {
 		t.Errorf("empty store: got error %q, want the empty-candidates branch", emptyErr)
 	}
-	if !strings.Contains(populatedErr, "not a terminal") {
+	if !strings.Contains(populatedErr, "lif pick: stdin is not a terminal") {
 		t.Errorf("populated store: got error %q, want the non-tty branch", populatedErr)
 	}
 }
@@ -193,7 +193,7 @@ func TestPickCmdDeclaresNoArgs(t *testing.T) {
 }
 
 // TestRunPickFailsOnEmptyCandidates pins AC1.3 for the empty-list half:
-// with no beans in the store, runPick must fail without writing to stdout,
+// with no items in the store, runPick must fail without writing to stdout,
 // and must fail before ever attempting to open a controlling terminal.
 func TestRunPickFailsOnEmptyCandidates(t *testing.T) {
 	setupPickTest(t)
@@ -217,7 +217,7 @@ func TestRunPickFailsOnEmptyCandidates(t *testing.T) {
 // the tea.Program/tty codepath.
 func TestRunPickFailsOnNonTTYStdin(t *testing.T) {
 	setupPickTest(t)
-	if err := core.Create(pickTestBean("beans-test1", "Some bean")); err != nil {
+	if err := core.Create(pickTestItem("beans-test1", "Some bean")); err != nil {
 		t.Fatalf("creating test bean: %v", err)
 	}
 
@@ -253,11 +253,11 @@ func TestRunPickFailsOnNonTTYStdin(t *testing.T) {
 // item marks it selected and quits, without touching any io.Writer -- the
 // model never writes to stdout itself (AC1.2).
 func TestPickModelEnterSelectsHighlightedItem(t *testing.T) {
-	beans := []*bean.Bean{
-		pickTestBean("beans-aaaa", "Alpha bean"),
-		pickTestBean("beans-bbbb", "Beta bean"),
+	items := []*item.Item{
+		pickTestItem("beans-aaaa", "Alpha bean"),
+		pickTestItem("beans-bbbb", "Beta bean"),
 	}
-	m := newPickModel(beans)
+	m := newPickModel(items)
 	m.list.SetSize(80, 20)
 
 	updated, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
@@ -285,8 +285,8 @@ func TestPickModelEnterSelectsHighlightedItem(t *testing.T) {
 // TestPickModelEscAborts pins AC1.3's abort half: pressing esc quits
 // without marking anything selected.
 func TestPickModelEscAborts(t *testing.T) {
-	beans := []*bean.Bean{pickTestBean("beans-aaaa", "Alpha bean")}
-	m := newPickModel(beans)
+	items := []*item.Item{pickTestItem("beans-aaaa", "Alpha bean")}
+	m := newPickModel(items)
 	m.list.SetSize(80, 20)
 
 	updated, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEsc})
@@ -314,8 +314,8 @@ func TestPickModelEscAborts(t *testing.T) {
 // it takes no io.Writer of its own, so it cannot short-circuit around that
 // configuration.
 func TestPickModelViewNeverWritesToProvidedWriter(t *testing.T) {
-	beans := []*bean.Bean{pickTestBean("beans-aaaa", "Alpha bean")}
-	m := newPickModel(beans)
+	items := []*item.Item{pickTestItem("beans-aaaa", "Alpha bean")}
+	m := newPickModel(items)
 	m.list.SetSize(80, 20)
 	if v := m.View(); v == "" {
 		t.Error("expected a non-empty view for a populated list")
@@ -342,7 +342,7 @@ func TestPickResolveCandidatesDefaultsUnscoped(t *testing.T) {
 
 // TestPickScopeFlagNarrowsCandidates pins AC1/SC-01: --scope narrows the
 // candidate set to the named types, strictly smaller than the unscoped
-// call, on this test's own 12-bean fixture (2 milestone, 3 epic, 2
+// call, on this test's own 12-item fixture (2 milestone, 3 epic, 2
 // feature, 2 bug, 3 task).
 func TestPickScopeFlagNarrowsCandidates(t *testing.T) {
 	pick := setupPickScopeTest(t)
@@ -385,7 +385,7 @@ func TestPickScopeFlagRejectsUnknownType(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected an error for an unknown --scope type")
 	}
-	if !strings.Contains(err.Error(), "invalid --scope type") {
+	if !strings.Contains(err.Error(), "lif pick: invalid --scope type: bogus") {
 		t.Errorf("error = %q, want it to mention the invalid type", err)
 	}
 }
@@ -406,13 +406,13 @@ func TestPickScopeFlagRejectsBlankValue(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected an error for a --scope value with no types")
 	}
-	if !strings.Contains(err.Error(), "requires at least one bean type") {
+	if !strings.Contains(err.Error(), "lif pick: --scope requires at least one item type") {
 		t.Errorf("error = %q, want it to mention the missing type", err)
 	}
 }
 
 // TestPickPartialLineRoadmapVerbNarrowsToContainerRanks pins AC2/SC-02
-// (corrected 2026-09-09, K-11): a partial line equivalent to `beans
+// (corrected 2026-09-09, K-11): a partial line equivalent to `items
 // roadmap` narrows to the three container ranks (milestone, epic,
 // feature) -- not to `--scope milestone,epic`, which is a strictly
 // smaller, different set.
@@ -468,7 +468,7 @@ func TestPickPartialLineUnknownVerbErrors(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected an error for an unresolvable verb")
 	}
-	if !strings.Contains(err.Error(), "does not resolve") {
+	if !strings.Contains(err.Error(), "lif pick: partial line verb does not resolve") {
 		t.Errorf("error = %q, want it to mention verb resolution", err)
 	}
 }
@@ -492,23 +492,23 @@ func TestPickPartialLinePlumbingVerbErrors(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected an error for a plumbing verb")
 	}
-	if !strings.Contains(err.Error(), "not a user-facing verb") {
+	if !strings.Contains(err.Error(), `lif pick: "path" is not a user-facing verb`) {
 		t.Errorf("error = %q, want it to mention user-facing", err)
 	}
 }
 
 // TestPickPartialLineParentCursorExcludesDescendants pins AC3/SC-03: a
-// cursor at a --parent value excludes both the edited bean and its
+// cursor at a --parent value excludes both the edited item and its
 // descendants, via candidates.ParentCandidates (R-03), from the candidate
-// set -- while a same-typed bean that is NOT a descendant stays in.
+// set -- while a same-typed item that is NOT a descendant stays in.
 func TestPickPartialLineParentCursorExcludesDescendants(t *testing.T) {
 	pick := setupPickScopeTest(t)
 
-	unrelatedMilestone := &bean.Bean{ID: "beans-uq20", Title: "Root milestone", Type: "milestone", Status: "todo"}
-	edited := &bean.Bean{ID: "beans-uq21", Title: "Edited feature", Type: "feature", Status: "todo"}
-	descendant := &bean.Bean{ID: "beans-uq22", Title: "Feature's epic child", Type: "epic", Status: "todo", Parent: "beans-uq21"}
-	unrelatedEpic := &bean.Bean{ID: "beans-uq23", Title: "Unrelated epic", Type: "epic", Status: "todo"}
-	for _, b := range []*bean.Bean{unrelatedMilestone, edited, descendant, unrelatedEpic} {
+	unrelatedMilestone := &item.Item{ID: "beans-uq20", Title: "Root milestone", Type: "milestone", Status: "todo"}
+	edited := &item.Item{ID: "beans-uq21", Title: "Edited feature", Type: "feature", Status: "todo"}
+	descendant := &item.Item{ID: "beans-uq22", Title: "Feature's epic child", Type: "epic", Status: "todo", Parent: "beans-uq21"}
+	unrelatedEpic := &item.Item{ID: "beans-uq23", Title: "Unrelated epic", Type: "epic", Status: "todo"}
+	for _, b := range []*item.Item{unrelatedMilestone, edited, descendant, unrelatedEpic} {
 		if err := core.Create(b); err != nil {
 			t.Fatalf("seeding %s: %v", b.ID, err)
 		}
@@ -548,11 +548,11 @@ func TestPickPartialLineParentCursorExcludesDescendants(t *testing.T) {
 	}
 }
 
-// TestPickPartialLineParentWithoutKnownBeanErrors pins AC5 for the
+// TestPickPartialLineParentWithoutKnownItemErrors pins AC5 for the
 // --parent path: a cursor at --parent with no positional token that
-// resolves to a known bean must error, never silently fall back to an
+// resolves to a known item must error, never silently fall back to an
 // unscoped or empty result.
-func TestPickPartialLineParentWithoutKnownBeanErrors(t *testing.T) {
+func TestPickPartialLineParentWithoutKnownItemErrors(t *testing.T) {
 	pick := setupPickScopeTest(t)
 	createScopeFixture(t)
 
@@ -568,7 +568,7 @@ func TestPickPartialLineParentWithoutKnownBeanErrors(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected an error when no positional bean id precedes --parent")
 	}
-	if !strings.Contains(err.Error(), "cannot resolve --parent context") {
+	if !strings.Contains(err.Error(), "lif pick: cannot resolve --parent context: no known item id precedes --parent") {
 		t.Errorf("error = %q, want it to mention the unresolved --parent context", err)
 	}
 }
@@ -587,7 +587,7 @@ func TestPickLineRequiresCursor(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected an error when --line is set without --cursor")
 	}
-	if !strings.Contains(err.Error(), "requires --cursor") {
+	if !strings.Contains(err.Error(), "lif pick: --line requires --cursor") {
 		t.Errorf("error = %q, want it to mention the missing --cursor", err)
 	}
 }
@@ -609,7 +609,7 @@ func TestPickLineRequiresCursorInRange(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected an error for an out-of-range --cursor")
 	}
-	if !strings.Contains(err.Error(), "out of range") {
+	if !strings.Contains(err.Error(), "lif pick: --cursor 999 is out of range") {
 		t.Errorf("error = %q, want it to mention the out-of-range cursor", err)
 	}
 }
@@ -637,14 +637,14 @@ func TestPickPartialLineVerbWithoutScopeSemanticsErrors(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected an error for a resolved, user-facing verb with no known scope mapping")
 	}
-	if !strings.Contains(err.Error(), "no known scope-derivation mapping") {
+	if !strings.Contains(err.Error(), `lif pick: verb "list" has no known scope-derivation mapping`) {
 		t.Errorf("error = %q, want it to mention the missing scope-derivation mapping", err)
 	}
 }
 
 // TestPickPartialLineToleratesLeadingProgramName pins the fix-round
 // correction to AC2/SC-02: a live shell buffer's partial line carries the
-// program name as its first token ("beans roadmap "), not just the bare
+// program name as its first token ("lif roadmap "), not just the bare
 // verb ("roadmap "). Both forms must resolve to the identical candidate
 // set, and the program name is recognized via cmd.Root().Name(), never a
 // literal "beans" comparison (AC4).
@@ -664,7 +664,7 @@ func TestPickPartialLineToleratesLeadingProgramName(t *testing.T) {
 		t.Fatalf("resolvePickCandidates() with bare verb error = %v", err)
 	}
 
-	prefixedLine := "beans roadmap"
+	prefixedLine := "lif roadmap"
 	if err := pick.Flags().Set("line", prefixedLine); err != nil {
 		t.Fatalf("setting --line: %v", err)
 	}
@@ -673,14 +673,14 @@ func TestPickPartialLineToleratesLeadingProgramName(t *testing.T) {
 	}
 	prefixedGot, err := resolvePickCandidates(pick)
 	if err != nil {
-		t.Fatalf("resolvePickCandidates() with \"beans \"-prefixed verb error = %v", err)
+		t.Fatalf("resolvePickCandidates() with \"lif \"-prefixed verb error = %v", err)
 	}
 
 	if len(bareGot) == 0 {
 		t.Fatal("expected a non-empty candidate set for the bare-verb form")
 	}
 	if len(bareGot) != len(prefixedGot) {
-		t.Fatalf("bare verb gave %d candidates, \"beans \"-prefixed gave %d, want equal", len(bareGot), len(prefixedGot))
+		t.Fatalf("bare verb gave %d candidates, \"lif \"-prefixed gave %d, want equal", len(bareGot), len(prefixedGot))
 	}
 	bareIDs := make(map[string]bool, len(bareGot))
 	for _, b := range bareGot {
@@ -695,17 +695,17 @@ func TestPickPartialLineToleratesLeadingProgramName(t *testing.T) {
 
 // TestPickWidgetLineWithUnmappedVerbErrors pins beans-eeej: the zsh
 // widget's non-empty-buffer branch forwards --line/--cursor exactly as
-// beans-pick.zsh now does ("beans <buffer>" with the cursor at the
+// beans-pick.zsh now does ("lif <buffer>" with the cursor at the
 // buffer's end). An unmapped verb (only roadmap carries scope semantics)
 // must still surface AC5's visible error, never a silent fallback to the
 // full, unscoped candidate set -- this is what a widget invocation typed
-// mid "beans show ..." now gets instead of the previously-conflated
+// mid "lif show ..." now gets instead of the previously-conflated
 // unconstrained result.
 func TestPickWidgetLineWithUnmappedVerbErrors(t *testing.T) {
 	pick := setupPickScopeTest(t)
 	createScopeFixture(t)
 
-	buffer := "beans show beans-uq10"
+	buffer := "lif show beans-uq10"
 	if err := pick.Flags().Set("line", buffer); err != nil {
 		t.Fatalf("setting --line: %v", err)
 	}
@@ -717,13 +717,49 @@ func TestPickWidgetLineWithUnmappedVerbErrors(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected an error for a widget-shaped --line with an unmapped verb")
 	}
-	if !strings.Contains(err.Error(), "no known scope-derivation mapping") {
+	if !strings.Contains(err.Error(), `lif pick: verb "show" has no known scope-derivation mapping`) {
 		t.Errorf("error = %q, want it to mention the missing scope-derivation mapping", err)
 	}
 }
 
+// The picker's own labels and the partial-line errors that no other test
+// reaches name the product as lif and the noun as item.
+func TestPickLabelsAndLineErrorsNameLifAndItem(t *testing.T) {
+	t.Run("picker title", func(t *testing.T) {
+		m, _ := newPickModel([]*item.Item{pickTestItem("beans-aaaa", "Alpha")}).Update(tea.WindowSizeMsg{Width: 60, Height: 12})
+		if view := m.View(); !strings.Contains(view, "Pick an item") {
+			t.Errorf("picker view lacks the title %q:\n%s", "Pick an item", view)
+		}
+	})
+
+	t.Run("aborted pick", func(t *testing.T) {
+		if got := errPickAborted.Error(); got != "lif pick: no item selected" {
+			t.Errorf("errPickAborted = %q, want %q", got, "lif pick: no item selected")
+		}
+	})
+
+	pick := setupPickScopeTest(t)
+	for _, tc := range []struct {
+		name, line string
+		cursor     int
+		want       string
+	}{
+		{"blank line", "  ", 0, "lif pick: --line has no verb to resolve"},
+		{"program name only", "lif", 3, "lif pick: --line has no verb after the program name"},
+		{"cursor on program name", "lif roadmap", 1, "lif pick: cursor position is not understood by scope derivation (it sits on the program name)"},
+		{"flag only", "--help", 6, "lif pick: partial line has no resolvable verb"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := partialLineCandidates(pick, tc.line, tc.cursor)
+			if err == nil || err.Error() != tc.want {
+				t.Errorf("partialLineCandidates(%q, %d) error = %v, want %q", tc.line, tc.cursor, err, tc.want)
+			}
+		})
+	}
+}
+
 // TestPickWidgetEmptyBufferStaysUnconstrained pins beans-eeej: the
-// widget's empty-buffer branch calls flag-less `beans pick` (neither
+// widget's empty-buffer branch calls flag-less `lif pick` (neither
 // --line nor --cursor set), which resolvePickCandidates's default case
 // still resolves to the full, unscoped store -- a legitimate outcome for
 // starting a line from nothing, not an AC5 "not understood" failure.

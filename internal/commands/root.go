@@ -5,25 +5,29 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/xRiErOS/beans/internal/gitutil"
-	"github.com/xRiErOS/beans/internal/output"
-	"github.com/xRiErOS/beans/internal/ui"
-	"github.com/xRiErOS/beans/pkg/beancore"
-	"github.com/xRiErOS/beans/pkg/config"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	"github.com/xRiErOS/lif/internal/gitutil"
+	"github.com/xRiErOS/lif/internal/output"
+	"github.com/xRiErOS/lif/internal/ui"
+	"github.com/xRiErOS/lif/pkg/config"
+	"github.com/xRiErOS/lif/pkg/itemcore"
 )
 
-var core *beancore.Core
+var core *itemcore.Core
 var cfg *config.Config
-var beansPath string
+
+// storePathFlag is the persistent root flag that names the store directory.
+const storePathFlag = "lif-path"
+
+var storePath string
 var configPath string
 
 // NewRootCmd creates the root cobra command with shared persistent flags
 // and core initialization logic.
 func NewRootCmd() *cobra.Command {
 	rootCmd := &cobra.Command{
-		Use:   "beans",
+		Use:   "lif",
 		Short: "A file-based issue tracker for AI-first workflows",
 		// Reporting a failure is done once, in reportExecutionError. Cobra
 		// otherwise prints the error itself and follows it with the whole
@@ -33,7 +37,7 @@ func NewRootCmd() *cobra.Command {
 		// covers every subcommand of all three binaries.
 		SilenceErrors: true,
 		SilenceUsage:  true,
-		Long: `Beans is a lightweight issue tracker that stores issues as markdown files.
+		Long: `Lif is a lightweight issue tracker that stores issues as markdown files.
 Track your work alongside your code and supercharge your coding agent with
 a full view of your project.`,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
@@ -46,7 +50,7 @@ a full view of your project.`,
 
 			var err error
 
-			effectiveBeansPath, effectiveConfigPath := completionAwareRootFlags(cmd, args)
+			effectiveStorePath, effectiveConfigPath := completionAwareRootFlags(cmd, args)
 
 			// Load configuration
 			if effectiveConfigPath != "" {
@@ -72,22 +76,23 @@ a full view of your project.`,
 			feedTypeTables(cfg)
 			feedStatusPriorityTables(cfg)
 
-			root, err := resolveBeansPath(effectiveBeansPath, cfg)
+			root, res, err := resolveStorePath(effectiveStorePath, cfg)
 			if err != nil {
 				return err
 			}
+			resolution = res
 
-			core = beancore.New(root, cfg)
+			core = itemcore.New(root, cfg)
 			if err := core.Load(); err != nil {
-				return fmt.Errorf("loading beans: %w", err)
+				return fmt.Errorf("loading items: %w", err)
 			}
 
 			return nil
 		},
 	}
 
-	rootCmd.PersistentFlags().StringVar(&beansPath, "beans-path", "", "Path to data directory (overrides config and BEANS_PATH env var)")
-	rootCmd.PersistentFlags().StringVar(&configPath, "config", "", "Path to config file (default: searches upward for .beans.yml)")
+	rootCmd.PersistentFlags().StringVar(&storePath, storePathFlag, "", "Path to data directory (overrides config and LIF_PATH env var; a legacy BEANS_PATH is read when LIF_PATH is unset)")
+	rootCmd.PersistentFlags().StringVar(&configPath, "config", "", "Path to config file (default: searches upward for .lif.yml; a legacy .beans.yml is read when no .lif.yml exists)")
 
 	return rootCmd
 }
@@ -131,7 +136,7 @@ func feedStatusPriorityTables(c *config.Config) {
 	ui.SetPrioritySymbols(symbols)
 }
 
-// completionAwareRootFlags returns the --beans-path and --config values
+// completionAwareRootFlags returns the --lif-path and --config values
 // PersistentPreRunE should resolve against, accounting for cobra's
 // __complete request.
 //
@@ -140,104 +145,154 @@ func feedStatusPriorityTables(c *config.Config) {
 // command-line words to its own getCompletions logic rather than have
 // cobra's normal Command.execute consume them. That means Command.execute
 // skips ParseFlags for it (command.go's execute: "if c.DisableFlagParsing {
-// return nil }"), so neither the beansPath nor the configPath package var
+// return nil }"), so neither the storePath nor the configPath package var
 // -- both bound to their flags via pflag.StringVar -- is populated by the
 // time PersistentPreRunE runs here, even though the raw args this hook
-// receives still contain "--beans-path X" / "--config Y" verbatim (cobra's
+// receives still contain "--lif-path X" / "--config Y" verbatim (cobra's
 // Find only strips flags for command-name matching; it never discards them
-// from the args it hands back). Left alone, both the beans-path resolution
+// from the args it hands back). Left alone, both the store-path resolution
 // and the config lookup fall back to directory discovery, silently
 // resolving another store's/config's candidates (beans-9jtq).
 //
 // Outside a __complete request cobra has already parsed both flags
-// normally, so beansPath/configPath are authoritative and are returned
+// normally, so storePath/configPath are authoritative and are returned
 // unchanged.
-func completionAwareRootFlags(cmd *cobra.Command, args []string) (beansPathVal, configPathVal string) {
+func completionAwareRootFlags(cmd *cobra.Command, args []string) (storePathVal, configPathVal string) {
 	if cmd.Name() != cobra.ShellCompRequestCmd {
-		return beansPath, configPath
+		return storePath, configPath
 	}
 	fs := pflag.NewFlagSet("completion-root-flags", pflag.ContinueOnError)
 	fs.ParseErrorsAllowlist = pflag.ParseErrorsAllowlist{UnknownFlags: true}
-	bp := fs.String("beans-path", "", "")
+	sp := fs.String(storePathFlag, "", "")
 	cp := fs.String("config", "", "")
 	_ = fs.Parse(args)
-	return *bp, *cp
+	return *sp, *cp
 }
 
-// resolveBeansPath determines the beans data directory path.
-// Precedence: --beans-path flag > .beans.yml (found upward or named via
-// --config) > BEANS_PATH env var > default.
+// The levels that can decide the store directory, as recorded in
+// storeResolution.StoreDirSource.
+const (
+	storeSourceFlag    = "flag"
+	storeSourceEnv     = "env"
+	storeSourceConfig  = "config"  // an explicit path: in the config file
+	storeSourceDefault = "default" // the default store directory
+)
+
+// storeResolution is the outcome of the four name levels (config file,
+// section key, store directory, env var) for the command that just resolved
+// its store. `lif check` reads it to report names still in legacy form.
+type storeResolution struct {
+	// LegacyConfigFile: the loaded config file is the legacy file.
+	LegacyConfigFile bool
+	// LegacySectionKey: that file uses the legacy section key.
+	LegacySectionKey bool
+	// LegacyStoreDir: the resolved store directory carries the legacy name.
+	LegacyStoreDir bool
+	// StoreDirSource: flag, env, config (an explicit path:) or default.
+	StoreDirSource string
+	// LegacyEnv: the legacy variable is set and the new one is not.
+	LegacyEnv bool
+}
+
+// resolution is set by the root PersistentPreRunE next to core and cfg.
+var resolution storeResolution
+
+// resolveStorePath determines the items data directory path and records which
+// name levels it went through.
+// Precedence: --lif-path flag > config file (found upward or named via
+// --config) > store-path env var > default.
 //
-// A .beans.yml is the repository's own declaration of where its store lives,
-// so it outranks BEANS_PATH: the env var is commonly exported by direnv and
+// A config file is the repository's own declaration of where its store lives,
+// so it outranks the env var: the variable is commonly exported by direnv and
 // inherited into unrelated repositories, where honouring it would silently
 // redirect every call to a foreign store. Without such a declaration the env
 // var is still the next-best answer. The anchor is part of that declaration
 // and is applied while resolving it (see resolveAnchoredPath).
 //
-// In worktrees, the CLI uses the worktree's local .beans/ directory.
-// beans-serve watches worktree .beans/ dirs and merges changes into
+// The env level is resolved -- and can fail on both variables being set --
+// only when it decides, that is without a flag and without a found config.
+//
+// In worktrees, the CLI uses the worktree's local store directory.
+// lif-serve watches worktree store dirs and merges changes into
 // runtime state, so the UI stays up-to-date without writing to main.
 // A repository that wants one shared store instead opts out of that with
-// `beans.anchor: repo-root` in its .beans.yml (see resolveAnchoredPath).
-func resolveBeansPath(flagPath string, c *config.Config) (string, error) {
-	envPath := os.Getenv("BEANS_PATH")
-	// A found .beans.yml, and only a found one, demotes the env var. A
+// `anchor: repo-root` in its config file (see resolveAnchoredPath).
+func resolveStorePath(flagPath string, c *config.Config) (string, storeResolution, error) {
+	envPath, legacyEnv, envErr := config.ResolveStoreEnv()
+	// A found config file, and only a found one, demotes the env var. A
 	// defaulted config carries no declaration to honour.
-	useEnv := envPath != "" && (c == nil || c.ConfigFile() == "")
+	configFound := c != nil && c.ConfigFile() != ""
+	envDecides := flagPath == "" && !configFound
+	if envDecides && envErr != nil {
+		return "", storeResolution{}, envErr
+	}
+	useEnv := envDecides && envPath != ""
 	explicitOverride := flagPath != "" || useEnv
 
+	res := storeResolution{LegacyEnv: legacyEnv}
 	var root string
 	switch {
 	case flagPath != "":
 		root = flagPath
+		res.StoreDirSource = storeSourceFlag
 	case useEnv:
 		root = envPath
+		res.StoreDirSource = storeSourceEnv
 	default:
 		anchored, err := resolveAnchoredPath(c)
 		if err != nil {
-			return "", err
+			return "", storeResolution{}, err
 		}
 		root = anchored
+		res.StoreDirSource = storeSourceDefault
+		if c.Items.Path != "" {
+			res.StoreDirSource = storeSourceConfig
+		}
 	}
+	if configFound {
+		res.LegacyConfigFile = config.IsLegacyConfigFile(c.ConfigFile())
+		res.LegacySectionKey = config.IsLegacySectionKey(c.SectionKey())
+	}
+	res.LegacyStoreDir = config.IsLegacyStoreDir(root)
 
 	if info, statErr := os.Stat(root); statErr != nil || !info.IsDir() {
-		// A missing/empty live directory next to a non-empty .beans.bak-*
+		// A missing/empty live directory next to a non-empty .lif.bak-* or .beans.bak-*
 		// sibling is not "no store here" -- it's an interrupted stageAndSwap
-		// (rename.go: the swap is two os.Rename calls with .beans absent in
+		// (rename.go: the swap is two os.Rename calls with the store dir absent in
 		// between). Core.Load's own detectOrphanBackup repairs or warns
 		// about exactly that case, but only gets the chance to run if this
 		// precheck doesn't fail first.
-		if beancore.HasOrphanBackup(root) {
-			return root, nil
+		if itemcore.HasOrphanBackup(root) {
+			return root, res, nil
 		}
 		if explicitOverride {
-			return "", fmt.Errorf("beans path does not exist or is not a directory: %s", root)
+			return "", storeResolution{}, fmt.Errorf("store path does not exist or is not a directory: %s", root)
 		}
-		return "", fmt.Errorf("no .beans directory found at %s (run 'beans init' to create one)", root)
+		return "", storeResolution{}, fmt.Errorf("no %s directory found at %s (run 'lif init' to create one)", filepath.Base(root), root)
 	}
 
-	return root, nil
+	return root, res, nil
 }
 
-// resolveAnchoredPath applies the config's beans.anchor setting.
+// resolveAnchoredPath applies the config's anchor setting.
 //
 // With AnchorRepoRoot, a call from a secondary worktree resolves to the main
 // worktree's store, so worktrees of one repository share it. Outside a git repo
 // — and in the main worktree, where there is nothing to redirect — the config
-// file's own directory stays the anchor.
+// file's own directory stays the anchor. The default store directory, where no
+// explicit path applies, is resolved in that anchor.
 func resolveAnchoredPath(c *config.Config) (string, error) {
-	switch c.Beans.Anchor {
+	switch c.Items.Anchor {
 	case "":
-		return c.ResolveBeansPath(), nil
+		return c.ResolveItemsPath()
 	case config.AnchorRepoRoot:
 		mainRoot, isSecondary := gitutil.MainWorktreeRoot(c.ConfigDir())
 		if !isSecondary {
-			return c.ResolveBeansPath(), nil
+			return c.ResolveItemsPath()
 		}
-		return filepath.Join(mainRoot, c.Beans.Path), nil
+		return c.ResolveItemsPathIn(mainRoot)
 	default:
-		return "", config.ValidateAnchor(c.Beans.Anchor)
+		return "", config.ValidateAnchor(c.Items.Anchor, c.SectionKey())
 	}
 }
 

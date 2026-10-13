@@ -23,6 +23,10 @@
 {{- range .Features}}{{template "featureGroup" .}}{{end}}
 {{- end -}}
 
+{{- define "containerGroup"}}
+{{- if .Epic}}{{template "epicGroup" .Epic}}{{else}}{{template "featureGroup" .Feature}}{{end}}
+{{- end -}}
+
 # Roadmap
 {{if .Root}}
 {{- with .Root.Epic}}{{template "epicGroup" .}}{{end}}
@@ -33,10 +37,9 @@
 {{with firstParagraph .Milestone.Body}}
 > {{.}}
 {{end -}}
-{{- range .Epics}}{{template "epicGroup" .}}{{end}}
-{{- range .Features}}{{template "featureGroup" .}}{{end}}
+{{- range .Containers}}{{template "containerGroup" .}}{{end}}
 {{- if .Other}}
-{{- if or (len .Epics) (len .Features)}}
+{{- if .Containers}}
 ### Miscellaneous
 {{end}}
 {{range .Other}}{{template "beanLine" .}}{{end}}
@@ -46,10 +49,9 @@
 {{- if len $.Milestones}}
 ## Unscheduled
 {{end}}
-{{- range .Unscheduled.Epics}}{{template "epicGroup" .}}{{end}}
-{{- range .Unscheduled.Features}}{{template "featureGroup" .}}{{end}}
+{{- range .Unscheduled.Containers}}{{template "containerGroup" .}}{{end}}
 {{- if .Unscheduled.Other}}
-{{- if or (len .Unscheduled.Epics) (len .Unscheduled.Features)}}
+{{- if .Unscheduled.Containers}}
 ### Miscellaneous
 {{end}}
 {{range .Unscheduled.Other}}{{template "beanLine" .}}{{end}}

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/xRiErOS/beans/pkg/config"
+	"github.com/xRiErOS/lif/pkg/config"
 )
 
 // runInitCmd runs the real initCmd.RunE against a fresh temp directory as the
@@ -21,9 +21,9 @@ func runInitCmd(t *testing.T, profile string, json bool) (dir string, err error)
 	dir = t.TempDir()
 	t.Chdir(dir)
 
-	origProfile, origJSON, origBeansPath := initProfile, initJSON, beansPath
-	initProfile, initJSON, beansPath = profile, json, ""
-	t.Cleanup(func() { initProfile, initJSON, beansPath = origProfile, origJSON, origBeansPath })
+	origProfile, origJSON, origItemsPath := initProfile, initJSON, storePath
+	initProfile, initJSON, storePath = profile, json, ""
+	t.Cleanup(func() { initProfile, initJSON, storePath = origProfile, origJSON, origItemsPath })
 
 	err = initCmd.RunE(initCmd, nil)
 	return dir, err
@@ -81,15 +81,15 @@ func TestInitCmdWithKnownProfileWritesTheExpandedTypesToDisk(t *testing.T) {
 	if got := loaded.ShortOf("bucket"); got != "K" {
 		t.Errorf("ShortOf(\"bucket\") = %q, want \"K\"", got)
 	}
-	if loaded.Beans.DefaultType != "task" {
-		t.Errorf("Beans.DefaultType = %q, want \"task\"", loaded.Beans.DefaultType)
+	if loaded.Items.DefaultType != "task" {
+		t.Errorf("Beans.DefaultType = %q, want \"task\"", loaded.Items.DefaultType)
 	}
 	if !loaded.TypesExclusive {
 		t.Error("TypesExclusive = false, want true - a profile must give a project exactly its own types")
 	}
 }
 
-// The path every existing user hits: beans init with no --profile at all
+// The path every existing user hits: lif init with no --profile at all
 // must not be affected by any of this task's changes - no types: block, no
 // types_exclusive key, same file as before this task existed.
 func TestInitCmdWithoutProfileWritesNoTypesBlock(t *testing.T) {
@@ -132,10 +132,7 @@ func TestInitCmdWithUnknownProfileFailsBeforeAnySideEffect(t *testing.T) {
 		}
 	}
 
-	if _, statErr := os.Stat(filepath.Join(dir, ".beans")); !os.IsNotExist(statErr) {
-		t.Errorf(".beans must not be created when the profile is rejected, stat err = %v", statErr)
-	}
-	if _, statErr := os.Stat(filepath.Join(dir, config.ConfigFileName)); !os.IsNotExist(statErr) {
-		t.Errorf(".beans.yml must not be created when the profile is rejected, stat err = %v", statErr)
-	}
+	// Neither the store directory nor the config file may appear, under the
+	// new or the legacy name.
+	requireAbsent(t, dir, config.DefaultStoreDir, config.LegacyDefaultStoreDir, config.ConfigFileName, config.LegacyConfigFileName)
 }

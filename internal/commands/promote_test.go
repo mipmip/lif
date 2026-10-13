@@ -9,9 +9,9 @@ import (
 	"testing"
 
 	"github.com/spf13/pflag"
-	"github.com/xRiErOS/beans/internal/output"
-	"github.com/xRiErOS/beans/pkg/beancore"
-	"github.com/xRiErOS/beans/pkg/config"
+	"github.com/xRiErOS/lif/internal/output"
+	"github.com/xRiErOS/lif/pkg/config"
+	"github.com/xRiErOS/lif/pkg/itemcore"
 )
 
 // setupPromoteTest installs a throwaway core and default config into the
@@ -19,13 +19,13 @@ import (
 func setupPromoteTest(t *testing.T) {
 	t.Helper()
 	tmpDir := t.TempDir()
-	beansDir := filepath.Join(tmpDir, ".beans")
-	if err := os.MkdirAll(beansDir, 0755); err != nil {
+	itemsDir := filepath.Join(tmpDir, ".beans")
+	if err := os.MkdirAll(itemsDir, 0755); err != nil {
 		t.Fatalf("failed to create test .beans dir: %v", err)
 	}
 
 	testCfg := config.Default()
-	testCore := beancore.New(beansDir, testCfg)
+	testCore := itemcore.New(itemsDir, testCfg)
 	if err := testCore.Load(); err != nil {
 		t.Fatalf("failed to load core: %v", err)
 	}
@@ -119,7 +119,7 @@ const malformedBugRecord = `{
 	}
 }`
 
-func countBeans(t *testing.T) int {
+func countItems(t *testing.T) int {
 	t.Helper()
 	return len(core.All())
 }
@@ -147,18 +147,18 @@ func TestPromoteRejectsDuplicateFindingIDInSameCall(t *testing.T) {
 	resetPromoteFlags(t)
 	path := writeArtifact(t, `{"findings":[`+validBugRecord+`]}`)
 
-	before := countBeans(t)
+	before := countItems(t)
 	err := promoteCmd.RunE(promoteCmd, []string{path, "B01", "B01"})
 	if err == nil {
 		t.Fatal("expected an error for a repeated finding-id, got nil")
 	}
-	if got := countBeans(t); got != before {
+	if got := countItems(t); got != before {
 		t.Errorf("beans written = %d, want %d (zero writes on rejection)", got, before)
 	}
 }
 
 // SC-01/AC4/AC5: a malformed selected record is rejected by ID and field,
-// zero beans are written, and an unselected malformed record is never
+// zero items are written, and an unselected malformed record is never
 // evaluated.
 func TestPromoteSchemaValidationRejectsMalformedSelectedRecord(t *testing.T) {
 	setupPromoteTest(t)
@@ -173,12 +173,12 @@ func TestPromoteSchemaValidationRejectsMalformedSelectedRecord(t *testing.T) {
 	}`
 	path := writeArtifact(t, `{"findings":[`+validBugRecord+`,`+malformedBugRecord+`,`+unselectedMalformed+`]}`)
 
-	before := countBeans(t)
+	before := countItems(t)
 	err := promoteCmd.RunE(promoteCmd, []string{path, "B01", "B03"})
 	if err == nil {
 		t.Fatal("expected a validation error, got nil")
 	}
-	if got := countBeans(t); got != before {
+	if got := countItems(t); got != before {
 		t.Errorf("beans written = %d, want %d (zero writes on preflight failure)", got, before)
 	}
 	if !contains(err.Error(), "B03") {
@@ -192,7 +192,7 @@ func TestPromoteSchemaValidationRejectsMalformedSelectedRecord(t *testing.T) {
 	}
 }
 
-// SC-02: a valid B record is promoted into a bug bean carrying review,
+// SC-02: a valid B record is promoted into a bug item carrying review,
 // finding and severity front matter, no priority, evidence/body transferred
 // unchanged, no Acceptance section, and a Provenance section.
 func TestPromoteBugRecordSucceeds(t *testing.T) {
@@ -204,11 +204,11 @@ func TestPromoteBugRecordSucceeds(t *testing.T) {
 		t.Fatalf("promoteCmd.RunE() error = %v", err)
 	}
 
-	beans := core.All()
-	if len(beans) != 1 {
-		t.Fatalf("beans created = %d, want 1", len(beans))
+	items := core.All()
+	if len(items) != 1 {
+		t.Fatalf("beans created = %d, want 1", len(items))
 	}
-	b := beans[0]
+	b := items[0]
 
 	if b.Type != "bug" {
 		t.Errorf("Type = %q, want %q", b.Type, "bug")
@@ -245,7 +245,7 @@ func TestPromoteBugRecordSucceeds(t *testing.T) {
 	}
 }
 
-// SC-03: a valid I record is promoted into a task bean carrying the
+// SC-03: a valid I record is promoted into a task item carrying the
 // "improvement" tag and no severity key.
 func TestPromoteImprovementRecordSucceeds(t *testing.T) {
 	setupPromoteTest(t)
@@ -256,11 +256,11 @@ func TestPromoteImprovementRecordSucceeds(t *testing.T) {
 		t.Fatalf("promoteCmd.RunE() error = %v", err)
 	}
 
-	beans := core.All()
-	if len(beans) != 1 {
-		t.Fatalf("beans created = %d, want 1", len(beans))
+	items := core.All()
+	if len(items) != 1 {
+		t.Fatalf("beans created = %d, want 1", len(items))
 	}
-	b := beans[0]
+	b := items[0]
 
 	if b.Type != "task" {
 		t.Errorf("Type = %q, want %q", b.Type, "task")
@@ -277,7 +277,7 @@ func TestPromoteImprovementRecordSucceeds(t *testing.T) {
 }
 
 // SC-04/AC11: re-promoting an already-promoted finding is a no-op that
-// creates no second bean.
+// creates no second item.
 func TestPromoteSkipsAlreadyPromotedFinding(t *testing.T) {
 	setupPromoteTest(t)
 	resetPromoteFlags(t)
@@ -286,7 +286,7 @@ func TestPromoteSkipsAlreadyPromotedFinding(t *testing.T) {
 	if err := promoteCmd.RunE(promoteCmd, []string{path, "B01"}); err != nil {
 		t.Fatalf("first promoteCmd.RunE() error = %v", err)
 	}
-	if got := countBeans(t); got != 1 {
+	if got := countItems(t); got != 1 {
 		t.Fatalf("beans after first call = %d, want 1", got)
 	}
 
@@ -295,7 +295,7 @@ func TestPromoteSkipsAlreadyPromotedFinding(t *testing.T) {
 			t.Fatalf("second promoteCmd.RunE() error = %v", err)
 		}
 	})
-	if got := countBeans(t); got != 1 {
+	if got := countItems(t); got != 1 {
 		t.Errorf("beans after repeated call = %d, want 1 (no duplicate)", got)
 	}
 	if !contains(string(out), "B01") {
@@ -303,13 +303,13 @@ func TestPromoteSkipsAlreadyPromotedFinding(t *testing.T) {
 	}
 }
 
-// AC6: a write failure after a passing preflight names the beans already
+// AC6: a write failure after a passing preflight names the items already
 // created rather than asserting the remaining writes also occurred.
-func TestPromoteWriteFailureNamesCreatedBeans(t *testing.T) {
+func TestPromoteWriteFailureNamesCreatedItems(t *testing.T) {
 	setupPromoteTest(t)
 	resetPromoteFlags(t)
-	// B02's title exceeds beangraph.MaxTitleLength (1000 characters), which
-	// CreateBean's own preflight rejects deterministically and without
+	// B02's title exceeds itemgraph.MaxTitleLength (1000 characters), which
+	// CreateItem's own preflight rejects deterministically and without
 	// touching the filesystem -- unlike an induced I/O permission failure,
 	// this fails the exact record queued second, after B01 has already been
 	// written, giving a genuine "one succeeded, the next failed" case
@@ -330,18 +330,21 @@ func TestPromoteWriteFailureNamesCreatedBeans(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected a write failure, got nil")
 	}
-	if got := countBeans(t); got != 1 {
+	if got := countItems(t); got != 1 {
 		t.Fatalf("beans created = %d, want 1 (B01 written before B02 failed)", got)
 	}
 	if !contains(err.Error(), core.All()[0].ID) {
-		t.Errorf("error %q does not name the already-created bean %s", err.Error(), core.All()[0].ID)
+		t.Errorf("error %q does not name the already-created item %s", err.Error(), core.All()[0].ID)
+	}
+	if !contains(err.Error(), "failed to create item for B02") {
+		t.Errorf("error %q does not say which finding failed as an item", err.Error())
 	}
 }
 
 // R-27/Risks: the idempotency skip is keyed on the review+finding PAIR, never
 // on finding alone -- finding-ids restart at 01 per report, so the same
 // value recurs across unrelated artifacts. Promoting the same finding-id
-// from two different artifacts must create two independent beans, not
+// from two different artifacts must create two independent items, not
 // silently skip the second as "already promoted".
 func TestPromoteCrossArtifactIdempotencyKeyedOnReviewAndFinding(t *testing.T) {
 	setupPromoteTest(t)
@@ -356,7 +359,7 @@ func TestPromoteCrossArtifactIdempotencyKeyedOnReviewAndFinding(t *testing.T) {
 		t.Fatalf("promoting B01 from artifact 2: %v", err)
 	}
 
-	if got := countBeans(t); got != 2 {
+	if got := countItems(t); got != 2 {
 		t.Fatalf("beans created = %d, want 2 (B01 from two different artifacts must not be deduplicated)", got)
 	}
 	fromFirst := filterByWhere(core.All(), []string{"review=" + firstArtifact, "finding=B01"})
@@ -376,7 +379,7 @@ func TestPromoteRejectsUnknownFindingID(t *testing.T) {
 	resetPromoteFlags(t)
 	path := writeArtifact(t, `{"findings":[`+validBugRecord+`]}`)
 
-	before := countBeans(t)
+	before := countItems(t)
 	err := promoteCmd.RunE(promoteCmd, []string{path, "B99"})
 	if err == nil {
 		t.Fatal("expected an error for an unknown finding id, got nil")
@@ -384,7 +387,7 @@ func TestPromoteRejectsUnknownFindingID(t *testing.T) {
 	if !contains(err.Error(), "B99") {
 		t.Errorf("error for unknown finding id %q does not name it", err.Error())
 	}
-	if got := countBeans(t); got != before {
+	if got := countItems(t); got != before {
 		t.Errorf("beans written = %d, want %d (zero writes for an unknown finding id)", got, before)
 	}
 }
@@ -421,13 +424,13 @@ func TestPromoteSuccessLeavesArtifactFileUntouched(t *testing.T) {
 	if len(matches) != 0 {
 		t.Errorf("unselected record I02 was promoted (%d beans), want 0", len(matches))
 	}
-	if got := countBeans(t); got != 1 {
+	if got := countItems(t); got != 1 {
 		t.Errorf("beans created = %d, want 1 (only the selected B01)", got)
 	}
 }
 
 // SC-06: JSON output shape matches the established batch convention -- a
-// single finding-id gives a bare bean, several give a bare array, and a
+// single finding-id gives a bare item, several give a bare array, and a
 // preflight rejection returns the standard error envelope.
 func TestPromoteJSONShape(t *testing.T) {
 	t.Run("single gives a bare bean", func(t *testing.T) {
@@ -536,7 +539,7 @@ func TestPromoteJSONShape(t *testing.T) {
 }
 
 // SC-07/AC16: the record's review axis is written as extra front matter,
-// grouping promoted beans by axis.
+// grouping promoted items by axis.
 func TestPromoteSetsAxisFrontMatter(t *testing.T) {
 	setupPromoteTest(t)
 	resetPromoteFlags(t)
@@ -546,11 +549,11 @@ func TestPromoteSetsAxisFrontMatter(t *testing.T) {
 		t.Fatalf("promoteCmd.RunE() error = %v", err)
 	}
 
-	beans := core.All()
-	if len(beans) != 1 {
-		t.Fatalf("beans created = %d, want 1", len(beans))
+	items := core.All()
+	if len(items) != 1 {
+		t.Fatalf("beans created = %d, want 1", len(items))
 	}
-	if got := beans[0].Extra["axis"]; got != "standards" {
+	if got := items[0].Extra["axis"]; got != "standards" {
 		t.Errorf("Extra[axis] = %v, want %q", got, "standards")
 	}
 	matching := filterByWhere(core.All(), []string{"axis=standards"})
@@ -564,7 +567,7 @@ func TestPromoteSetsAxisFrontMatter(t *testing.T) {
 // Empfehlung, Nutzen, Schwere) leak into command-facing text. Fixed record
 // field values legitimately contain German (they are WP1's data, not
 // promote's own vocabulary) so this checks the command metadata only, not
-// bean bodies.
+// item bodies.
 func TestPromoteVocabularyIsEnglish(t *testing.T) {
 	sharedTestRoot(t)
 	forbidden := []string{"Beschreibung", "Empfehlung", "Nutzen", "Schwere", "Befund"}
@@ -583,7 +586,6 @@ func TestPromoteVocabularyIsEnglish(t *testing.T) {
 		t.Fatal("expected a --json flag")
 	}
 }
-
 
 // AC1: promote is the exclusive CLI surface, reachable through the real root
 // command -- every other test in this file calls promoteCmd.RunE directly,

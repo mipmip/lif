@@ -1,67 +1,77 @@
 # Configuration Reference
 
-This page documents every key `.beans.yml` accepts, in the shape the `beans`, `beans-serve`, and `beans-tui` binaries actually read it. It also covers the type/status/priority override system, custom types, display options, and how a beans store's path is resolved.
+This page documents every key `.lif.yml` accepts, in the shape the `lif`, `lif-serve`, and `lif-tui` binaries actually read it. It also covers the type/status/priority override system, custom types, display options, and how a Lif store's path is resolved.
 
 ## Minimal configuration
 
-A repository does not need a `.beans.yml` at all: `beans init` (with no `--profile`) writes one with only the fields that differ from the built-in defaults.
+A repository does not need a `.lif.yml` at all: without one, every key falls back to its built-in default. `lif init` (with no `--profile`) writes one that spells out the project name, the `lif` section, and the `worktree`, `agent` and `server` defaults; it writes no `types` table, so the built-in types apply. For a project in a directory named `myproject` it writes, with every key preceded by a comment line in the real file:
 
 ```yaml
-# Beans configuration
-# See: https://github.com/hmans/beans
+# Lif configuration
+# See: https://github.com/xRiErOS/lif
 project:
     name: myproject
-beans:
-    path: .beans
+lif:
+    path: .lif
     prefix: myproject-
     id_length: 4
     default_status: todo
     default_type: task
+worktree:
+    base_ref: main
+    setup: ""
+    run: ""
+    integrate: local
+agent:
+    enabled: true
+    default_mode: act
+server:
+    port: 8080
 ```
 
-Every top-level section (`project`, `beans`, `worktree`, `agent`, `server`, `display`) is optional; an absent section, or an absent field within it, falls back to its documented default.
+Every top-level section (`project`, `lif`, `worktree`, `agent`, `server`, `display`) is optional; an absent section, or an absent field within it, falls back to its documented default.
 
 ## File location and store path resolution
 
-`beans init` writes `.beans.yml` at the project root, next to the `.beans` data directory it creates. Every command searches upward from the current directory for the nearest `.beans.yml` unless `--config <path>` names one explicitly.
+`lif init` writes `.lif.yml` at the project root, next to the `.lif` data directory it creates. Every command searches upward from the current directory for the nearest `.lif.yml` unless `--config <path>` names one explicitly.
 
-The beans data directory itself is resolved with the following precedence, from highest to lowest:
+The data directory itself is resolved with the following precedence, from highest to lowest:
 
-1. `--beans-path <path>` on the command line.
-2. A `.beans.yml` that was actually found: its `beans.path` value, or the default `.beans`, resolved according to `beans.anchor`.
-3. `BEANS_PATH`, but only when no `.beans.yml` was found.
-4. The default `.beans` directory for the current working directory when neither a config nor environment override exists.
+1. `--lif-path <path>` on the command line.
+2. A `.lif.yml` that was actually found: its `lif.path` value, or the default `.lif`, resolved according to `lif.anchor`.
+3. `LIF_PATH`, but only when no `.lif.yml` was found.
+4. The default `.lif` directory for the current working directory when neither a config nor environment override exists.
 
-A found `.beans.yml` outranks `BEANS_PATH` on purpose: the config file is a repository's own declaration of where its store lives, while `BEANS_PATH` is commonly exported by a tool like direnv and inherited into unrelated repositories, where honoring it would silently redirect commands to a foreign store. Run `beans path` in any project to print the path a given invocation actually resolved to.
+A found `.lif.yml` outranks `LIF_PATH` on purpose: the config file is a repository's own declaration of where its store lives, while `LIF_PATH` is commonly exported by a tool like direnv and inherited into unrelated repositories, where honoring it would silently redirect commands to a foreign store. Run `lif path` in any project to print the path a given invocation actually resolved to.
 
 ### Anchoring in git worktrees
 
-`beans.anchor` controls what `beans.path` is relative to:
+`lif.anchor` controls what `lif.path` is relative to:
 
 ```yaml
-beans:
-    path: .beans
+lif:
+    path: .lif
     anchor: repo-root
 ```
 
-- Left empty (the default), `beans.path` is relative to the directory containing `.beans.yml`. In a secondary git worktree this means the worktree gets its own store, separate from the main worktree's.
-- Set to `repo-root`, `beans.path` resolves against the main worktree's root instead, so every worktree of one repository shares a single store. From the main worktree, or outside a git repository entirely, `repo-root` has no other worktree to redirect to and behaves the same as leaving `anchor` unset.
+- Left empty (the default), `lif.path` is relative to the directory containing `.lif.yml`. In a secondary git worktree this means the worktree gets its own store, separate from the main worktree's.
+- Set to `repo-root`, `lif.path` resolves against the main worktree's root instead, so every worktree of one repository shares a single store. From the main worktree, or outside a git repository entirely, `repo-root` has no other worktree to redirect to and behaves the same as leaving `anchor` unset.
 
-Any other value fails config loading immediately with an "unknown beans.anchor" error, rather than silently falling back to the default and resolving a different store than the file asked for.
+Any other value fails config loading immediately with an "unknown lif.anchor" error, rather than silently falling back to the default and resolving a different store than the file asked for.
 
 ## `project`
 
 | Key | Type | Default |
 | --- | --- | --- |
-| `name` | string | the project directory's name, set once by `beans init` |
+| `name` | string | the project directory's name, set once by `lif init` |
 
-`project.name` is the human-readable project name shown in the web UI and TUI. It has no effect on bean IDs or file paths.
+`project.name` is the human-readable project name shown in the web UI and TUI. It has no effect on item IDs or file paths.
 
-## `beans`
+## `lif`
 
 | Key | Type | Default |
 | --- | --- | --- |
-| `path` | string | `.beans` |
+| `path` | string | `.lif` |
 | `anchor` | string | unset (config-file-relative) |
 | `prefix` | string | `""` |
 | `id_length` | int | `4` |
@@ -71,41 +81,43 @@ Any other value fails config loading immediately with an "unknown beans.anchor" 
 | `require_fields_on` | map of status name to list of field names | unset |
 | `commit_field` | string | `commit` |
 
-`beans.path` is the directory bean files are stored in, resolved as described above.
+`lif.path` is the directory item files are stored in, resolved as described above.
 
-`beans.prefix` is prepended to every generated bean ID, for example `myproject-abc1`. `beans init` sets it to the project directory's name followed by a hyphen; it can be changed later with `beans rename --prefix`, which also rewrites every existing ID and cascades the change through cross-references (see the command reference in [wiki/commands/organization-and-relations.md](commands/organization-and-relations.md)).
+`lif.prefix` is prepended to every generated item ID, for example `myproject-abc1`. `lif init` sets it to the project directory's name followed by a hyphen; it can be changed later with `lif rename --prefix`, which also rewrites every existing ID and cascades the change through cross-references (see the command reference in [wiki/commands/organization-and-relations.md](commands/organization-and-relations.md)).
 
-`beans.id_length` is the number of random characters in the generated ID suffix.
+`lif.id_length` is the number of random characters in the generated ID suffix.
 
-`beans.default_status` and `beans.default_type` are applied to `beans create` when `--status`/`--type` are not passed. `beans check` fails if `default_status` names a status the merged status list does not contain, or if `default_type` names an unknown type.
+`lif.default_status` and `lif.default_type` are applied to `lif create` when `--status`/`--type` are not passed. `lif check` fails if `default_status` names a status the merged status list does not contain, or if `default_type` names an unknown type.
 
-`beans.require_if_match` requires an `If-Match` header (an ETag) on updates made through the API layer, for optimistic concurrency control.
+`lif.require_if_match` requires an `If-Match` header (an ETag) on updates made through the API layer, for optimistic concurrency control.
 
-`beans.require_fields_on` declares a completion policy: it maps a target status name to a list of front matter keys that must carry a non-empty value whenever a bean is written into that status.
+`lif.require_fields_on` declares a completion policy: it maps a target status name to a list of front matter keys that must carry a non-empty value whenever an item is written into that status.
 
 ```yaml
-beans:
+lif:
     require_fields_on:
         completed:
             - commit
 ```
 
-With the example above, `beans complete <id>` fails with an error naming the missing field and the flag that supplies it (for example `--commit HEAD`), unless the field is already set or supplied in the same call via `--commit` or `--set key=value`. The write is rejected before anything is saved. Config loading itself rejects a `require_fields_on` entry that names an unknown status, an empty field name, or a field beans already manages natively (`title`, `status`, `type`, `priority`, `tags`, `created_at`, `updated_at`, `order`, `parent`, `blocking`, `blocked_by`) — those are written through their own flags, not through `require_fields_on`.
+With the example above, `lif complete <id>` fails with an error naming the missing field and the flag that supplies it (for example `--commit HEAD`), unless the field is already set or supplied in the same call via `--commit` or `--set key=value`. The write is rejected before anything is saved. Config loading itself rejects a `require_fields_on` entry that names an unknown status, an empty field name, or a field items already manages natively (`title`, `status`, `type`, `priority`, `tags`, `created_at`, `updated_at`, `order`, `parent`, `blocking`, `blocked_by`) — those are written through their own flags, not through `require_fields_on`.
 
-`beans.commit_field` renames the front matter key `require_fields_on` and `beans complete --commit` use to record a git commit SHA. Only this key is git-verified (the value must resolve to a real commit) when written or checked; every other field named in `require_fields_on` only needs to be non-empty.
+`lif.commit_field` renames the front matter key `require_fields_on` and `lif complete --commit` use to record a git commit SHA. Only this key is git-verified (the value must resolve to a real commit) when written or checked; every other field named in `require_fields_on` only needs to be non-empty.
 
 ## `worktree`
 
 | Key | Type | Default |
 | --- | --- | --- |
 | `base_ref` | string | `main` |
-| `path` | string | `~/.beans/worktrees/<project-name>/` |
+| `path` | string | `~/.lif/worktrees/<project-name>/` |
 | `setup` | string | `""` |
 | `run` | string | `""` |
 | `integrate` | string (`local` or `pr`) | `local` |
 | `fetch_timeout` | int (seconds) | `10` |
 
-These settings govern the git worktree management surfaced by the web UI (`beans-serve`). `base_ref` is the git ref new worktree branches start from. `path` is where worktrees are created; it supports a leading `~` for the home directory. `setup` is a shell command run inside a fresh worktree (for example `pnpm install`). `run` is a shell command that, when set, adds a "Run" button to the workspace toolbar. `integrate` chooses the worktree integration strategy: `local` squash-merges locally and hides the PR-related buttons, `pr` pushes the branch and opens a pull request instead. `fetch_timeout` bounds the `git fetch` that refreshes `base_ref` before a new worktree is created; set it to `0` to skip that fetch entirely, for example in an airgapped environment.
+These settings govern the git worktree management surfaced by the web UI (`lif-serve`). `base_ref` is the git ref new worktree branches start from. `path` is where worktrees are created; it supports a leading `~` for the home directory. `setup` is a shell command run inside a fresh worktree (for example `pnpm install`). `run` is a shell command that, when set, adds a "Run" button to the workspace toolbar. `integrate` chooses the worktree integration strategy: `local` squash-merges locally and hides the PR-related buttons, `pr` pushes the branch and opens a pull request instead. `fetch_timeout` bounds the `git fetch` that refreshes `base_ref` before a new worktree is created; set it to `0` to skip that fetch entirely, for example in an airgapped environment.
+
+Worktrees live under `worktree.path`, by default `~/.lif/worktrees/<project-name>/`, and every new worktree branch is named `lif/<id>`. `lif-serve` exports the workspace's port to the shell and run sessions of each worktree as `LIF_WORKSPACE_PORT`; a legacy port variable is exported beside it, see [Legacy names](#legacy-names).
 
 ## `agent`
 
@@ -124,7 +136,7 @@ These settings govern the git worktree management surfaced by the web UI (`beans
 | `port` | int | `8080` |
 | `cors_origins` | list of strings | `["http://localhost:*", "http://127.0.0.1:*"]` |
 
-Both keys apply to `beans-serve`. `cors_origins` accepts exact origins and port wildcards (`http://localhost:*`); `"*"` allows every origin and is not recommended outside local development. See [wiki/web-ui-and-api.md](web-ui-and-api.md) for the API this server exposes.
+Both keys apply to `lif-serve`. `cors_origins` accepts exact origins and port wildcards (`http://localhost:*`); `"*"` allows every origin and is not recommended outside local development. See [wiki/web-ui-and-api.md](web-ui-and-api.md) for the API this server exposes.
 
 ## `display`
 
@@ -139,13 +151,13 @@ display:
     max_width: 100
 ```
 
-`display.theme` selects one of the four bundled Catppuccin flavors: `latte`, `frappe`, `macchiato`, or `mocha`. It governs terminal rendering in the `beans` CLI and `beans-tui`; an unrecognized name is ignored and the default applies (`beans check` flags it as invalid). `display.max_width` caps the rendered width in terminal cells; `0` (unset) yields the default of `110`, and `-1` disables the cap entirely so output uses the full terminal width.
+`display.theme` selects one of the four bundled Catppuccin flavors: `latte`, `frappe`, `macchiato`, or `mocha`. It governs terminal rendering in the `lif` CLI and `lif-tui`; an unrecognized name is ignored and the default applies (`lif check` flags it as invalid). `display.max_width` caps the rendered width in terminal cells; `0` (unset) yields the default of `110`, and `-1` disables the cap entirely so output uses the full terminal width.
 
 Every `color` field described below (on statuses, types, and priorities) must name one of the Catppuccin tones the active theme defines: `rosewater`, `flamingo`, `pink`, `mauve`, `red`, `maroon`, `peach`, `yellow`, `green`, `teal`, `sky`, `sapphire`, `blue`, `lavender`, `text`, `subtext1`, `subtext0`, `overlay2`, `overlay1`, `overlay0`, `surface2`, `surface1`, `surface0`, or `base`. An empty `color` field is valid and renders with no explicit color.
 
 ## Statuses, types, and priorities
 
-Beans ships built-in tables for statuses, types, and priorities. `.beans.yml` can override entries in these tables field by field, or add new entries, through the top-level `statuses`, `types`, and `priorities` lists. A list entry is matched to a built-in entry by `name`; an entry naming an unrecognized name is appended as a new one instead.
+Lif ships built-in tables for statuses, types, and priorities. `.lif.yml` can override entries in these tables field by field, or add new entries, through the top-level `statuses`, `types`, and `priorities` lists. A list entry is matched to a built-in entry by `name`; an entry naming an unrecognized name is appended as a new one instead.
 
 ### Built-in statuses
 
@@ -168,19 +180,19 @@ statuses:
       description: Waiting on an external dependency
 ```
 
-`archive` is only touched by an explicit `archive: true` or `archive: false`; a color- or description-only override on `completed` cannot accidentally flip it back to non-archiving. Archived statuses are excluded from the default working views and are what `beans archive` moves into cold storage.
+`archive` is only touched by an explicit `archive: true` or `archive: false`; a color- or description-only override on `completed` cannot accidentally flip it back to non-archiving. Archived statuses are excluded from the default working views and are what `lif archive` moves into cold storage.
 
 ### Built-in types
 
 | Name | Rank | Short | Emphasis | Description |
 | --- | --- | --- | --- | --- |
 | `milestone` | 1 | `M` | yes | A target release or checkpoint; group work that should ship together |
-| `epic` | 2 | `E` | yes | A thematic container for related work; should have child beans, not be worked on directly |
+| `epic` | 2 | `E` | yes | A thematic container for related work; should have child items, not be worked on directly |
 | `feature` | 3 | `F` | no | A user-facing capability or enhancement |
 | `bug` | 4 | `B` | no | Something that is broken and needs fixing |
 | `task` | 4 | `T` | no | A concrete piece of work to complete (e.g. a chore, or a sub-task for a feature) |
 
-`rank` carries the parent/child hierarchy: a bean can be the parent of a child bean only when the child's rank is strictly greater than the parent's. Ranks 1 through 3 are container ranks; rank 4 is the leaf rank, and any type without an explicit `rank` (including a newly appended one) lands there. `short` is the single-character code the narrow list view renders; when empty it defaults to the type name's first letter, upper-cased. `emphasis` renders the type bold across the type word, ID, and title in list views — the mechanism that visually distinguishes a container type from a leaf type, since the Catppuccin palette is uniformly pastel and color alone would not separate them. `roadmap`, when explicitly set to `false`, hides a type from its own section in `beans roadmap` and from `beans milestones`; on a container rank this also hides its whole subtree. Leaving `roadmap` unset keeps the type visible.
+`rank` carries the parent/child hierarchy: an item can be the parent of a child item only when the child's rank is strictly greater than the parent's. Ranks 1 through 3 are container ranks; rank 4 is the leaf rank, and any type without an explicit `rank` (including a newly appended one) lands there. `short` is the single-character code the narrow list view renders; when empty it defaults to the type name's first letter, upper-cased. `emphasis` renders the type bold across the type word, ID, and title in list views — the mechanism that visually distinguishes a container type from a leaf type, since the Catppuccin palette is uniformly pastel and color alone would not separate them. `roadmap`, when explicitly set to `false`, hides a type from its own section in `lif roadmap` and from `lif milestones`; on a container rank this also hides its whole subtree. Leaving `roadmap` unset keeps the type visible.
 
 ```yaml
 types:
@@ -193,7 +205,7 @@ types:
       description: Internal work without customer benefit
 ```
 
-`types_exclusive: true` switches off the merge with the built-in table entirely: `types` then becomes the complete type table on its own, with nothing from the built-in defaults layered underneath it. This is what `beans init --profile <name>` sets, since a profile is meant to give a project exactly its own types. A hand-written `.beans.yml` that never sets `types_exclusive` keeps the default entry-by-entry override behavior, where an override list naming only `bug` leaves the other four built-in types untouched.
+`types_exclusive: true` switches off the merge with the built-in table entirely: `types` then becomes the complete type table on its own, with nothing from the built-in defaults layered underneath it. This is what `lif init --profile <name>` sets, since a profile is meant to give a project exactly its own types. A hand-written `.lif.yml` that never sets `types_exclusive` keeps the default entry-by-entry override behavior, where an override list naming only `bug` leaves the other four built-in types untouched.
 
 ```yaml
 types_exclusive: true
@@ -203,7 +215,7 @@ types:
       description: A concrete piece of work to complete
 ```
 
-See [wiki/project-profiles.md](project-profiles.md) for the bundled profiles (`classic`, `todo`, `simple`, `complex`) `beans init --profile` can expand into a `types_exclusive` type table like this one.
+See [wiki/project-profiles.md](project-profiles.md) for the bundled profiles (`classic`, `todo`, `simple`, `complex`) `lif init --profile` can expand into a `types_exclusive` type table like this one.
 
 ### Built-in priorities
 
@@ -215,7 +227,7 @@ See [wiki/project-profiles.md](project-profiles.md) for the bundled profiles (`c
 | `low` | `overlay0` | `↓` | Less important, can be delayed |
 | `deferred` | `overlay0` | `→` | Explicitly pushed back, avoid doing unless necessary |
 
-Priorities are ordered from highest to lowest urgency, and `symbol` is the compact glyph narrow views and legends render for a priority (a priority without one renders no glyph). A bean file may omit `priority`; the loader then materializes `normal` in memory without rewriting the file. `priorities` overrides follow the same name-matched, field-by-field rule as `statuses` and `types`, including `symbol`.
+Priorities are ordered from highest to lowest urgency, and `symbol` is the compact glyph narrow views and legends render for a priority (a priority without one renders no glyph). An item file may omit `priority`; the loader then materializes `normal` in memory without rewriting the file. `priorities` overrides follow the same name-matched, field-by-field rule as `statuses` and `types`, including `symbol`.
 
 ```yaml
 priorities:
@@ -225,7 +237,35 @@ priorities:
 
 ## Validation
 
-`beans check` validates a project's configuration alongside its bean files: that the merged status and type tables are well-formed, that `default_status` and `default_type` name entries that actually exist, that every bean carries a known type, that every configured `color` names a valid theme tone, that `beans.prefix` matches the IDs actually on disk, and that any `require_fields_on` policy is satisfiable. A misconfigured `.beans.yml` — an unknown `beans.anchor`, an invalid `require_fields_on` entry, or a config file that fails to parse — is rejected at load time, before any command runs, rather than surfacing as a downstream validation warning. See [wiki/commands/validation-and-maintenance.md](commands/validation-and-maintenance.md) for the full `beans check` output.
+`lif check` validates a project's configuration alongside its item files: that the merged status and type tables are well-formed, that `default_status` and `default_type` name entries that actually exist, that every item carries a known type, that every configured `color` names a valid theme tone, that `lif.prefix` matches the IDs actually on disk, and that any `require_fields_on` policy is satisfiable. A misconfigured `.lif.yml` — an unknown `lif.anchor`, an invalid `require_fields_on` entry, or a config file that fails to parse — is rejected at load time, before any command runs, rather than surfacing as a downstream validation warning. See [wiki/commands/validation-and-maintenance.md](commands/validation-and-maintenance.md) for the full `lif check` output.
+
+## Environment variables
+
+| Variable | Meaning |
+| --- | --- |
+| `LIF_PATH` | Data directory, used only when no `.lif.yml` was found; `--lif-path` and a found `.lif.yml` outrank it. |
+| `LIF_WORKSPACE_PORT` | Set by `lif-serve` in the shell and run sessions of a workspace that has an allocated port. |
+
+## Legacy names
+
+Projects created by an earlier release keep working without any change. These legacy names are still read, in place, and never renamed by Lif:
+
+| Level | Current name | Legacy name still read |
+| --- | --- | --- |
+| Config file | `.lif.yml` | `.beans.yml` |
+| Section key in the config file | `lif:` | `beans:` |
+| Store directory | `.lif` | `.beans` |
+| Store path variable | `LIF_PATH` | `BEANS_PATH` |
+| Worktree root | `~/.lif/worktrees/<project-name>/` | `~/.beans/worktrees/<project-name>/` |
+| Worktree branch prefix | `lif/` | `beans/` |
+| Port variable in workspace sessions | `LIF_WORKSPACE_PORT` | `BEANS_WORKSPACE_PORT` (exported together with the current one) |
+
+- **Both at one level is an error.** The first four levels refuse to guess: if a project holds both a legacy name and its current name at the same level, the command fails with an error that names both. The error appears wherever that level is consulted: `both .lif.yml and .beans.yml exist in <dir>; keep one of them`; `<path>: both sections "lif:" and "beans:" are present; keep one of them`; `both .lif and .beans exist in <dir>; keep one of them`, when the store directory is the default (the config file sets no `path:`); and `both LIF_PATH and BEANS_PATH are set; unset one of them`, only when the variables are consulted at all, that is when no config file was found and no `--lif-path` was given.
+- **The worktree levels have no such error.** The legacy worktree root and legacy-branch worktrees work beside the current ones; when both worktree roots exist, the legacy root wins. Worktrees already on a `beans/` branch are still listed and used; new ones are created on `lif/<id>`.
+- **`lif init` keeps legacy names.** In a project that already uses `.beans` or `.beans.yml`, it does not add the current names next to them.
+- **`lif check` warns.** It reports every legacy name in use as a warning in a `Legacy names` section, with the step that ends it; see [Validation and maintenance](commands/validation-and-maintenance.md) for the output. The warnings never fail the check.
+
+Renaming is optional. The [upgrade guide](compatibility-and-upgrading.md#optional-rename-of-legacy-data-names) lists each warning with its concrete command. Item files and ID prefixes do not change either way.
 
 ## Related documentation
 

@@ -1,31 +1,34 @@
 package commands
 
 import (
+	"bytes"
 	"fmt"
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
-	"github.com/xRiErOS/beans/pkg/beancore"
-	"github.com/xRiErOS/beans/pkg/config"
+	"github.com/spf13/cobra"
+	"github.com/xRiErOS/lif/pkg/config"
+	"github.com/xRiErOS/lif/pkg/itemcore"
 )
 
-func renameTestCore(t *testing.T, prefix string, files map[string]string) *beancore.Core {
+func renameTestCore(t *testing.T, prefix string, files map[string]string) *itemcore.Core {
 	t.Helper()
 	repo := t.TempDir()
-	beansDir := filepath.Join(repo, ".beans")
-	if err := os.MkdirAll(beansDir, 0755); err != nil {
+	itemsDir := filepath.Join(repo, ".beans")
+	if err := os.MkdirAll(itemsDir, 0755); err != nil {
 		t.Fatal(err)
 	}
 	for name, content := range files {
-		if err := os.WriteFile(filepath.Join(beansDir, name), []byte(content), 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(itemsDir, name), []byte(content), 0644); err != nil {
 			t.Fatal(err)
 		}
 	}
 	cfg := config.DefaultWithPrefix(prefix)
 	cfg.SetConfigDir(repo)
-	c := beancore.New(beansDir, cfg)
+	c := itemcore.New(itemsDir, cfg)
 	if err := c.Load(); err != nil {
 		t.Fatal(err)
 	}
@@ -113,7 +116,7 @@ func TestApplyRenameWithGuards_reChecksGuardsBeforeApply(t *testing.T) {
 		t.Fatal("expected refusal: guard must be re-checked immediately before apply (I01)")
 	}
 
-	// Bean must NOT have been rebranded on disk (guard closed the TOCTOU window).
+	// Item must NOT have been rebranded on disk (guard closed the TOCTOU window).
 	if _, err := c.Get("op-aaaa"); err == nil {
 		t.Error("apply proceeded despite guard re-check — TOCTOU window not closed")
 	}
@@ -143,4 +146,83 @@ func TestApplyRenameWithGuards_nonPrefixModeSkipsGuards(t *testing.T) {
 	if err := applyRenameWithGuards(c, plan); err != nil {
 		t.Fatalf("slug rename should not be blocked by prefix-only guards: %v", err)
 	}
+}
+
+// AC3: rename's errors, plan summary, prompt and result line name the noun
+// as item.
+func TestRenameTextsNameItems(t *testing.T) {
+	seed := map[string]string{
+		"tp-aaaa--a.md": "---\n# tp-aaaa\ntitle: A\nstatus: todo\ntype: task\n---\n",
+		"zz-bbbb--b.md": "---\n# zz-bbbb\ntitle: B\nstatus: todo\ntype: task\n---\n",
+	}
+
+	t.Run("no id", func(t *testing.T) {
+		c := renameTestCore(t, "tp-", seed)
+		_, err := buildRenamePlan(c, nil, renameFlags{})
+		if err == nil || err.Error() != "provide an item id, or use --prefix" {
+			t.Errorf("error = %v, want %q", err, "provide an item id, or use --prefix")
+		}
+	})
+
+	t.Run("suffix on a foreign prefix", func(t *testing.T) {
+		c := renameTestCore(t, "tp-", seed)
+		want := `item "zz-bbbb" does not start with the configured prefix "tp-"; cannot apply --suffix`
+		_, err := buildRenamePlan(c, []string{"zz-bbbb"}, renameFlags{suffix: "k7x2", suffixSet: true})
+		if err == nil || err.Error() != want {
+			t.Errorf("error = %v, want %q", err, want)
+		}
+	})
+
+	t.Run("ref updates line", func(t *testing.T) {
+		cmd := &cobra.Command{}
+		var out bytes.Buffer
+		cmd.SetOut(&out)
+		plan := &itemcore.RenamePlan{Mode: "id", RefUpdates: map[string]int{"tp-bbbb": 2, "tp-cccc": 1}}
+		if err := renderRenamePlan(cmd, plan, false); err != nil {
+			t.Fatal(err)
+		}
+		if want := "ref updates: 3 across 2 item(s)\n"; !strings.Contains(out.String(), want) {
+			t.Errorf("summary = %q, want it to contain %q", out.String(), want)
+		}
+	})
+
+	runRename := func(t *testing.T, files map[string]string, stdin string, flagKV map[string]string, args ...string) string {
+		t.Helper()
+		sharedTestRoot(t) // registers renameCmd's flags
+		oldCore, oldCfg := core, cfg
+		core = renameTestCore(t, "tp-", files)
+		cfg = core.Config()
+		t.Cleanup(func() {
+			core, cfg = oldCore, oldCfg
+			resetFlags(renameCmd)
+			renameCmd.SetOut(nil)
+			renameCmd.SetIn(nil)
+		})
+		var out bytes.Buffer
+		renameCmd.SetOut(&out)
+		renameCmd.SetIn(strings.NewReader(stdin))
+		for k, v := range flagKV {
+			if err := renameCmd.Flags().Set(k, v); err != nil {
+				t.Fatalf("setting --%s: %v", k, err)
+			}
+		}
+		if err := renameCmd.RunE(renameCmd, args); err != nil {
+			t.Fatalf("rename error = %v", err)
+		}
+		return out.String()
+	}
+
+	t.Run("result line", func(t *testing.T) {
+		out := runRename(t, seed, "", map[string]string{"slug": "new-slug"}, "tp-aaaa")
+		if want := "Renamed 1 item(s).\n"; !strings.Contains(out, want) {
+			t.Errorf("output = %q, want it to contain %q", out, want)
+		}
+	})
+
+	t.Run("rebrand prompt", func(t *testing.T) {
+		out := runRename(t, map[string]string{"tp-aaaa--a.md": seed["tp-aaaa--a.md"]}, "n\n", map[string]string{"prefix": "op-"})
+		if want := `Rebrand 1 item(s) to prefix "op-"?`; !strings.Contains(out, want) {
+			t.Errorf("output = %q, want it to contain %q", out, want)
+		}
+	})
 }

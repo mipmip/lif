@@ -11,14 +11,14 @@ import {
 
 export const MAIN_WORKSPACE_ID = '__central__';
 
-/** Public Worktree type: codegen fragment with beanIds derived from nested beans. */
-export interface Worktree extends Omit<WorktreeFieldsFragment, 'beans'> {
-  beanIds: string[];
+/** Public Worktree type: codegen fragment with itemIds derived from nested items. */
+export interface Worktree extends Omit<WorktreeFieldsFragment, 'items'> {
+  itemIds: string[];
 }
 
 function mapWorktree(raw: WorktreeFieldsFragment): Worktree {
-  const { beans, ...rest } = raw;
-  return { ...rest, beanIds: beans.map((b) => b.id) };
+  const { items, ...rest } = raw;
+  return { ...rest, itemIds: items.map((b) => b.id) };
 }
 
 export interface WorktreeStatus {
@@ -138,9 +138,9 @@ class WorktreeStore {
     return this.worktrees.some((wt) => wt.id === id);
   }
 
-  /** Return the worktree ID that contains the given bean, or null. */
-  worktreeForBean(beanId: string): string | null {
-    return this.worktrees.find((wt) => wt.beanIds.includes(beanId))?.id ?? null;
+  /** Return the worktree ID that contains the given item, or null. */
+  worktreeForItem(itemId: string): string | null {
+    return this.worktrees.find((wt) => wt.itemIds.includes(itemId))?.id ?? null;
   }
 
   /** Fetch fresh git status for a specific worktree (on-demand, not cached). */

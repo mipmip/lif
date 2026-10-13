@@ -7,28 +7,28 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/xRiErOS/beans/pkg/bean"
-	"github.com/xRiErOS/beans/pkg/beancore"
-	"github.com/xRiErOS/beans/pkg/config"
+	"github.com/xRiErOS/lif/pkg/config"
+	"github.com/xRiErOS/lif/pkg/item"
+	"github.com/xRiErOS/lif/pkg/itemcore"
 )
 
 // setupE2ETriageTest installs a throwaway core and default config into the
 // package globals promoteCmd/listCmd.RunE read, mirroring setupPromoteTest
 // and setupListTest. The store lives entirely under tmpDir/.beans and
 // core/cfg point straight at it -- RunE never resolves config via cwd or
-// --beans-path, so the store is driven from inside its own directory by
+// --lif-path, so the store is driven from inside its own directory by
 // construction (Constraints/AC-01), never through the cwd-resolution path
 // that corrupted this hull's real .beans.yml earlier in this wave.
-func setupE2ETriageTest(t *testing.T) (tmpDir, beansDir string) {
+func setupE2ETriageTest(t *testing.T) (tmpDir, itemsDir string) {
 	t.Helper()
 	tmpDir = t.TempDir()
-	beansDir = filepath.Join(tmpDir, ".beans")
-	if err := os.MkdirAll(beansDir, 0755); err != nil {
+	itemsDir = filepath.Join(tmpDir, ".beans")
+	if err := os.MkdirAll(itemsDir, 0755); err != nil {
 		t.Fatalf("failed to create test .beans dir: %v", err)
 	}
 
 	testCfg := config.Default()
-	testCore := beancore.New(beansDir, testCfg)
+	testCore := itemcore.New(itemsDir, testCfg)
 	if err := testCore.Load(); err != nil {
 		t.Fatalf("failed to load core: %v", err)
 	}
@@ -36,7 +36,7 @@ func setupE2ETriageTest(t *testing.T) (tmpDir, beansDir string) {
 	oldCore, oldCfg := core, cfg
 	core, cfg = testCore, testCfg
 	t.Cleanup(func() { core, cfg = oldCore, oldCfg })
-	return tmpDir, beansDir
+	return tmpDir, itemsDir
 }
 
 // TestEndToEndTriageControl is beans-w5hu's proof that WP1's schema, WP2's
@@ -49,7 +49,7 @@ func setupE2ETriageTest(t *testing.T) (tmpDir, beansDir string) {
 // malformed record is rejected by name (AC-08), and the recorded artifact
 // path still resolves to the untouched original file (AC-09).
 func TestEndToEndTriageControl(t *testing.T) {
-	_, beansDir := setupE2ETriageTest(t)
+	_, itemsDir := setupE2ETriageTest(t)
 	resetPromoteFlags(t)
 	resetListWhereFlag(t)
 	oldListJSON, oldListFull := listJSON, listFull
@@ -59,12 +59,12 @@ func TestEndToEndTriageControl(t *testing.T) {
 	listView = "table"
 	t.Cleanup(func() { listView = oldListView })
 
-	// The bean under review. Its existence is not required by the
-	// attachments mechanics, but it grounds <reviewed-bean-id> in something
+	// The item under review. Its existence is not required by the
+	// attachments mechanics, but it grounds <reviewed-item-id> in something
 	// real rather than a bare literal.
-	reviewed := &bean.Bean{
+	reviewed := &item.Item{
 		ID:     "beans-revd",
-		Slug:   bean.Slugify("Reviewed leaf"),
+		Slug:   item.Slugify("Reviewed leaf"),
 		Title:  "Reviewed leaf",
 		Status: "todo",
 		Type:   "task",
@@ -75,8 +75,8 @@ func TestEndToEndTriageControl(t *testing.T) {
 
 	// AC-02: write the findings artifact -- one B (blocking, closed
 	// criterion, evidence) and two I (non-blocking), each with a populated
-	// evidence field -- at .beans/attachments/<reviewed-bean-id>/.
-	attachDir := filepath.Join(beansDir, beancore.AttachmentsDir, reviewed.ID)
+	// evidence field -- at .beans/attachments/<reviewed-item-id>/.
+	attachDir := filepath.Join(itemsDir, itemcore.AttachmentsDir, reviewed.ID)
 	if err := os.MkdirAll(attachDir, 0755); err != nil {
 		t.Fatalf("creating attachments dir: %v", err)
 	}
@@ -120,7 +120,7 @@ func TestEndToEndTriageControl(t *testing.T) {
 	}
 
 	// Measured precondition (Risks): the set-difference assertion below is
-	// only meaningful if the store starts with no review=-tagged bean.
+	// only meaningful if the store starts with no review=-tagged item.
 	if pre := filterByWhere(core.All(), []string{"review=" + artifactPath}); len(pre) != 0 {
 		t.Fatalf("precondition failed: store already has %d review=%s bean(s)", len(pre), artifactPath)
 	}
@@ -131,15 +131,15 @@ func TestEndToEndTriageControl(t *testing.T) {
 		t.Fatalf("promote step: %v", err)
 	}
 
-	// AC-05: `beans list --where review=<artifact-path>` returns exactly the
-	// one promoted bean.
+	// AC-05: `lif list --where review=<artifact-path>` returns exactly the
+	// one promoted item.
 	listWhere = []string{"review=" + artifactPath}
 	out := captureRunEStdout(t, func() {
 		if err := listCmd.RunE(listCmd, nil); err != nil {
 			t.Fatalf("list step: %v", err)
 		}
 	})
-	var promotedByQuery []*bean.Bean
+	var promotedByQuery []*item.Item
 	if err := json.NewDecoder(bytes.NewReader(out)).Decode(&promotedByQuery); err != nil {
 		t.Fatalf("decoding list --where JSON: %v; output = %s", err, out)
 	}
@@ -151,7 +151,7 @@ func TestEndToEndTriageControl(t *testing.T) {
 	if len(promotedByQuery) != 1 {
 		t.Errorf("list --where review=... returned %d beans, want 1", len(promotedByQuery))
 	}
-	var promoted *bean.Bean
+	var promoted *item.Item
 	if len(promotedByQuery) == 1 {
 		promoted = promotedByQuery[0]
 	}
@@ -160,7 +160,7 @@ func TestEndToEndTriageControl(t *testing.T) {
 			t.Errorf("promoted bean finding = %v, want %q", promoted.Extra["finding"], "B01")
 		}
 
-		// AC-04: the promoted bean's body carries the selected record's
+		// AC-04: the promoted item's body carries the selected record's
 		// evidence and source locations unchanged from the artifact.
 		if !contains(promoted.Body, "Batch path dereferences without a nil check.") {
 			t.Errorf("promoted body missing the record's Beschreibung: %q", promoted.Body)
@@ -171,11 +171,11 @@ func TestEndToEndTriageControl(t *testing.T) {
 	}
 
 	// AC-06: the rejected pair -- the set difference between the artifact's
-	// three finding IDs and the promoted set -- has no bean, file or record
+	// three finding IDs and the promoted set -- has no item, file or record
 	// anywhere in the store.
 	// Both sides are derived, never literal: allIDs comes from the
 	// artifact bytes the review step actually wrote, promotedIDs from the
-	// finding= front matter of the beans genuinely present in the store --
+	// finding= front matter of the items genuinely present in the store --
 	// so a defect that promotes the wrong record, or the wrong count of
 	// records, changes this computation instead of being invisible to it.
 	var artifactDecoded struct {
@@ -213,7 +213,7 @@ func TestEndToEndTriageControl(t *testing.T) {
 	// SC-02: confirmed by direct inspection of the store directory, not
 	// only the --where query -- no .md file in the store carries a
 	// `finding:` front matter entry for either rejected finding-id.
-	storeEntries, err := os.ReadDir(beansDir)
+	storeEntries, err := os.ReadDir(itemsDir)
 	if err != nil {
 		t.Fatalf("reading store directory: %v", err)
 	}
@@ -221,7 +221,7 @@ func TestEndToEndTriageControl(t *testing.T) {
 		if entry.IsDir() || filepath.Ext(entry.Name()) != ".md" {
 			continue
 		}
-		raw, err := os.ReadFile(filepath.Join(beansDir, entry.Name()))
+		raw, err := os.ReadFile(filepath.Join(itemsDir, entry.Name()))
 		if err != nil {
 			t.Fatalf("reading %s: %v", entry.Name(), err)
 		}
@@ -231,9 +231,9 @@ func TestEndToEndTriageControl(t *testing.T) {
 			}
 		}
 	}
-	// Total bean count is exactly the reviewed bean plus the one promoted
-	// bean -- nothing else was written for the rejected pair.
-	if got := countBeans(t); got != 2 {
+	// Total item count is exactly the reviewed item plus the one promoted
+	// item -- nothing else was written for the rejected pair.
+	if got := countItems(t); got != 2 {
 		t.Fatalf("beans in store = %d, want 2 (reviewed + promoted)", got)
 	}
 
@@ -244,7 +244,7 @@ func TestEndToEndTriageControl(t *testing.T) {
 			t.Fatalf("repeated promote step: %v", err)
 		}
 	})
-	if got := countBeans(t); got != 2 {
+	if got := countItems(t); got != 2 {
 		t.Errorf("beans after repeated promote = %d, want 2 (no duplicate)", got)
 	}
 	if !contains(string(rerunOut), "B01") || !contains(string(rerunOut), "skipped") {
@@ -253,7 +253,7 @@ func TestEndToEndTriageControl(t *testing.T) {
 
 	// AC-08: a malformed record (missing the required Beschreibung field) is
 	// rejected by record ID and offending field, and nothing is written.
-	malformedAttachDir := filepath.Join(beansDir, beancore.AttachmentsDir, "beans-malf")
+	malformedAttachDir := filepath.Join(itemsDir, itemcore.AttachmentsDir, "beans-malf")
 	if err := os.MkdirAll(malformedAttachDir, 0755); err != nil {
 		t.Fatalf("creating malformed attachments dir: %v", err)
 	}
@@ -272,7 +272,7 @@ func TestEndToEndTriageControl(t *testing.T) {
 	if err := os.WriteFile(malformedArtifactPath, []byte(malformedDoc), 0644); err != nil {
 		t.Fatalf("writing malformed artifact: %v", err)
 	}
-	beforeMalformed := countBeans(t)
+	beforeMalformed := countItems(t)
 	rejectErr := promoteCmd.RunE(promoteCmd, []string{malformedArtifactPath, "B01"})
 	if rejectErr == nil {
 		t.Fatal("expected the malformed record to be rejected, got nil")
@@ -283,11 +283,11 @@ func TestEndToEndTriageControl(t *testing.T) {
 	if !contains(rejectErr.Error(), "Beschreibung") {
 		t.Errorf("rejection %q does not name the offending field", rejectErr.Error())
 	}
-	if got := countBeans(t); got != beforeMalformed {
+	if got := countItems(t); got != beforeMalformed {
 		t.Errorf("beans after malformed submission = %d, want %d (nothing written)", got, beforeMalformed)
 	}
 
-	// AC-09: the artifact path recorded on the promoted bean resolves to the
+	// AC-09: the artifact path recorded on the promoted item resolves to the
 	// exact file the artifact-writing step produced, byte-for-byte
 	// unmodified.
 	if promoted != nil && promoted.Extra["review"] != artifactPath {

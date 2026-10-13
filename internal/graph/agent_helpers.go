@@ -3,9 +3,9 @@ package graph
 import (
 	"fmt"
 
-	"github.com/xRiErOS/beans/internal/agent"
-	"github.com/xRiErOS/beans/pkg/beangraph/model"
-	"github.com/xRiErOS/beans/pkg/forge"
+	"github.com/xRiErOS/lif/internal/agent"
+	"github.com/xRiErOS/lif/pkg/forge"
+	"github.com/xRiErOS/lif/pkg/itemgraph/model"
 )
 
 // agentSessionToModel converts an agent.Session to the GraphQL model type.
@@ -122,7 +122,7 @@ func agentSessionToModel(s *agent.Session) *model.AgentSession {
 	copy(quickReplies, s.QuickReplies)
 
 	return &model.AgentSession{
-		BeanID:             s.ID,
+		ItemID:             s.ID,
 		AgentType:          s.AgentType,
 		Status:             status,
 		Messages:           msgs,
@@ -152,7 +152,7 @@ func activeAgentsToModel(agents []agent.ActiveAgent) []*model.ActiveAgentStatus 
 			status = model.AgentSessionStatusError
 		}
 		result[i] = &model.ActiveAgentStatus{
-			BeanID: a.BeanID,
+			ItemID: a.ItemID,
 			Status: status,
 		}
 	}
@@ -234,7 +234,7 @@ IMPORTANT: Do NOT fix anything automatically. Only identify and list the issues,
 	{
 		ID:          "integrate",
 		Label:       "Integrate",
-		Description: "Commit, complete any associated beans, and squash-merge into main",
+		Description: "Commit, complete any associated items, and squash-merge into main",
 		PromptFunc: func(ctx actionContext) string {
 			return fmt.Sprintf(`Squash-merge this worktree's work into main. All commits from this branch must be combined into a single commit on main. Follow these steps in order:
 
@@ -244,12 +244,12 @@ CRITICAL SAFETY RULES — READ BEFORE DOING ANYTHING:
 - NEVER run any push command that targets the main branch on any remote.
 - If something goes wrong, STOP and report the error. Do NOT attempt destructive recovery.
 
-1. If there are associated beans, mark them as completed.
+1. If there are associated items, mark them as completed.
 2. If there are uncommitted changes, create a commit (following the usual commit guidelines).
 3. Squash-merge onto main:
    a. Rebase onto main to incorporate any prior integrations: git rebase main
    b. Squash all commits into one: git reset --soft main && git commit -m "<your message>"
-      - Write a single, well-crafted conventional commit message that summarizes all the work done in this branch. Include relevant bean IDs.
+      - Write a single, well-crafted conventional commit message that summarizes all the work done in this branch. Include relevant item IDs.
    c. Record the squashed commit SHA: SQUASH_SHA=$(git rev-parse HEAD)
    d. Fast-forward main to the squashed commit (this updates main's ref, index, AND working tree):
       git -C %s merge --ff-only $SQUASH_SHA
@@ -356,10 +356,10 @@ func prPrompt(ctx actionContext) string {
 	if ctx.PullRequest == nil {
 		return fmt.Sprintf(`Create a pull request for this branch.
 
-1. If there are uncommitted changes, create a commit first (following conventional commit conventions, include relevant bean IDs).
+1. If there are uncommitted changes, create a commit first (following conventional commit conventions, include relevant item IDs).
 2. Push the branch: git push -u origin HEAD
 3. Create the PR: %s pr create
-   - Derive the title from commit messages using conventional commit style. Include relevant bean IDs.
+   - Derive the title from commit messages using conventional commit style. Include relevant item IDs.
    - Write a clear description summarizing the changes.
 4. Report the PR URL when done.`, cli)
 	}
@@ -368,7 +368,7 @@ func prPrompt(ctx actionContext) string {
 	if ctx.HasChanges || ctx.HasUnpushedCommits {
 		return fmt.Sprintf(`Update the existing pull request for this branch.
 
-1. If there are uncommitted changes, create a commit (following conventional commit conventions, include relevant bean IDs).
+1. If there are uncommitted changes, create a commit (following conventional commit conventions, include relevant item IDs).
 2. Push: git push
 3. If the scope of the PR changed significantly, update the PR title/body using %s pr edit.
 4. Report the PR URL when done.
@@ -401,7 +401,7 @@ IMPORTANT: Do NOT merge the PR. Only fix the failing checks.`, cli)
 
 // commitPrompt generates a commit prompt. The agent will inspect git state itself.
 func commitPrompt(_ actionContext) string {
-	return "Create a commit. Examine the current git status and diff, then commit with an appropriate message. If there are non-bean changes, make sure there is an associated bean that is up to date. If the only changes are bean files, describe the bean updates in the commit message."
+	return "Create a commit. Examine the current git status and diff, then commit with an appropriate message. If there are non-item changes, make sure there is an associated item that is up to date. If the only changes are item files, describe the item updates in the commit message."
 }
 
 // findAgentAction looks up an action by ID, returning nil if not found.
@@ -414,8 +414,8 @@ func findAgentAction(id string) *agentActionDef {
 	return nil
 }
 
-// findWorktreePath looks up the worktree filesystem path for a bean.
-func (r *Resolver) findWorktreePath(beanID string) (string, error) {
+// findWorktreePath looks up the worktree filesystem path for an item.
+func (r *Resolver) findWorktreePath(itemID string) (string, error) {
 	if r.WorktreeMgr == nil {
 		return "", fmt.Errorf("worktree manager not available")
 	}
@@ -424,9 +424,9 @@ func (r *Resolver) findWorktreePath(beanID string) (string, error) {
 		return "", fmt.Errorf("list worktrees: %w", err)
 	}
 	for _, wt := range wts {
-		if wt.ID == beanID {
+		if wt.ID == itemID {
 			return wt.Path, nil
 		}
 	}
-	return "", fmt.Errorf("no worktree found for bean %s", beanID)
+	return "", fmt.Errorf("no worktree found for item %s", itemID)
 }

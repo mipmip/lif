@@ -13,10 +13,10 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/muesli/termenv"
 
-	"github.com/xRiErOS/beans/internal/ui"
-	"github.com/xRiErOS/beans/pkg/bean"
-	"github.com/xRiErOS/beans/pkg/beancore"
-	"github.com/xRiErOS/beans/pkg/config"
+	"github.com/xRiErOS/lif/internal/ui"
+	"github.com/xRiErOS/lif/pkg/config"
+	"github.com/xRiErOS/lif/pkg/item"
+	"github.com/xRiErOS/lif/pkg/itemcore"
 )
 
 // setupProgressTest installs a throwaway core and default config into the
@@ -24,13 +24,13 @@ import (
 func setupProgressTest(t *testing.T) {
 	t.Helper()
 	tmpDir := t.TempDir()
-	beansDir := filepath.Join(tmpDir, ".beans")
-	if err := os.MkdirAll(beansDir, 0755); err != nil {
+	itemsDir := filepath.Join(tmpDir, ".beans")
+	if err := os.MkdirAll(itemsDir, 0755); err != nil {
 		t.Fatalf("failed to create test .beans dir: %v", err)
 	}
 
 	testCfg := config.Default()
-	testCore := beancore.New(beansDir, testCfg)
+	testCore := itemcore.New(itemsDir, testCfg)
 	if err := testCore.Load(); err != nil {
 		t.Fatalf("failed to load core: %v", err)
 	}
@@ -78,20 +78,20 @@ func captureProgressStdout(t *testing.T, fn func()) []byte {
 
 // TestProgressCountsByStatus verifies plain-text output shows a count for
 // every configured status (not just the four illustrated in the epic), and
-// that the counts reflect the actual beans present.
+// that the counts reflect the actual items present.
 func TestProgressCountsByStatus(t *testing.T) {
 	setupProgressTest(t)
 	resetProgressFlags(t)
 
-	beans := []*bean.Bean{
-		{ID: "beans-a1", Slug: bean.Slugify("A"), Title: "A", Status: "in-progress", Type: "task"},
-		{ID: "beans-a2", Slug: bean.Slugify("B"), Title: "B", Status: "todo", Type: "task"},
-		{ID: "beans-a3", Slug: bean.Slugify("C"), Title: "C", Status: "todo", Type: "task"},
-		{ID: "beans-a4", Slug: bean.Slugify("D"), Title: "D", Status: "draft", Type: "task"},
-		{ID: "beans-a5", Slug: bean.Slugify("E"), Title: "E", Status: "completed", Type: "task"},
-		{ID: "beans-a6", Slug: bean.Slugify("F"), Title: "F", Status: "scrapped", Type: "task"},
+	items := []*item.Item{
+		{ID: "beans-a1", Slug: item.Slugify("A"), Title: "A", Status: "in-progress", Type: "task"},
+		{ID: "beans-a2", Slug: item.Slugify("B"), Title: "B", Status: "todo", Type: "task"},
+		{ID: "beans-a3", Slug: item.Slugify("C"), Title: "C", Status: "todo", Type: "task"},
+		{ID: "beans-a4", Slug: item.Slugify("D"), Title: "D", Status: "draft", Type: "task"},
+		{ID: "beans-a5", Slug: item.Slugify("E"), Title: "E", Status: "completed", Type: "task"},
+		{ID: "beans-a6", Slug: item.Slugify("F"), Title: "F", Status: "scrapped", Type: "task"},
 	}
-	for _, b := range beans {
+	for _, b := range items {
 		if err := core.Create(b); err != nil {
 			t.Fatalf("core.Create(%s) error = %v", b.ID, err)
 		}
@@ -143,16 +143,16 @@ func TestProgressComputesPercent(t *testing.T) {
 }
 
 // TestProgressRootArgScopesToDescendants verifies that a root ID argument
-// limits the counted beans to the given bean's descendants (via
+// limits the counted items to the given item's descendants (via
 // buildChildrenIndex/descendants), not the whole workspace.
 func TestProgressRootArgScopesToDescendants(t *testing.T) {
 	setupProgressTest(t)
 	resetProgressFlags(t)
 
-	milestone := &bean.Bean{ID: "beans-mile1", Slug: bean.Slugify("Milestone"), Title: "Milestone", Status: "todo", Type: "milestone"}
-	inScope := &bean.Bean{ID: "beans-task1", Slug: bean.Slugify("In scope"), Title: "In scope", Status: "completed", Type: "task", Parent: "beans-mile1"}
-	outOfScope := &bean.Bean{ID: "beans-task2", Slug: bean.Slugify("Out of scope"), Title: "Out of scope", Status: "completed", Type: "task"}
-	for _, b := range []*bean.Bean{milestone, inScope, outOfScope} {
+	milestone := &item.Item{ID: "beans-mile1", Slug: item.Slugify("Milestone"), Title: "Milestone", Status: "todo", Type: "milestone"}
+	inScope := &item.Item{ID: "beans-task1", Slug: item.Slugify("In scope"), Title: "In scope", Status: "completed", Type: "task", Parent: "beans-mile1"}
+	outOfScope := &item.Item{ID: "beans-task2", Slug: item.Slugify("Out of scope"), Title: "Out of scope", Status: "completed", Type: "task"}
+	for _, b := range []*item.Item{milestone, inScope, outOfScope} {
 		if err := core.Create(b); err != nil {
 			t.Fatalf("core.Create(%s) error = %v", b.ID, err)
 		}
@@ -182,8 +182,8 @@ func TestProgressRootArgScopesToDescendants(t *testing.T) {
 
 // TestProgressRootArgScopesToDescendantsWithPrefix is a regression test
 // for a bug where the root argument passed the raw (possibly short) value
-// into descendants() instead of the resolved bean's full ID.
-// buildChildrenIndex keys its map by full bean IDs (b.Parent is always a
+// into descendants() instead of the resolved item's full ID.
+// buildChildrenIndex keys its map by full item IDs (b.Parent is always a
 // full ID), so looking up a short ID there missed and silently produced
 // 0/0 -- with no error. setupProgressTest uses config.Default(), whose
 // prefix is "" (short IDs == full IDs there), so that helper alone can't
@@ -191,13 +191,13 @@ func TestProgressRootArgScopesToDescendants(t *testing.T) {
 // a short root ID argument against it.
 func TestProgressRootArgScopesToDescendantsWithPrefix(t *testing.T) {
 	tmpDir := t.TempDir()
-	beansDir := filepath.Join(tmpDir, ".beans")
-	if err := os.MkdirAll(beansDir, 0755); err != nil {
+	itemsDir := filepath.Join(tmpDir, ".beans")
+	if err := os.MkdirAll(itemsDir, 0755); err != nil {
 		t.Fatalf("failed to create test .beans dir: %v", err)
 	}
 
 	testCfg := config.DefaultWithPrefix("beans-")
-	testCore := beancore.New(beansDir, testCfg)
+	testCore := itemcore.New(itemsDir, testCfg)
 	if err := testCore.Load(); err != nil {
 		t.Fatalf("failed to load core: %v", err)
 	}
@@ -208,17 +208,17 @@ func TestProgressRootArgScopesToDescendantsWithPrefix(t *testing.T) {
 
 	resetProgressFlags(t)
 
-	milestone := &bean.Bean{ID: "beans-mile1", Slug: bean.Slugify("Milestone"), Title: "Milestone", Status: "todo", Type: "milestone"}
-	inScope := &bean.Bean{ID: "beans-task1", Slug: bean.Slugify("In scope"), Title: "In scope", Status: "completed", Type: "task", Parent: "beans-mile1"}
-	outOfScope := &bean.Bean{ID: "beans-task2", Slug: bean.Slugify("Out of scope"), Title: "Out of scope", Status: "completed", Type: "task"}
-	for _, b := range []*bean.Bean{milestone, inScope, outOfScope} {
+	milestone := &item.Item{ID: "beans-mile1", Slug: item.Slugify("Milestone"), Title: "Milestone", Status: "todo", Type: "milestone"}
+	inScope := &item.Item{ID: "beans-task1", Slug: item.Slugify("In scope"), Title: "In scope", Status: "completed", Type: "task", Parent: "beans-mile1"}
+	outOfScope := &item.Item{ID: "beans-task2", Slug: item.Slugify("Out of scope"), Title: "Out of scope", Status: "completed", Type: "task"}
+	for _, b := range []*item.Item{milestone, inScope, outOfScope} {
 		if err := core.Create(b); err != nil {
 			t.Fatalf("core.Create(%s) error = %v", b.ID, err)
 		}
 	}
 
 	// "mile1" is a short ID that requires prefix-normalization ("beans-"
-	// prepended) to resolve to the full "beans-mile1" bean ID.
+	// prepended) to resolve to the full "beans-mile1" item ID.
 	progressJSON = true
 
 	out := captureProgressStdout(t, func() {
@@ -240,8 +240,8 @@ func TestProgressRootArgScopesToDescendantsWithPrefix(t *testing.T) {
 }
 
 // TestProgressRootArgErrorsOnUnknownID verifies that a root ID argument
-// that does not resolve to any bean returns an error instead of silently
-// reporting 0/0 progress (resolver.Bean returns (nil, nil) for unknown
+// that does not resolve to any item returns an error instead of silently
+// reporting 0/0 progress (resolver.Item returns (nil, nil) for unknown
 // IDs, so this must be checked explicitly).
 func TestProgressRootArgErrorsOnUnknownID(t *testing.T) {
 	setupProgressTest(t)
@@ -250,6 +250,9 @@ func TestProgressRootArgErrorsOnUnknownID(t *testing.T) {
 	err := progressCmd.RunE(progressCmd, []string{"beans-doesnotexist"})
 	if err == nil {
 		t.Fatal("expected an error for an unknown root ID argument, got nil")
+	}
+	if want := "item not found: beans-doesnotexist"; err.Error() != want {
+		t.Errorf("error = %q, want %q", err.Error(), want)
 	}
 }
 
@@ -266,13 +269,13 @@ func TestProgressRejectsMoreThanOneRootArg(t *testing.T) {
 // the typed short form.
 func TestProgressJSONCarriesResolvedRootID(t *testing.T) {
 	tmpDir := t.TempDir()
-	beansDir := filepath.Join(tmpDir, ".beans")
-	if err := os.MkdirAll(beansDir, 0755); err != nil {
+	itemsDir := filepath.Join(tmpDir, ".beans")
+	if err := os.MkdirAll(itemsDir, 0755); err != nil {
 		t.Fatalf("failed to create test .beans dir: %v", err)
 	}
 
 	testCfg := config.DefaultWithPrefix("beans-")
-	testCore := beancore.New(beansDir, testCfg)
+	testCore := itemcore.New(itemsDir, testCfg)
 	if err := testCore.Load(); err != nil {
 		t.Fatalf("failed to load core: %v", err)
 	}
@@ -283,9 +286,9 @@ func TestProgressJSONCarriesResolvedRootID(t *testing.T) {
 
 	resetProgressFlags(t)
 
-	milestone := &bean.Bean{ID: "beans-mile1", Slug: bean.Slugify("Milestone"), Title: "Milestone", Status: "todo", Type: "milestone"}
-	inScope := &bean.Bean{ID: "beans-task1", Slug: bean.Slugify("In scope"), Title: "In scope", Status: "completed", Type: "task", Parent: "beans-mile1"}
-	for _, b := range []*bean.Bean{milestone, inScope} {
+	milestone := &item.Item{ID: "beans-mile1", Slug: item.Slugify("Milestone"), Title: "Milestone", Status: "todo", Type: "milestone"}
+	inScope := &item.Item{ID: "beans-task1", Slug: item.Slugify("In scope"), Title: "In scope", Status: "completed", Type: "task", Parent: "beans-mile1"}
+	for _, b := range []*item.Item{milestone, inScope} {
 		if err := core.Create(b); err != nil {
 			t.Fatalf("core.Create(%s) error = %v", b.ID, err)
 		}
@@ -315,7 +318,7 @@ func TestProgressJSONOmitsRootWhenUnscoped(t *testing.T) {
 	resetProgressFlags(t)
 	progressJSON = true
 
-	task := &bean.Bean{ID: "beans-a1", Slug: bean.Slugify("A"), Title: "A", Status: "completed", Type: "task"}
+	task := &item.Item{ID: "beans-a1", Slug: item.Slugify("A"), Title: "A", Status: "completed", Type: "task"}
 	if err := core.Create(task); err != nil {
 		t.Fatalf("core.Create error = %v", err)
 	}
@@ -336,14 +339,14 @@ func TestProgressJSONOmitsRootWhenUnscoped(t *testing.T) {
 }
 
 // TestProgressScopedPlainTextNamesTheRoot verifies that a scoped plain-text
-// run prints a header line naming the root bean before the status lines.
+// run prints a header line naming the root item before the status lines.
 func TestProgressScopedPlainTextNamesTheRoot(t *testing.T) {
 	setupProgressTest(t)
 	resetProgressFlags(t)
 
-	milestone := &bean.Bean{ID: "beans-mile1", Slug: bean.Slugify("Milestone"), Title: "Milestone", Status: "todo", Type: "milestone"}
-	child := &bean.Bean{ID: "beans-task1", Slug: bean.Slugify("Child"), Title: "Child", Status: "completed", Type: "task", Parent: "beans-mile1"}
-	for _, b := range []*bean.Bean{milestone, child} {
+	milestone := &item.Item{ID: "beans-mile1", Slug: item.Slugify("Milestone"), Title: "Milestone", Status: "todo", Type: "milestone"}
+	child := &item.Item{ID: "beans-task1", Slug: item.Slugify("Child"), Title: "Child", Status: "completed", Type: "task", Parent: "beans-mile1"}
+	for _, b := range []*item.Item{milestone, child} {
 		if err := core.Create(b); err != nil {
 			t.Fatalf("core.Create(%s) error = %v", b.ID, err)
 		}
@@ -370,7 +373,7 @@ func TestProgressJSONOutputHasNoBarString(t *testing.T) {
 	resetProgressFlags(t)
 	progressJSON = true
 
-	task := &bean.Bean{ID: "beans-a1", Slug: bean.Slugify("A"), Title: "A", Status: "completed", Type: "task"}
+	task := &item.Item{ID: "beans-a1", Slug: item.Slugify("A"), Title: "A", Status: "completed", Type: "task"}
 	if err := core.Create(task); err != nil {
 		t.Fatalf("core.Create error = %v", err)
 	}
@@ -401,9 +404,9 @@ func TestProgressJSONOutputHasNoBarString(t *testing.T) {
 	}
 }
 
-// seedProgressCounts creates n beans of the given status for each entry in
+// seedProgressCounts creates n items of the given status for each entry in
 // counts, so tests can assert on aggregate counts without caring about
-// individual bean identity.
+// individual item identity.
 func seedProgressCounts(t *testing.T, counts map[string]int) {
 	t.Helper()
 	i := 0
@@ -412,7 +415,7 @@ func seedProgressCounts(t *testing.T, counts map[string]int) {
 			i++
 			id := fmt.Sprintf("beans-%s-%d", status, i)
 			title := fmt.Sprintf("%s %d", status, i)
-			b := &bean.Bean{ID: id, Slug: bean.Slugify(title), Title: title, Status: status, Type: "task"}
+			b := &item.Item{ID: id, Slug: item.Slugify(title), Title: title, Status: status, Type: "task"}
 			if err := core.Create(b); err != nil {
 				t.Fatalf("core.Create error = %v", err)
 			}
@@ -443,8 +446,8 @@ func stripANSITest(s string) string {
 
 var ansiEscapeTest = regexp.MustCompile("\x1b\\[[0-9;]*m")
 
-// runProgressInTestStore sets up a throwaway store with one bean in each
-// configured status and returns the plain-text `beans progress` output.
+// runProgressInTestStore sets up a throwaway store with one item in each
+// configured status and returns the plain-text `lif progress` output.
 func runProgressInTestStore(t *testing.T) string {
 	t.Helper()
 	setupProgressTest(t)
@@ -453,7 +456,7 @@ func runProgressInTestStore(t *testing.T) string {
 	for _, sc := range cfg.StatusList() {
 		id := fmt.Sprintf("beans-%s1", strings.ReplaceAll(sc.Name, "-", ""))
 		title := sc.Name
-		b := &bean.Bean{ID: id, Slug: bean.Slugify(title), Title: title, Status: sc.Name, Type: "task"}
+		b := &item.Item{ID: id, Slug: item.Slugify(title), Title: title, Status: sc.Name, Type: "task"}
 		if err := core.Create(b); err != nil {
 			t.Fatalf("core.Create(%s) error = %v", b.ID, err)
 		}

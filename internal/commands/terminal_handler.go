@@ -8,8 +8,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
-	"github.com/xRiErOS/beans/internal/terminal"
-	"github.com/xRiErOS/beans/internal/worktree"
+	"github.com/xRiErOS/lif/internal/terminal"
+	"github.com/xRiErOS/lif/internal/worktree"
 )
 
 // terminalInitMsg is the initial message sent by the client to start a PTY session.
@@ -161,7 +161,7 @@ func handleTerminalWS(c *gin.Context, termMgr *terminal.Manager, wtMgr *worktree
 }
 
 // resolveTerminalWorkDir maps a session ID to a filesystem path.
-// "__central__" maps to the project root; other IDs are looked up as worktree bean IDs.
+// "__central__" maps to the project root; other IDs are looked up as worktree item IDs.
 // The "__run" suffix is stripped before lookup, so run sessions resolve to the same
 // directory as their parent workspace.
 func resolveTerminalWorkDir(sessionID string, wtMgr *worktree.Manager, projectRoot string) (string, error) {

@@ -7,25 +7,25 @@ import (
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/xRiErOS/beans/pkg/candidates"
-	"github.com/xRiErOS/beans/pkg/config"
-	"github.com/xRiErOS/beans/internal/ui"
+	"github.com/xRiErOS/lif/pkg/candidates"
+	"github.com/xRiErOS/lif/pkg/config"
+	"github.com/xRiErOS/lif/internal/ui"
 )
 
 // statusSelectedMsg is sent when a status is selected from the picker
 type statusSelectedMsg struct {
-	beanIDs []string
+	itemIDs []string
 	status  string
 }
 
 // closeStatusPickerMsg is sent when the status picker is cancelled
 type closeStatusPickerMsg struct{}
 
-// openStatusPickerMsg requests opening the status picker for bean(s)
+// openStatusPickerMsg requests opening the status picker for item(s)
 type openStatusPickerMsg struct {
-	beanIDs       []string // IDs of beans to update
-	beanTitle     string   // Display title (single title or "N beans")
-	currentStatus string   // Only meaningful for single bean
+	itemIDs       []string // IDs of items to update
+	itemTitle     string   // Display title (single title or "N items")
+	currentStatus string   // Only meaningful for single item
 }
 
 // statusItem wraps a status to implement list.Item
@@ -76,14 +76,14 @@ func (d statusItemDelegate) Render(w io.Writer, m list.Model, index int, listIte
 // statusPickerModel is the model for the status picker view
 type statusPickerModel struct {
 	list          list.Model
-	beanIDs       []string
-	beanTitle     string
+	itemIDs       []string
+	itemTitle     string
 	currentStatus string
 	width         int
 	height        int
 }
 
-func newStatusPickerModel(beanIDs []string, beanTitle, currentStatus string, cfg *config.Config, width, height int) statusPickerModel {
+func newStatusPickerModel(itemIDs []string, itemTitle, currentStatus string, cfg *config.Config, width, height int) statusPickerModel {
 	// Get all statuses
 	statuses := candidates.StatusCandidates(cfg)
 
@@ -131,8 +131,8 @@ func newStatusPickerModel(beanIDs []string, beanTitle, currentStatus string, cfg
 
 	return statusPickerModel{
 		list:          l,
-		beanIDs:       beanIDs,
-		beanTitle:     beanTitle,
+		itemIDs:       itemIDs,
+		itemTitle:     itemTitle,
 		currentStatus: currentStatus,
 		width:         width,
 		height:        height,
@@ -162,7 +162,7 @@ func (m statusPickerModel) Update(msg tea.Msg) (statusPickerModel, tea.Cmd) {
 			case "enter":
 				if item, ok := m.list.SelectedItem().(statusItem); ok {
 					return m, func() tea.Msg {
-						return statusSelectedMsg{beanIDs: m.beanIDs, status: item.name}
+						return statusSelectedMsg{itemIDs: m.itemIDs, status: item.name}
 					}
 				}
 			case "esc", "backspace":
@@ -188,16 +188,16 @@ func (m statusPickerModel) View() string {
 		description = item.description
 	}
 
-	// For multi-select, don't show individual bean ID
-	var beanID string
-	if len(m.beanIDs) == 1 {
-		beanID = m.beanIDs[0]
+	// For multi-select, don't show individual item ID
+	var itemID string
+	if len(m.itemIDs) == 1 {
+		itemID = m.itemIDs[0]
 	}
 
 	return renderPickerModal(pickerModalConfig{
 		Title:       "Select Status",
-		BeanTitle:   m.beanTitle,
-		BeanID:      beanID,
+		ItemTitle:   m.itemTitle,
+		ItemID:      itemID,
 		ListContent: m.list.View(),
 		Description: description,
 		Width:       m.width,

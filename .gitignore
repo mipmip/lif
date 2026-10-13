@@ -1,10 +1,11 @@
-/beans
-/beans-serve
-/beans-tui
+/lif
+/lif-serve
+/lif-tui
 /.vscode/settings.json
 /.worktrees/
 /.superpowers/
 /.beans/
+/.lif/
 # Added by goreleaser init:
 /dist/
 /.docs.local

@@ -6,14 +6,14 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/xRiErOS/beans/internal/output"
-	"github.com/xRiErOS/beans/internal/ui"
-	"github.com/xRiErOS/beans/pkg/bean"
 	"github.com/spf13/cobra"
+	"github.com/xRiErOS/lif/internal/output"
+	"github.com/xRiErOS/lif/internal/ui"
+	"github.com/xRiErOS/lif/pkg/item"
 )
 
 // Relation kinds a graph edge can carry. "parent" points from the parent
-// bean to its child; "blocks" points from the blocking bean to the bean it
+// item to its child; "blocks" points from the blocking item to the item it
 // blocks. Both directions in the front matter (Blocking and BlockedBy)
 // collapse to the same "blocks" kind -- see buildGraphEdges.
 const (
@@ -21,7 +21,7 @@ const (
 	relBlocks = "blocks"
 )
 
-// graphEdge is one relationship between two beans. It is also the
+// graphEdge is one relationship between two items. It is also the
 // deduplication key: Blocking and BlockedBy are not mirrored on disk (see
 // buildGraphEdges), so the same logical edge can be declared from either
 // end and must collapse to one entry here.
@@ -31,7 +31,7 @@ type graphEdge struct {
 	Relation string `json:"relation"`
 }
 
-// graphNode is one bean as it appears in --format json output.
+// graphNode is one item as it appears in --format json output.
 type graphNode struct {
 	ID     string `json:"id"`
 	Title  string `json:"title"`
@@ -46,21 +46,21 @@ type graphModel struct {
 	Edges []graphEdge `json:"edges"`
 }
 
-// buildGraphEdges derives every relationship edge from the given beans.
+// buildGraphEdges derives every relationship edge from the given items.
 //
 // Blocking and BlockedBy are not mirrored on disk and not validated for
-// symmetry: the mutation resolvers write only the bean being mutated
-// (pkg/beangraph/mutations.go), and beancore only unions the two directions
-// transiently for GraphQL reads (pkg/beangraph/bean_fields.go). So
+// symmetry: the mutation resolvers write only the item being mutated
+// (pkg/itemgraph/mutations.go), and itemcore only unions the two directions
+// transiently for GraphQL reads (pkg/itemgraph/item_fields.go). So
 // A.blocking=[B] and B.blocked_by=[A] may both be present for one logical
 // edge, or only one of them may be -- both must produce the same edge here.
 //
-// A link to a bean that is not in the given set, or a link from a bean to
-// itself, is skipped rather than reported: that is beans check's job
-// (pkg/beancore.CheckAllLinks reports these as BrokenLink and SelfLink), and
+// A link to an item that is not in the given set, or a link from an item to
+// itself, is skipped rather than reported: that is lif check's job
+// (pkg/itemcore.CheckAllLinks reports these as BrokenLink and SelfLink), and
 // a second, differently worded report here would be a rival policy.
-func buildGraphEdges(all []*bean.Bean) []graphEdge {
-	byID := make(map[string]*bean.Bean, len(all))
+func buildGraphEdges(all []*item.Item) []graphEdge {
+	byID := make(map[string]*item.Item, len(all))
 	for _, b := range all {
 		byID[b.ID] = b
 	}
@@ -125,12 +125,12 @@ func filterGraphEdges(edges []graphEdge, kinds []string) []graphEdge {
 	return out
 }
 
-// scopeGraph limits edges to the neighbourhood of rootID: every bean
+// scopeGraph limits edges to the neighbourhood of rootID: every item
 // reachable within depth hops over the undirected view of edges (From->To
 // and To->From both traversable), plus every edge with at least one
 // endpoint closer than depth. depth == 0 means the whole connected
 // component. The returned map always contains rootID, even when it has no
-// edges, so an unlinked bean still yields a one-node scope.
+// edges, so an unlinked item still yields a one-node scope.
 func scopeGraph(edges []graphEdge, rootID string, depth int) (map[string]int, []graphEdge) {
 	adj := make(map[string][]graphEdge)
 	for _, e := range edges {
@@ -186,8 +186,8 @@ var (
 
 var graphCmd = &cobra.Command{
 	Use:   "graph [id]",
-	Short: "Print the bean relationship graph",
-	Long: `Prints the parent and blocking relationships between beans.
+	Short: "Print the item relationship graph",
+	Long: `Prints the parent and blocking relationships between items.
 
 The default output is Graphviz DOT, which pipes into ` + "`dot -Tpng`" + ` for an
 image; --format ascii prints a plain edge list for reading in a terminal,
@@ -195,13 +195,13 @@ image; --format ascii prints a plain edge list for reading in a terminal,
 and --format json the same graph as data. Nodes are coloured by the status colour
 from the configuration.
 
-Naming a bean scopes the output to that bean's neighbourhood: --depth 1 (the
-default) shows only relationships the bean itself takes part in, a higher
+Naming an item scopes the output to that item's neighbourhood: --depth 1 (the
+default) shows only relationships the item itself takes part in, a higher
 depth widens it by that many hops, and --depth 0 walks the whole connected
 component.
 
-Links pointing at a bean that does not exist, and self-references, are left
-out here; ` + "`beans check`" + ` is what reports them.`,
+Links pointing at an item that does not exist, and self-references, are left
+out here; ` + "`lif check`" + ` is what reports them.`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if graphFormat != "dot" && graphFormat != "ascii" && graphFormat != "json" && graphFormat != "mermaid" {
@@ -213,7 +213,7 @@ out here; ` + "`beans check`" + ` is what reports them.`,
 			return cmdError(jsonMode, output.ErrValidation, "--depth must be >= 0, got %d", graphDepth)
 		}
 		if cmd.Flags().Changed("depth") && len(args) == 0 {
-			return cmdError(jsonMode, output.ErrValidation, "--depth requires a bean id")
+			return cmdError(jsonMode, output.ErrValidation, "--depth requires an item id")
 		}
 		for _, r := range graphRelation {
 			if r != relParent && r != relBlocks {
@@ -222,7 +222,7 @@ out here; ` + "`beans check`" + ` is what reports them.`,
 		}
 
 		all := core.All()
-		bean.SortByStatusPriorityAndType(all, cfg.StatusNames(), cfg.PriorityNames(), cfg.TypeNames())
+		item.SortByStatusPriorityAndType(all, cfg.StatusNames(), cfg.PriorityNames(), cfg.TypeNames())
 
 		edges := filterGraphEdges(buildGraphEdges(all), graphRelation)
 
@@ -230,13 +230,13 @@ out here; ` + "`beans check`" + ` is what reports them.`,
 		if len(args) == 1 {
 			resolved, err := core.Get(args[0])
 			if err != nil {
-				return cmdError(jsonMode, output.ErrNotFound, "bean not found: %s", args[0])
+				return cmdError(jsonMode, output.ErrNotFound, "item not found: %s", args[0])
 			}
 			rootID = resolved.ID
 
 			var nodeIDs map[string]int
 			nodeIDs, edges = scopeGraph(edges, rootID, graphDepth)
-			filtered := make([]*bean.Bean, 0, len(nodeIDs))
+			filtered := make([]*item.Item, 0, len(nodeIDs))
 			for _, b := range all {
 				if _, ok := nodeIDs[b.ID]; ok {
 					filtered = append(filtered, b)
@@ -269,12 +269,12 @@ func dotQuote(s string) string {
 	return s
 }
 
-func renderGraphDot(cmd *cobra.Command, beans []*bean.Bean, edges []graphEdge) error {
+func renderGraphDot(cmd *cobra.Command, items []*item.Item, edges []graphEdge) error {
 	w := cmd.OutOrStdout()
-	fmt.Fprintln(w, "digraph beans {")
+	fmt.Fprintln(w, "digraph lif {")
 	fmt.Fprintln(w, "  rankdir=LR;")
 	fmt.Fprintln(w, `  node [shape=box style=filled fontname="Helvetica"];`)
-	for _, b := range beans {
+	for _, b := range items {
 		label := dotQuote(b.ID) + `\n` + dotQuote(ui.Truncate(b.Title, 40))
 		attrs := fmt.Sprintf(`label="%s"`, label)
 		if sc := cfg.GetStatus(b.Status); sc != nil && sc.Color != "" {
@@ -292,7 +292,7 @@ func renderGraphDot(cmd *cobra.Command, beans []*bean.Bean, edges []graphEdge) e
 	return nil
 }
 
-// mermaidHandle turns a bean id or status name into a Mermaid node handle or
+// mermaidHandle turns an item id or status name into a Mermaid node handle or
 // class name.
 //
 // A hyphen is kept: mermaid 11 accepts it in `beans-a --> beans-b` and in a
@@ -301,8 +301,8 @@ func renderGraphDot(cmd *cobra.Command, beans []*bean.Bean, edges []graphEdge) e
 // collapse onto one node.
 //
 // Everything outside [A-Za-z0-9_-] becomes an underscore, because the id
-// prefix is free-form configuration: `prefix: "my bean\"s "` in .beans.yml
-// yields the real id `my bean"s vm76`, whose space alone splits the handle
+// prefix is free-form configuration: `prefix: "my item\"s "` in .beans.yml
+// yields the real id `my item"s vm76`, whose space alone splits the handle
 // and the class statement into fragments Mermaid cannot read. The label
 // still carries the id as written, which is where a reader looks for it.
 func mermaidHandle(s string) string {
@@ -359,13 +359,13 @@ func mermaidLabel(s string) string {
 // direction, id and truncated title in the label, and the status colour
 // from the configuration -- as a classDef per status, since Mermaid has no
 // per-node fill attribute.
-func renderGraphMermaid(cmd *cobra.Command, beans []*bean.Bean, edges []graphEdge) error {
+func renderGraphMermaid(cmd *cobra.Command, items []*item.Item, edges []graphEdge) error {
 	w := cmd.OutOrStdout()
 	fmt.Fprintln(w, "flowchart LR")
 
 	classes := make(map[string]string)
 	var classOrder []string
-	for _, b := range beans {
+	for _, b := range items {
 		fmt.Fprintf(w, "  %s[\"%s<br/>%s\"]\n",
 			mermaidHandle(b.ID), mermaidLabel(b.ID), mermaidLabel(ui.Truncate(b.Title, 40)))
 
@@ -419,9 +419,9 @@ func renderGraphASCII(cmd *cobra.Command, edges []graphEdge, rootID string) erro
 	return nil
 }
 
-func renderGraphJSON(cmd *cobra.Command, beans []*bean.Bean, edges []graphEdge) error {
+func renderGraphJSON(cmd *cobra.Command, items []*item.Item, edges []graphEdge) error {
 	model := graphModel{Edges: edges}
-	for _, b := range beans {
+	for _, b := range items {
 		model.Nodes = append(model.Nodes, graphNode{ID: b.ID, Title: b.Title, Status: b.Status, Type: b.Type})
 	}
 	if model.Edges == nil {
@@ -438,7 +438,7 @@ func RegisterGraphCmd(root *cobra.Command) {
 	if graphCmd.Flags().Lookup("format") == nil {
 		graphCmd.Flags().StringVar(&graphFormat, "format", "dot", `Output format: "dot", "ascii", "mermaid" or "json"`)
 		graphCmd.Flags().StringArrayVar(&graphRelation, "relation", nil, `Only this relation kind: "parent" or "blocks" (can be repeated)`)
-		graphCmd.Flags().IntVar(&graphDepth, "depth", 1, "Hops from the named bean; 0 walks the whole connected component (requires a bean id)")
+		graphCmd.Flags().IntVar(&graphDepth, "depth", 1, "Hops from the named item; 0 walks the whole connected component (requires an item id)")
 	}
 	graphCmd.ValidArgsFunction = completionUpTo(1)
 	root.AddCommand(graphCmd)

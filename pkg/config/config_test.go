@@ -11,17 +11,17 @@ import (
 func TestDefault(t *testing.T) {
 	cfg := Default()
 
-	if cfg.Beans.IDLength != 4 {
-		t.Errorf("IDLength = %d, want 4", cfg.Beans.IDLength)
+	if cfg.Items.IDLength != 4 {
+		t.Errorf("IDLength = %d, want 4", cfg.Items.IDLength)
 	}
-	if cfg.Beans.Prefix != "" {
-		t.Errorf("Prefix = %q, want empty", cfg.Beans.Prefix)
+	if cfg.Items.Prefix != "" {
+		t.Errorf("Prefix = %q, want empty", cfg.Items.Prefix)
 	}
-	if cfg.Beans.DefaultStatus != "todo" {
-		t.Errorf("DefaultStatus = %q, want \"todo\"", cfg.Beans.DefaultStatus)
+	if cfg.Items.DefaultStatus != "todo" {
+		t.Errorf("DefaultStatus = %q, want \"todo\"", cfg.Items.DefaultStatus)
 	}
-	if cfg.Beans.DefaultType != "task" {
-		t.Errorf("DefaultType = %q, want \"task\"", cfg.Beans.DefaultType)
+	if cfg.Items.DefaultType != "task" {
+		t.Errorf("DefaultType = %q, want \"task\"", cfg.Items.DefaultType)
 	}
 	// Both types and statuses are hardcoded
 	if len(DefaultTypes) != 5 {
@@ -35,12 +35,12 @@ func TestDefault(t *testing.T) {
 func TestDefaultWithPrefix(t *testing.T) {
 	cfg := DefaultWithPrefix("myapp-")
 
-	if cfg.Beans.Prefix != "myapp-" {
-		t.Errorf("Prefix = %q, want \"myapp-\"", cfg.Beans.Prefix)
+	if cfg.Items.Prefix != "myapp-" {
+		t.Errorf("Prefix = %q, want \"myapp-\"", cfg.Items.Prefix)
 	}
 	// Other defaults should still apply
-	if cfg.Beans.IDLength != 4 {
-		t.Errorf("IDLength = %d, want 4", cfg.Beans.IDLength)
+	if cfg.Items.IDLength != 4 {
+		t.Errorf("IDLength = %d, want 4", cfg.Items.IDLength)
 	}
 }
 
@@ -197,8 +197,8 @@ func TestLoadNonExistent(t *testing.T) {
 	}
 
 	// Should have default values
-	if cfg.Beans.IDLength != 4 {
-		t.Errorf("IDLength = %d, want 4", cfg.Beans.IDLength)
+	if cfg.Items.IDLength != 4 {
+		t.Errorf("IDLength = %d, want 4", cfg.Items.IDLength)
 	}
 }
 
@@ -208,7 +208,7 @@ func TestLoadAndSave(t *testing.T) {
 
 	// Create a config (statuses are no longer stored in config)
 	cfg := &Config{
-		Beans: BeansConfig{
+		Items: ItemsConfig{
 			Path:        ".beans",
 			Prefix:      "test-",
 			IDLength:    6,
@@ -235,14 +235,14 @@ func TestLoadAndSave(t *testing.T) {
 	}
 
 	// Verify values
-	if loaded.Beans.Prefix != "test-" {
-		t.Errorf("Prefix = %q, want \"test-\"", loaded.Beans.Prefix)
+	if loaded.Items.Prefix != "test-" {
+		t.Errorf("Prefix = %q, want \"test-\"", loaded.Items.Prefix)
 	}
-	if loaded.Beans.IDLength != 6 {
-		t.Errorf("IDLength = %d, want 6", loaded.Beans.IDLength)
+	if loaded.Items.IDLength != 6 {
+		t.Errorf("IDLength = %d, want 6", loaded.Items.IDLength)
 	}
-	if loaded.Beans.DefaultType != "bug" {
-		t.Errorf("DefaultType = %q, want \"bug\"", loaded.Beans.DefaultType)
+	if loaded.Items.DefaultType != "bug" {
+		t.Errorf("DefaultType = %q, want \"bug\"", loaded.Items.DefaultType)
 	}
 	// Statuses are hardcoded, not stored in config
 	if len(loaded.StatusNames()) != 5 {
@@ -253,14 +253,14 @@ func TestLoadAndSave(t *testing.T) {
 // toYAMLNode() built the agent, worktree and server mappings without three
 // of their fields - agent.default_effort, worktree.fetch_timeout and
 // server.cors_origins were all readable via their Get*/GetWorktree* getters
-// but never written back out, so a Save() (e.g. via `beans rename`) on an
+// but never written back out, so a Save() (e.g. via `lif rename`) on an
 // already-loaded Config silently dropped them.
 func TestSaveRoundTripsAgentServerAndWorktreeExtras(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	fetchTimeout := 30
 	cfg := &Config{
-		Beans: BeansConfig{
+		Items: ItemsConfig{
 			Path:     ".beans",
 			Prefix:   "test-",
 			IDLength: 4,
@@ -317,8 +317,8 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	}
 
 	// Verify defaults were applied
-	if cfg.Beans.IDLength != 4 {
-		t.Errorf("IDLength default not applied: got %d, want 4", cfg.Beans.IDLength)
+	if cfg.Items.IDLength != 4 {
+		t.Errorf("IDLength default not applied: got %d, want 4", cfg.Items.IDLength)
 	}
 	// Statuses are hardcoded, always 5
 	if len(cfg.StatusNames()) != 5 {
@@ -330,8 +330,8 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	}
 	// DefaultType should agree with Default(): "task" when the merged type
 	// list carries it, which the built-in table always does.
-	if cfg.Beans.DefaultType != "task" {
-		t.Errorf("DefaultType default not applied: got %q, want \"task\"", cfg.Beans.DefaultType)
+	if cfg.Items.DefaultType != "task" {
+		t.Errorf("DefaultType default not applied: got %q, want \"task\"", cfg.Items.DefaultType)
 	}
 }
 
@@ -350,8 +350,8 @@ func TestLoadAnchor(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Load() error = %v", err)
 		}
-		if cfg.Beans.Anchor != AnchorRepoRoot {
-			t.Errorf("Anchor: got %q, want %q", cfg.Beans.Anchor, AnchorRepoRoot)
+		if cfg.Items.Anchor != AnchorRepoRoot {
+			t.Errorf("Anchor: got %q, want %q", cfg.Items.Anchor, AnchorRepoRoot)
 		}
 	})
 
@@ -360,8 +360,8 @@ func TestLoadAnchor(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Load() error = %v", err)
 		}
-		if cfg.Beans.Anchor != "" {
-			t.Errorf("Anchor: got %q, want empty", cfg.Beans.Anchor)
+		if cfg.Items.Anchor != "" {
+			t.Errorf("Anchor: got %q, want empty", cfg.Items.Anchor)
 		}
 	})
 
@@ -404,12 +404,15 @@ func TestLoadRequireFieldsOn(t *testing.T) {
 		if !strings.Contains(err.Error(), "reserved front matter field") {
 			t.Errorf("expected error to contain \"reserved front matter field\", got %q", err.Error())
 		}
+		if !strings.Contains(err.Error(), "managed by lif, not an extra key") {
+			t.Errorf("expected error to say the field is managed by lif, got %q", err.Error())
+		}
 	})
 
 	t.Run("save-load roundtrip preserves policy and commit field", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		cfg := &Config{
-			Beans: BeansConfig{
+			Items: ItemsConfig{
 				Path:            ".beans",
 				Prefix:          "test-",
 				IDLength:        4,
@@ -421,6 +424,13 @@ func TestLoadRequireFieldsOn(t *testing.T) {
 
 		if err := cfg.Save(tmpDir); err != nil {
 			t.Fatalf("Save() error = %v", err)
+		}
+		saved, err := os.ReadFile(filepath.Join(tmpDir, ConfigFileName))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if want := "# Front matter keys that must be set when an item enters a status"; !strings.Contains(string(saved), want) {
+			t.Errorf("saved config lacks the comment %q:\n%s", want, saved)
 		}
 
 		loaded, err := Load(filepath.Join(tmpDir, ConfigFileName))
@@ -464,7 +474,7 @@ func TestLoadRequireFieldsOn(t *testing.T) {
 		// dropped any such key instead of just writing it out.
 		tmpDir := t.TempDir()
 		cfg := &Config{
-			Beans: BeansConfig{
+			Items: ItemsConfig{
 				Path:            ".beans",
 				Prefix:          "test-",
 				IDLength:        4,
@@ -596,7 +606,7 @@ func TestTypesAreHardcoded(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	cfg := &Config{
-		Beans: BeansConfig{
+		Items: ItemsConfig{
 			Path:        ".beans",
 			Prefix:      "test-",
 			IDLength:    4,
@@ -640,7 +650,7 @@ func TestTypeDescriptions(t *testing.T) {
 		cfg := Default()
 
 		expectedDescriptions := map[string]string{
-			"epic":      "A thematic container for related work; should have child beans, not be worked on directly",
+			"epic":      "A thematic container for related work; should have child items, not be worked on directly",
 			"milestone": "A target release or checkpoint; group work that should ship together",
 			"feature":   "A user-facing capability or enhancement",
 			"bug":       "Something that is broken and needs fixing",
@@ -825,14 +835,14 @@ func TestLoadFromDirectory(t *testing.T) {
 		if err != nil {
 			t.Fatalf("LoadFromDirectory() error = %v", err)
 		}
-		if cfg.Beans.Path != "custom-beans" {
-			t.Errorf("Beans.Path = %q, want \"custom-beans\"", cfg.Beans.Path)
+		if cfg.Items.Path != "custom-beans" {
+			t.Errorf("Beans.Path = %q, want \"custom-beans\"", cfg.Items.Path)
 		}
-		if cfg.Beans.Prefix != "test-" {
-			t.Errorf("Prefix = %q, want \"test-\"", cfg.Beans.Prefix)
+		if cfg.Items.Prefix != "test-" {
+			t.Errorf("Prefix = %q, want \"test-\"", cfg.Items.Prefix)
 		}
-		if cfg.Beans.IDLength != 6 {
-			t.Errorf("IDLength = %d, want 6", cfg.Beans.IDLength)
+		if cfg.Items.IDLength != 6 {
+			t.Errorf("IDLength = %d, want 6", cfg.Items.IDLength)
 		}
 	})
 
@@ -843,8 +853,8 @@ func TestLoadFromDirectory(t *testing.T) {
 		if err != nil {
 			t.Fatalf("LoadFromDirectoryWithin() error = %v", err)
 		}
-		if cfg.Beans.Path != DefaultBeansPath {
-			t.Errorf("Beans.Path = %q, want %q", cfg.Beans.Path, DefaultBeansPath)
+		if cfg.Items.Path != "" {
+			t.Errorf("Items.Path = %q, want empty (no explicit path)", cfg.Items.Path)
 		}
 		if cfg.ConfigDir() != tmpDir {
 			t.Errorf("ConfigDir() = %q, want %q", cfg.ConfigDir(), tmpDir)
@@ -852,49 +862,50 @@ func TestLoadFromDirectory(t *testing.T) {
 	})
 }
 
-func TestResolveBeansPath(t *testing.T) {
+func TestResolveItemsPath(t *testing.T) {
 	t.Run("resolves relative path from config directory", func(t *testing.T) {
 		cfg := &Config{
-			Beans: BeansConfig{Path: "custom-beans"},
+			Items: ItemsConfig{Path: "custom-beans"},
 		}
 		cfg.SetConfigDir("/project/root")
 
-		got := cfg.ResolveBeansPath()
+		got, err := cfg.ResolveItemsPath()
 		want := "/project/root/custom-beans"
-		if got != want {
-			t.Errorf("ResolveBeansPath() = %q, want %q", got, want)
+		if err != nil || got != want {
+			t.Errorf("ResolveItemsPath() = %q, %v, want %q", got, err, want)
 		}
 	})
 
 	t.Run("returns absolute path unchanged", func(t *testing.T) {
 		cfg := &Config{
-			Beans: BeansConfig{Path: "/absolute/path/to/beans"},
+			Items: ItemsConfig{Path: "/absolute/path/to/beans"},
 		}
 		cfg.SetConfigDir("/project/root")
 
-		got := cfg.ResolveBeansPath()
+		got, err := cfg.ResolveItemsPath()
 		want := "/absolute/path/to/beans"
-		if got != want {
-			t.Errorf("ResolveBeansPath() = %q, want %q", got, want)
+		if err != nil || got != want {
+			t.Errorf("ResolveItemsPath() = %q, %v, want %q", got, err, want)
 		}
 	})
 
-	t.Run("uses default .beans path", func(t *testing.T) {
+	t.Run("uses default store directory", func(t *testing.T) {
+		dir := t.TempDir()
 		cfg := Default()
-		cfg.SetConfigDir("/project/root")
+		cfg.SetConfigDir(dir)
 
-		got := cfg.ResolveBeansPath()
-		want := "/project/root/.beans"
-		if got != want {
-			t.Errorf("ResolveBeansPath() = %q, want %q", got, want)
+		got, err := cfg.ResolveItemsPath()
+		want := filepath.Join(dir, DefaultStoreDir)
+		if err != nil || got != want {
+			t.Errorf("ResolveItemsPath() = %q, %v, want %q", got, err, want)
 		}
 	})
 }
 
-func TestDefaultHasBeansPath(t *testing.T) {
+func TestDefaultHasNoExplicitItemsPath(t *testing.T) {
 	cfg := Default()
-	if cfg.Beans.Path != DefaultBeansPath {
-		t.Errorf("Default().Beans.Path = %q, want %q", cfg.Beans.Path, DefaultBeansPath)
+	if cfg.Items.Path != "" {
+		t.Errorf("Default().Items.Path = %q, want empty (the default directory is resolved on disk)", cfg.Items.Path)
 	}
 }
 
@@ -1021,6 +1032,7 @@ func TestSaveIncludesComments(t *testing.T) {
 
 	cfg := DefaultWithPrefix("myapp-")
 	cfg.SetConfigDir(tmpDir)
+	cfg.Items.Path = DefaultStoreDir
 
 	if err := cfg.Save(tmpDir); err != nil {
 		t.Fatalf("Save() error = %v", err)
@@ -1034,21 +1046,21 @@ func TestSaveIncludesComments(t *testing.T) {
 	content := string(data)
 
 	// Verify header comment
-	if !strings.Contains(content, "# Beans configuration") {
-		t.Error("missing header comment 'Beans configuration'")
+	if !strings.Contains(content, "# Lif configuration") {
+		t.Error("missing header comment 'Lif configuration'")
 	}
-	if !strings.Contains(content, "# See: https://github.com/xRiErOS/beans") {
+	if !strings.Contains(content, "# See: https://github.com/xRiErOS/lif") {
 		t.Error("missing header comment with URL")
 	}
 
 	// Verify field comments
 	expectedComments := []string{
-		"# Directory where bean files are stored",
-		"# Prefix for bean IDs",
+		"# Directory where item files are stored",
+		"# Prefix for item IDs",
 		"# Length of the random ID suffix",
-		"# Default status for new beans",
-		"# Default type for new beans",
-		"# Port for the web UI",
+		"# Default status for new items",
+		"# Default type for new items",
+		"# Port for the web UI (used by `lif-serve`)",
 	}
 	for _, comment := range expectedComments {
 		if !strings.Contains(content, comment) {
@@ -1061,17 +1073,17 @@ func TestSaveIncludesComments(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
 	}
-	if loaded.Beans.Prefix != "myapp-" {
-		t.Errorf("Prefix = %q, want \"myapp-\"", loaded.Beans.Prefix)
+	if loaded.Items.Prefix != "myapp-" {
+		t.Errorf("Prefix = %q, want \"myapp-\"", loaded.Items.Prefix)
 	}
-	if loaded.Beans.IDLength != 4 {
-		t.Errorf("IDLength = %d, want 4", loaded.Beans.IDLength)
+	if loaded.Items.IDLength != 4 {
+		t.Errorf("IDLength = %d, want 4", loaded.Items.IDLength)
 	}
-	if loaded.Beans.DefaultStatus != "todo" {
-		t.Errorf("DefaultStatus = %q, want \"todo\"", loaded.Beans.DefaultStatus)
+	if loaded.Items.DefaultStatus != "todo" {
+		t.Errorf("DefaultStatus = %q, want \"todo\"", loaded.Items.DefaultStatus)
 	}
-	if loaded.Beans.DefaultType != "task" {
-		t.Errorf("DefaultType = %q, want \"task\"", loaded.Beans.DefaultType)
+	if loaded.Items.DefaultType != "task" {
+		t.Errorf("DefaultType = %q, want \"task\"", loaded.Items.DefaultType)
 	}
 	if loaded.GetServerPort() != DefaultServerPort {
 		t.Errorf("ServerPort = %d, want %d", loaded.GetServerPort(), DefaultServerPort)
@@ -1837,7 +1849,7 @@ func TestSaveAtomic(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	cfg := &Config{
-		Beans: BeansConfig{
+		Items: ItemsConfig{
 			Path:        ".beans",
 			Prefix:      "test-",
 			IDLength:    6,
@@ -1875,7 +1887,7 @@ func TestSavePreservesFileMode(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	cfg := &Config{
-		Beans: BeansConfig{
+		Items: ItemsConfig{
 			Path:   ".beans",
 			Prefix: "test-",
 		},
@@ -1905,7 +1917,7 @@ func TestSavePreservesFileMode(t *testing.T) {
 	}
 
 	// Save again with a different prefix
-	cfg.Beans.Prefix = "newprefix-"
+	cfg.Items.Prefix = "newprefix-"
 	if err := cfg.Save(tmpDir); err != nil {
 		t.Fatalf("second Save() error = %v", err)
 	}
@@ -2105,7 +2117,7 @@ func TestGettersToleratePlainDefaults(t *testing.T) {
 }
 
 func TestSaveRoundTripsTypeStatusAndPriorityOverrides(t *testing.T) {
-	// Save() is called by more than `init` (e.g. `beans rename`). Without
+	// Save() is called by more than `init` (e.g. `lif rename`). Without
 	// serializing these fields, a Save() on an already-loaded config would
 	// silently erase whatever the user configured.
 	tmpDir := t.TempDir()
@@ -2197,7 +2209,7 @@ func TestGettersToleratePlainDefaultsOnANilConfig(t *testing.T) {
 
 // The value-returning Get*/Is* accessors (as opposed to StatusList/TypeList/
 // PriorityList, which already tolerated nil) panicked on a nil *Config
-// because they dereferenced c.Beans/c.Worktree/c.Agent/c.Project/c.Server/
+// because they dereferenced c.Items/c.Worktree/c.Agent/c.Project/c.Server/
 // c.Display directly. Each must fall back to the same default it already
 // returns for an unset field.
 func TestValueGettersToleratesANilConfig(t *testing.T) {
@@ -2258,7 +2270,7 @@ func TestValueGettersToleratesANilConfig(t *testing.T) {
 
 // Fix round 1, Commit 3: the same data-loss bug as Statuses/Types/Priorities,
 // one struct over. toYAMLNode() did not know about DisplayConfig either, so
-// Save() (e.g. via `beans rename`) silently dropped a configured theme/
+// Save() (e.g. via `lif rename`) silently dropped a configured theme/
 // max_width from .beans.yml.
 
 func TestSaveRoundTripsDisplaySettings(t *testing.T) {
@@ -2380,7 +2392,7 @@ func TestAnExplicitEmphasisOverrideIsHonoured(t *testing.T) {
 }
 
 func TestSaveRoundTripsTypeEmphasisOverride(t *testing.T) {
-	// Save() is called by more than `init` (e.g. `beans rename`). Without
+	// Save() is called by more than `init` (e.g. `lif rename`). Without
 	// serializing Emphasis, a Save() on an already-loaded config would
 	// silently erase whatever the user configured.
 	tmpDir := t.TempDir()
@@ -2485,7 +2497,7 @@ func TestColourOnlyOverrideKeepsTheBuiltInRank(t *testing.T) {
 	}
 }
 
-// An explicit "color: ''"/"description: ''"/"short: ''" in the YAML source
+// An explicit `color: ""`, `description: ""` or `short: ""` in the YAML source
 // is a real value - clear the built-in default - not the same as never
 // naming the key at all, which leaves the default alone. This only applies
 // to configs loaded from YAML: UnmarshalYAML is what records which keys
@@ -2546,7 +2558,7 @@ func TestExplicitEmptyOverrideClearsTheBuiltInValue(t *testing.T) {
 }
 
 // A Save() -> Load() round trip must not lose the explicit clear either:
-// toYAMLNode() has to write "color: ''" back out, not skip the key the way
+// toYAMLNode() has to write `color: ""` back out, not skip the key the way
 // it would for a genuinely-unset override.
 func TestSaveRoundTripsAnExplicitlyEmptyOverride(t *testing.T) {
 	tmpDir := t.TempDir()
@@ -2790,7 +2802,7 @@ func TestSaveRoundTripsTypesExclusive(t *testing.T) {
 }
 
 // A plain Save() (no TypesExclusive set) must not introduce the new key at
-// all: every config written before this change, and every beans init without
+// all: every config written before this change, and every lif init without
 // --profile, has TypesExclusive false and must round-trip to the same false.
 func TestSaveOmitsTypesExclusiveWhenFalse(t *testing.T) {
 	tmpDir := t.TempDir()
@@ -2881,8 +2893,8 @@ func TestLoadDoesNotPanicOnAnEmptyExclusiveTypeList(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load() error = %v", err)
 	}
-	if cfg.Beans.DefaultType != "" {
-		t.Errorf("Beans.DefaultType = %q, want empty - nothing to derive one from", cfg.Beans.DefaultType)
+	if cfg.Items.DefaultType != "" {
+		t.Errorf("Beans.DefaultType = %q, want empty - nothing to derive one from", cfg.Items.DefaultType)
 	}
 }
 

@@ -8,24 +8,24 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/xRiErOS/beans/internal/ui"
-	"github.com/xRiErOS/beans/pkg/bean"
-	"github.com/xRiErOS/beans/pkg/beancore"
-	"github.com/xRiErOS/beans/pkg/config"
 	"github.com/spf13/cobra"
+	"github.com/xRiErOS/lif/internal/ui"
+	"github.com/xRiErOS/lif/pkg/config"
+	"github.com/xRiErOS/lif/pkg/item"
+	"github.com/xRiErOS/lif/pkg/itemcore"
 )
 
 // setupGraphTest installs a throwaway core and default config into the
 // package globals graphCmd.RunE reads, mirroring setupTagTest.
 func setupGraphTest(t *testing.T) {
 	t.Helper()
-	beansDir := filepath.Join(t.TempDir(), ".beans")
-	if err := os.MkdirAll(beansDir, 0755); err != nil {
+	itemsDir := filepath.Join(t.TempDir(), ".beans")
+	if err := os.MkdirAll(itemsDir, 0755); err != nil {
 		t.Fatalf("failed to create test .beans dir: %v", err)
 	}
 
 	testCfg := config.Default()
-	testCore := beancore.New(beansDir, testCfg)
+	testCore := itemcore.New(itemsDir, testCfg)
 	if err := testCore.Load(); err != nil {
 		t.Fatalf("failed to load core: %v", err)
 	}
@@ -35,15 +35,15 @@ func setupGraphTest(t *testing.T) {
 	t.Cleanup(func() { core, cfg = oldCore, oldCfg })
 }
 
-// mkGraphBean creates and persists a bean with the given relationships.
-func mkGraphBean(t *testing.T, id, title, beanType, parent string, blocking, blockedBy []string) *bean.Bean {
+// mkGraphItem creates and persists an item with the given relationships.
+func mkGraphItem(t *testing.T, id, title, itemType, parent string, blocking, blockedBy []string) *item.Item {
 	t.Helper()
-	b := &bean.Bean{
+	b := &item.Item{
 		ID:        id,
-		Slug:      bean.Slugify(title),
+		Slug:      item.Slugify(title),
 		Title:     title,
 		Status:    "todo",
-		Type:      beanType,
+		Type:      itemType,
 		Parent:    parent,
 		Blocking:  blocking,
 		BlockedBy: blockedBy,
@@ -62,10 +62,10 @@ func mkGraphBean(t *testing.T, id, title, beanType, parent string, blocking, blo
 //	beans-dddd  Lonely task   (task)  Parent: beans-zzzz (dangling)
 func seedGraphFixtures(t *testing.T) {
 	t.Helper()
-	mkGraphBean(t, "beans-aaaa", "Parent epic", "epic", "", nil, nil)
-	mkGraphBean(t, "beans-bbbb", "Child task", "task", "beans-aaaa", []string{"beans-cccc"}, nil)
-	mkGraphBean(t, "beans-cccc", "Blocked task", "task", "", nil, []string{"beans-bbbb"})
-	mkGraphBean(t, "beans-dddd", "Lonely task", "task", "beans-zzzz", nil, nil)
+	mkGraphItem(t, "beans-aaaa", "Parent epic", "epic", "", nil, nil)
+	mkGraphItem(t, "beans-bbbb", "Child task", "task", "beans-aaaa", []string{"beans-cccc"}, nil)
+	mkGraphItem(t, "beans-cccc", "Blocked task", "task", "", nil, []string{"beans-bbbb"})
+	mkGraphItem(t, "beans-dddd", "Lonely task", "task", "beans-zzzz", nil, nil)
 }
 
 // resetGraphFlags clears the graph* package globals to their registered
@@ -259,7 +259,7 @@ func TestGraphNodeFillcolorComesFromConfig(t *testing.T) {
 func TestGraphDotEscapesTitleQuotes(t *testing.T) {
 	setupGraphTest(t)
 	resetGraphFlags(t)
-	mkGraphBean(t, "beans-quot", `He said "hi"`, "task", "", nil, nil)
+	mkGraphItem(t, "beans-quot", `He said "hi"`, "task", "", nil, nil)
 
 	out, err := runGraph(t)
 	if err != nil {
@@ -279,8 +279,8 @@ func TestGraphRejectsDepthWithoutID(t *testing.T) {
 	seedGraphFixtures(t)
 
 	_, err := runGraph(t, "--depth", "2")
-	if err == nil || !strings.Contains(err.Error(), "--depth requires a bean id") {
-		t.Errorf("error = %v, want message containing %q", err, "--depth requires a bean id")
+	if err == nil || !strings.Contains(err.Error(), "--depth requires an item id") {
+		t.Errorf("error = %v, want message containing %q", err, "--depth requires an item id")
 	}
 }
 
@@ -295,14 +295,14 @@ func TestGraphRejectsUnknownFormat(t *testing.T) {
 	}
 }
 
-func TestGraphRejectsUnknownBeanID(t *testing.T) {
+func TestGraphRejectsUnknownItemID(t *testing.T) {
 	setupGraphTest(t)
 	resetGraphFlags(t)
 	seedGraphFixtures(t)
 
 	_, err := runGraph(t, "nonexistent")
-	if err == nil || !strings.Contains(err.Error(), "bean not found: nonexistent") {
-		t.Errorf("error = %v, want message containing %q", err, "bean not found: nonexistent")
+	if err == nil || !strings.Contains(err.Error(), "item not found: nonexistent") {
+		t.Errorf("error = %v, want message containing %q", err, "item not found: nonexistent")
 	}
 }
 
@@ -314,7 +314,7 @@ func TestGraphEmptyStoreIsNotAnError(t *testing.T) {
 	if err != nil {
 		t.Fatalf("runGraph() error = %v", err)
 	}
-	if !strings.Contains(out, "digraph beans {") || !strings.Contains(out, "}") {
+	if !strings.Contains(out, "digraph lif {") || !strings.Contains(out, "}") {
 		t.Errorf("dot output on empty store = %q, want a valid empty digraph", out)
 	}
 
@@ -356,12 +356,12 @@ func TestGraphMermaidRendersEveryNodeAndEdge(t *testing.T) {
 	}
 }
 
-// TestGraphMermaidUsesTheBeanIDVerbatim keeps the handle mappable back to a
-// bean. Mermaid 11 accepts a hyphenated id, in `beans-a --> beans-b` as well
+// TestGraphMermaidUsesTheItemIDVerbatim keeps the handle mappable back to a
+// item. Mermaid 11 accepts a hyphenated id, in `beans-a --> beans-b` as well
 // as in a class name, so rewriting the hyphen would buy nothing and cost
 // two things: a handle a reader cannot look up, and a collision between two
 // ids that differ only in `-` versus `_`.
-func TestGraphMermaidUsesTheBeanIDVerbatim(t *testing.T) {
+func TestGraphMermaidUsesTheItemIDVerbatim(t *testing.T) {
 	setupGraphTest(t)
 	resetGraphFlags(t)
 	seedGraphFixtures(t)
@@ -399,7 +399,7 @@ func TestGraphMermaidUsesTheBeanIDVerbatim(t *testing.T) {
 func TestGraphMermaidClassNamesCarryTheStatus(t *testing.T) {
 	setupGraphTest(t)
 	resetGraphFlags(t)
-	running := &bean.Bean{ID: "beans-iiii", Slug: "running", Title: "Running", Status: "in-progress", Type: "task"}
+	running := &item.Item{ID: "beans-iiii", Slug: "running", Title: "Running", Status: "in-progress", Type: "task"}
 	if err := core.Create(running); err != nil {
 		t.Fatalf("core.Create() error = %v", err)
 	}
@@ -419,8 +419,8 @@ func TestGraphMermaidClassNamesCarryTheStatus(t *testing.T) {
 func TestGraphMermaidEscapesLabelSyntax(t *testing.T) {
 	setupGraphTest(t)
 	resetGraphFlags(t)
-	mkGraphBean(t, "beans-eeee", `Fix "q" [b] (p) {c} &quot; #91; title`, "task", "", []string{"beans-ffff"}, nil)
-	mkGraphBean(t, "beans-ffff", "Plain", "task", "", nil, nil)
+	mkGraphItem(t, "beans-eeee", `Fix "q" [b] (p) {c} &quot; #91; title`, "task", "", []string{"beans-ffff"}, nil)
+	mkGraphItem(t, "beans-ffff", "Plain", "task", "", nil, nil)
 
 	out, err := runGraph(t, "--format", "mermaid", "--depth", "0", "beans-eeee")
 	if err != nil {
@@ -536,7 +536,6 @@ func TestGraphMermaidIsAValidFormat(t *testing.T) {
 	}
 }
 
-
 // TestGraphMermaidNeutralisesHTMLInLabels closes the gap the escaping had:
 // Mermaid renders node labels as HTML, so a title carrying markup would be
 // drawn as markup rather than as the title a user wrote. Angle brackets are
@@ -546,7 +545,7 @@ func TestGraphMermaidIsAValidFormat(t *testing.T) {
 func TestGraphMermaidNeutralisesHTMLInLabels(t *testing.T) {
 	setupGraphTest(t)
 	resetGraphFlags(t)
-	mkGraphBean(t, "beans-hhhh", "A <b>bold</b> and <img src=x> title", "task", "", nil, nil)
+	mkGraphItem(t, "beans-hhhh", "A <b>bold</b> and <img src=x> title", "task", "", nil, nil)
 
 	out, err := runGraph(t, "--format", "mermaid", "beans-hhhh")
 	if err != nil {
@@ -565,7 +564,6 @@ func TestGraphMermaidNeutralisesHTMLInLabels(t *testing.T) {
 	}
 }
 
-
 // TestGraphMermaidHandlesAConfiguredPrefix covers the reason the handle is
 // not simply the id: beans.prefix is free-form configuration, so an id can
 // carry a space or a quote, and either one splits a handle and its class
@@ -578,12 +576,12 @@ func TestGraphMermaidHandlesAConfiguredPrefix(t *testing.T) {
 	// Status names are configuration as well, and they reach the output as
 	// class names, so the same hole exists on that side: a status with a
 	// space would split the class and classDef lines apart.
-	cfg.Beans.Prefix = `my bean"s `
+	cfg.Items.Prefix = `my bean"s `
 	cfg.Statuses = append(cfg.Statuses, config.StatusOverride{Name: `needs "review" now`, Color: "#a6e3a1"})
-	hostile := &bean.Bean{ID: `my bean"s vm76`, Slug: "first", Title: "First", Status: `needs "review" now`, Type: "task"}
-	plain := &bean.Bean{ID: `my bean"s wtwd`, Slug: "second", Title: "Second", Status: `needs "review" now`, Type: "task",
+	hostile := &item.Item{ID: `my bean"s vm76`, Slug: "first", Title: "First", Status: `needs "review" now`, Type: "task"}
+	plain := &item.Item{ID: `my bean"s wtwd`, Slug: "second", Title: "Second", Status: `needs "review" now`, Type: "task",
 		BlockedBy: []string{`my bean"s vm76`}}
-	for _, b := range []*bean.Bean{hostile, plain} {
+	for _, b := range []*item.Item{hostile, plain} {
 		if err := core.Create(b); err != nil {
 			t.Fatalf("core.Create() error = %v", err)
 		}

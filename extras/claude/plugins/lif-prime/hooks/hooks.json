@@ -1,0 +1,25 @@
+{
+  "description": "Hooks for Lif plugin",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "lif prime"
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "lif prime"
+          }
+        ]
+      }
+    ]
+  }
+}

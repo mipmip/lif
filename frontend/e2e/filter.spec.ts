@@ -1,10 +1,10 @@
 import { test, expect } from './fixtures';
 
 test.describe('Filter', () => {
-  test('filters beans by title in backlog view', async ({ beans, backlogPage, page }) => {
-    beans.create('Authentication Feature', { status: 'todo', type: 'feature' });
-    beans.create('Database Migration', { status: 'todo', type: 'task' });
-    beans.create('Auth Bug Fix', { status: 'todo', type: 'bug' });
+  test('filters items by title in backlog view', async ({ lif, backlogPage, page }) => {
+    lif.create('Authentication Feature', { status: 'todo', type: 'feature' });
+    lif.create('Database Migration', { status: 'todo', type: 'task' });
+    lif.create('Auth Bug Fix', { status: 'todo', type: 'bug' });
 
     await backlogPage.goto(3);
 
@@ -12,17 +12,17 @@ test.describe('Filter', () => {
     const filterInput = page.getByTestId('filter-input');
     await filterInput.fill('auth');
 
-    // Should show only beans matching "auth" (case-insensitive)
+    // Should show only items matching "auth" (case-insensitive)
     await expect(async () => {
-      const titles = await backlogPage.getBeanTitles();
+      const titles = await backlogPage.getItemTitles();
       expect(titles).toEqual(['Auth Bug Fix', 'Authentication Feature']);
     }).toPass({ timeout: 5_000 });
   });
 
-  test('filters beans by type in backlog view', async ({ beans, backlogPage, page }) => {
-    beans.create('My Bug', { status: 'todo', type: 'bug' });
-    beans.create('My Task', { status: 'todo', type: 'task' });
-    beans.create('My Feature', { status: 'todo', type: 'feature' });
+  test('filters items by type in backlog view', async ({ lif, backlogPage, page }) => {
+    lif.create('My Bug', { status: 'todo', type: 'bug' });
+    lif.create('My Task', { status: 'todo', type: 'task' });
+    lif.create('My Feature', { status: 'todo', type: 'feature' });
 
     await backlogPage.goto(3);
 
@@ -30,16 +30,16 @@ test.describe('Filter', () => {
     await filterInput.fill('bug');
 
     await expect(async () => {
-      const titles = await backlogPage.getBeanTitles();
+      const titles = await backlogPage.getItemTitles();
       expect(titles).toEqual(['My Bug']);
     }).toPass({ timeout: 5_000 });
   });
 
-  test('shows parent when child matches filter', async ({ beans, backlogPage, page }) => {
-    const parentId = beans.create('Parent Feature', { status: 'todo', type: 'feature' });
-    const childId = beans.create('Special Child Task', { status: 'todo', type: 'task' });
-    beans.run(['update', childId, '--parent', parentId]);
-    beans.create('Unrelated Bean', { status: 'todo', type: 'task' });
+  test('shows parent when child matches filter', async ({ lif, backlogPage, page }) => {
+    const parentId = lif.create('Parent Feature', { status: 'todo', type: 'feature' });
+    const childId = lif.create('Special Child Task', { status: 'todo', type: 'task' });
+    lif.run(['update', childId, '--parent', parentId]);
+    lif.create('Unrelated Item', { status: 'todo', type: 'task' });
 
     await backlogPage.goto(3); // Parent + child + unrelated
 
@@ -48,14 +48,14 @@ test.describe('Filter', () => {
 
     // Parent should be shown because its child matches
     await expect(async () => {
-      const titles = await backlogPage.getBeanTitles();
+      const titles = await backlogPage.getItemTitles();
       expect(titles).toEqual(['Parent Feature', 'Special Child Task']);
     }).toPass({ timeout: 5_000 });
   });
 
-  test('clear button resets filter', async ({ beans, backlogPage, page }) => {
-    beans.create('Alpha', { status: 'todo', type: 'task' });
-    beans.create('Bravo', { status: 'todo', type: 'task' });
+  test('clear button resets filter', async ({ lif, backlogPage, page }) => {
+    lif.create('Alpha', { status: 'todo', type: 'task' });
+    lif.create('Bravo', { status: 'todo', type: 'task' });
 
     await backlogPage.goto(2);
 
@@ -63,7 +63,7 @@ test.describe('Filter', () => {
     await filterInput.fill('Alpha');
 
     await expect(async () => {
-      const titles = await backlogPage.getBeanTitles();
+      const titles = await backlogPage.getItemTitles();
       expect(titles).toEqual(['Alpha']);
     }).toPass({ timeout: 5_000 });
 
@@ -71,37 +71,37 @@ test.describe('Filter', () => {
     await page.getByTestId('filter-clear').click();
 
     await expect(async () => {
-      const titles = await backlogPage.getBeanTitles();
+      const titles = await backlogPage.getItemTitles();
       expect(titles).toEqual(['Alpha', 'Bravo']);
     }).toPass({ timeout: 5_000 });
   });
 
-  test('shows "No matching beans" when filter has no results', async ({
-    beans,
+  test('shows "No matching items" when filter has no results', async ({
+    lif,
     backlogPage,
     page
   }) => {
-    beans.create('Some Bean', { status: 'todo', type: 'task' });
+    lif.create('Some Item', { status: 'todo', type: 'task' });
 
     await backlogPage.goto(1);
 
     const filterInput = page.getByTestId('filter-input');
     await filterInput.fill('zzzznonexistent');
 
-    await expect(page.getByText('No beans').first()).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByText('No items').first()).toBeVisible({ timeout: 5_000 });
   });
 
-  test('filters beans in board view', async ({ beans, boardPage, page }) => {
-    beans.create('Auth Feature', { status: 'todo', type: 'feature' });
-    beans.create('Database Task', { status: 'todo', type: 'task' });
-    beans.create('Auth Bug', { status: 'in-progress', type: 'bug' });
+  test('filters items in board view', async ({ lif, boardPage, page }) => {
+    lif.create('Auth Feature', { status: 'todo', type: 'feature' });
+    lif.create('Database Task', { status: 'todo', type: 'task' });
+    lif.create('Auth Bug', { status: 'in-progress', type: 'bug' });
 
     await boardPage.goto();
 
     const filterInput = page.getByTestId('filter-input');
     await filterInput.fill('auth');
 
-    // Only auth-related beans should be visible
+    // Only auth-related items should be visible
     await expect(async () => {
       const todoTitles = await boardPage.getColumnTitles('todo');
       expect(todoTitles).toEqual(['Auth Feature']);
@@ -111,9 +111,9 @@ test.describe('Filter', () => {
     }).toPass({ timeout: 5_000 });
   });
 
-  test('filter is shared between backlog and board views', async ({ beans, backlogPage, page }) => {
-    beans.create('Alpha', { status: 'todo', type: 'task' });
-    beans.create('Bravo', { status: 'todo', type: 'task' });
+  test('filter is shared between backlog and board views', async ({ lif, backlogPage, page }) => {
+    lif.create('Alpha', { status: 'todo', type: 'task' });
+    lif.create('Bravo', { status: 'todo', type: 'task' });
 
     await backlogPage.goto(2);
 
@@ -122,7 +122,7 @@ test.describe('Filter', () => {
     await filterInput.fill('Alpha');
 
     await expect(async () => {
-      const titles = await backlogPage.getBeanTitles();
+      const titles = await backlogPage.getItemTitles();
       expect(titles).toEqual(['Alpha']);
     }).toPass({ timeout: 5_000 });
 
@@ -138,8 +138,8 @@ test.describe('Filter', () => {
     }).toPass({ timeout: 5_000 });
   });
 
-  test('Cmd/Ctrl+F focuses the filter input', async ({ beans, backlogPage, page }) => {
-    beans.create('Some Bean', { status: 'todo', type: 'task' });
+  test('Cmd/Ctrl+F focuses the filter input', async ({ lif, backlogPage, page }) => {
+    lif.create('Some Item', { status: 'todo', type: 'task' });
     await backlogPage.goto(1);
 
     // Press Cmd+F (or Ctrl+F)

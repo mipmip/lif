@@ -16,12 +16,12 @@ import (
 	"testing"
 
 	"github.com/spf13/cobra"
-	"github.com/xRiErOS/beans/pkg/bean"
-	"github.com/xRiErOS/beans/pkg/beancore"
-	"github.com/xRiErOS/beans/pkg/config"
+	"github.com/xRiErOS/lif/pkg/config"
+	"github.com/xRiErOS/lif/pkg/item"
+	"github.com/xRiErOS/lif/pkg/itemcore"
 )
 
-// completionTestBinary is the compiled cmd/beans binary, built once in
+// completionTestBinary is the compiled cmd/lif binary, built once in
 // TestMain. Reaching the beans-9jtq bug requires cobra's real __complete
 // request (completions.go's DisableFlagParsing path) driven through
 // Execute()/ExecuteC(), which sharedTestRoot's in-process root.Find +
@@ -43,11 +43,11 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
-	completionTestBinary = filepath.Join(binDir, "beans")
-	build := exec.Command("go", "build", "-o", completionTestBinary, "./cmd/beans")
+	completionTestBinary = filepath.Join(binDir, "lif")
+	build := exec.Command("go", "build", "-o", completionTestBinary, "./cmd/lif")
 	build.Dir = repoRoot
 	if out, err := build.CombinedOutput(); err != nil {
-		fmt.Fprintf(os.Stderr, "building beans binary: %v\n%s", err, out)
+		fmt.Fprintf(os.Stderr, "building lif binary: %v\n%s", err, out)
 		os.RemoveAll(binDir)
 		os.Exit(1)
 	}
@@ -61,7 +61,7 @@ func TestMain(m *testing.M) {
 }
 
 // writeFixtureStore creates a real .beans store on disk (not the
-// package-global core setupCompletionTest swaps in) with a single bean
+// package-global core setupCompletionTest swaps in) with a single item
 // named "<idPrefix>-only", so a completion test driven through a
 // subprocess can tell which store answered by grepping its stdout. The
 // explicit Slug forces BuildFilename's double-dash "id--slug.md" form;
@@ -69,16 +69,16 @@ func TestMain(m *testing.M) {
 // ParseFilename's single-dash legacy fallback and gets cut at the first
 // dash on reload -- a filename-format quirk unrelated to this bug that
 // would otherwise corrupt the fixture IDs this test greps for.
-func writeFixtureStore(t *testing.T, beansDir string, idPrefix string) {
+func writeFixtureStore(t *testing.T, itemsDir string, idPrefix string) {
 	t.Helper()
-	if err := os.MkdirAll(beansDir, 0755); err != nil {
+	if err := os.MkdirAll(itemsDir, 0755); err != nil {
 		t.Fatalf("creating fixture store dir: %v", err)
 	}
-	c := beancore.New(beansDir, config.Default())
+	c := itemcore.New(itemsDir, config.Default())
 	if err := c.Load(); err != nil {
 		t.Fatalf("loading fixture core: %v", err)
 	}
-	b := &bean.Bean{
+	b := &item.Item{
 		ID:     idPrefix + "-only",
 		Slug:   "fixture",
 		Title:  "Fixture bean",
@@ -90,22 +90,22 @@ func writeFixtureStore(t *testing.T, beansDir string, idPrefix string) {
 	}
 }
 
-// runBeansCompletion runs the compiled binary with cwd, args, and any
+// runItemsCompletion runs the compiled binary with cwd, args, and any
 // extraEnv entries ("KEY=value") appended to a copy of the current
-// environment with any inherited BEANS_PATH stripped first -- so a
-// developer's real BEANS_PATH can never leak into a result, and a test
+// environment with any inherited LIF_PATH and BEANS_PATH stripped first -- so a
+// developer's real LIF_PATH or BEANS_PATH can never leak into a result, and a test
 // that wants BEANS_PATH set does so explicitly via extraEnv. Returns
 // stdout and the exit error (nil on success). Only stdout is used for
 // assertions: cobra's __complete Run prints candidates and the trailing
 // ":<directive>" line there, never on stderr.
-func runBeansCompletion(t *testing.T, cwd string, extraEnv []string, args []string) (string, error) {
+func runItemsCompletion(t *testing.T, cwd string, extraEnv []string, args []string) (string, error) {
 	t.Helper()
 	cmd := exec.Command(completionTestBinary, args...)
 	cmd.Dir = cwd
 	baseEnv := os.Environ()
 	filtered := make([]string, 0, len(baseEnv)+len(extraEnv))
 	for _, kv := range baseEnv {
-		if strings.HasPrefix(kv, "BEANS_PATH=") {
+		if strings.HasPrefix(kv, config.StoreEnvVar+"=") || strings.HasPrefix(kv, config.LegacyStoreEnvVar+"=") {
 			continue
 		}
 		filtered = append(filtered, kv)
@@ -121,16 +121,16 @@ func runBeansCompletion(t *testing.T, cwd string, extraEnv []string, args []stri
 	return stdout.String(), err
 }
 
-// AC-01/AC-02: beans --beans-path <X> __complete show "" must yield
+// AC-01/AC-02: lif --lif-path <X> __complete show "" must yield
 // candidates from <X>, not from a store discovered via cwd -- even when
 // that foreign cwd carries its own .beans.yml. A foreign .beans.yml is the
 // case that matters (see beans-9jtq "Known failure mode"): directory
 // discovery and the flag coincide when the test runs from inside the
 // flag's own store, so a test that never leaves that store's directory
 // cannot observe this bug (the mistake beans-hh5z SC-01 made).
-func TestCompletionBeansPathOverridesForeignCwdDiscovery(t *testing.T) {
-	flagStoreBeans := filepath.Join(t.TempDir(), ".beans")
-	writeFixtureStore(t, flagStoreBeans, "flagstore")
+func TestCompletionItemsPathOverridesForeignCwdDiscovery(t *testing.T) {
+	flagStoreItems := filepath.Join(t.TempDir(), ".beans")
+	writeFixtureStore(t, flagStoreItems, "flagstore")
 
 	foreignCwd := t.TempDir()
 	writeFixtureStore(t, filepath.Join(foreignCwd, ".beans"), "cwdstore")
@@ -138,13 +138,13 @@ func TestCompletionBeansPathOverridesForeignCwdDiscovery(t *testing.T) {
 		t.Fatalf("writing foreign .beans.yml: %v", err)
 	}
 
-	out, err := runBeansCompletion(t, foreignCwd, nil, []string{"--beans-path", flagStoreBeans, "__complete", "show", ""})
+	out, err := runItemsCompletion(t, foreignCwd, nil, []string{"--lif-path", flagStoreItems, "__complete", "show", ""})
 	if err != nil {
 		t.Fatalf("__complete show \"\" failed: %v\nstdout: %s", err, out)
 	}
 
 	if !strings.Contains(out, "flagstore-only") {
-		t.Errorf("completion output = %q, want the --beans-path store's candidate (flagstore-only)", out)
+		t.Errorf("completion output = %q, want the --lif-path store's candidate (flagstore-only)", out)
 	}
 	if strings.Contains(out, "cwdstore-only") {
 		t.Errorf("completion output = %q, must not contain the foreign cwd's own store's candidate (cwdstore-only) -- the flag must win", out)
@@ -152,7 +152,7 @@ func TestCompletionBeansPathOverridesForeignCwdDiscovery(t *testing.T) {
 }
 
 // The store-unresolvable half of the same contract: an invalid
-// --beans-path must never fall back to the foreign cwd's perfectly valid
+// --lif-path must never fall back to the foreign cwd's perfectly valid
 // store. "No candidates" is the only acceptable outcome.
 func TestCompletionUnresolvableStoreYieldsNoCandidates(t *testing.T) {
 	foreignCwd := t.TempDir()
@@ -162,40 +162,40 @@ func TestCompletionUnresolvableStoreYieldsNoCandidates(t *testing.T) {
 	}
 
 	missingStore := filepath.Join(t.TempDir(), "does-not-exist")
-	out, err := runBeansCompletion(t, foreignCwd, nil, []string{"--beans-path", missingStore, "__complete", "show", ""})
+	out, err := runItemsCompletion(t, foreignCwd, nil, []string{"--lif-path", missingStore, "__complete", "show", ""})
 	if err == nil {
-		t.Fatalf("__complete show \"\" with an unresolvable --beans-path succeeded, want failure; stdout = %q", out)
+		t.Fatalf("__complete show \"\" with an unresolvable --lif-path succeeded, want failure; stdout = %q", out)
 	}
 	if strings.Contains(out, "cwdstore-only") {
-		t.Errorf("completion output = %q, must not fall back to the foreign cwd's own store when --beans-path is unresolvable", out)
+		t.Errorf("completion output = %q, must not fall back to the foreign cwd's own store when --lif-path is unresolvable", out)
 	}
 }
 
 // SC-01/AC-01's second required measurement point: a foreign cwd with NO
 // .beans.yml at all, so directory discovery has nothing of its own to find
 // there except BEANS_PATH. The flag must win over that divergence too, not
-// only over a discovered .beans.yml (TestCompletionBeansPathOverridesForeignCwdDiscovery
+// only over a discovered .beans.yml (TestCompletionItemsPathOverridesForeignCwdDiscovery
 // above covers that first axis).
-func TestCompletionBeansPathOverridesEnvWithNoConfigFile(t *testing.T) {
-	flagStoreBeans := filepath.Join(t.TempDir(), ".beans")
-	writeFixtureStore(t, flagStoreBeans, "flagstore2")
+func TestCompletionItemsPathOverridesEnvWithNoConfigFile(t *testing.T) {
+	flagStoreItems := filepath.Join(t.TempDir(), ".beans")
+	writeFixtureStore(t, flagStoreItems, "flagstore2")
 
-	envStoreBeans := filepath.Join(t.TempDir(), ".beans")
-	writeFixtureStore(t, envStoreBeans, "envstore")
+	envStoreItems := filepath.Join(t.TempDir(), ".beans")
+	writeFixtureStore(t, envStoreItems, "envstore")
 
 	// A bare foreign cwd: no .beans.yml, no .beans/ of its own, so the
 	// only thing directory-based discovery could ever fall back to here
 	// is BEANS_PATH.
 	foreignCwd := t.TempDir()
 
-	out, err := runBeansCompletion(t, foreignCwd, []string{"BEANS_PATH=" + envStoreBeans},
-		[]string{"--beans-path", flagStoreBeans, "__complete", "show", ""})
+	out, err := runItemsCompletion(t, foreignCwd, []string{config.StoreEnvVar + "=" + envStoreItems},
+		[]string{"--lif-path", flagStoreItems, "__complete", "show", ""})
 	if err != nil {
 		t.Fatalf("__complete show \"\" failed: %v\nstdout: %s", err, out)
 	}
 
 	if !strings.Contains(out, "flagstore2-only") {
-		t.Errorf("completion output = %q, want the --beans-path store's candidate (flagstore2-only)", out)
+		t.Errorf("completion output = %q, want the --lif-path store's candidate (flagstore2-only)", out)
 	}
 	if strings.Contains(out, "envstore-only") {
 		t.Errorf("completion output = %q, must not contain BEANS_PATH's candidate (envstore-only) -- the flag must win", out)
@@ -203,19 +203,19 @@ func TestCompletionBeansPathOverridesEnvWithNoConfigFile(t *testing.T) {
 }
 
 // SC-02: --config is the second raw-arg-recovered flag alongside
-// --beans-path (root.go's completionAwareRootFlags handles both). Without
+// --lif-path (root.go's completionAwareRootFlags handles both). Without
 // it, __complete would resolve a .beans.yml named explicitly via --config
 // only for the regular command path, silently falling back to directory
 // discovery for completion -- offering a third store's config (and
-// through it, its beans.path) while --beans-path/--config both point
+// through it, its beans.path) while --lif-path/--config both point
 // elsewhere. Measured from a foreign cwd with its own unrelated
 // .beans.yml, so directory discovery and --config cannot coincide.
 func TestCompletionConfigFlagOverridesForeignCwdDiscovery(t *testing.T) {
-	configStoreBeans := filepath.Join(t.TempDir(), ".beans")
-	writeFixtureStore(t, configStoreBeans, "configstore")
+	configStoreItems := filepath.Join(t.TempDir(), ".beans")
+	writeFixtureStore(t, configStoreItems, "configstore")
 	configDir := t.TempDir()
 	configPath := filepath.Join(configDir, "third.beans.yml")
-	configYAML := "beans:\n  path: " + configStoreBeans + "\n"
+	configYAML := "beans:\n  path: " + configStoreItems + "\n"
 	if err := os.WriteFile(configPath, []byte(configYAML), 0644); err != nil {
 		t.Fatalf("writing --config file: %v", err)
 	}
@@ -226,7 +226,7 @@ func TestCompletionConfigFlagOverridesForeignCwdDiscovery(t *testing.T) {
 		t.Fatalf("writing foreign .beans.yml: %v", err)
 	}
 
-	out, err := runBeansCompletion(t, foreignCwd, nil, []string{"--config", configPath, "__complete", "show", ""})
+	out, err := runItemsCompletion(t, foreignCwd, nil, []string{"--config", configPath, "__complete", "show", ""})
 	if err != nil {
 		t.Fatalf("__complete show \"\" failed: %v\nstdout: %s", err, out)
 	}
@@ -239,19 +239,19 @@ func TestCompletionConfigFlagOverridesForeignCwdDiscovery(t *testing.T) {
 	}
 }
 
-// setupCompletionTest installs a throwaway core with n beans into the
+// setupCompletionTest installs a throwaway core with n items into the
 // package globals the completion functions read, mirroring
 // setupStartTest's pattern (start_test.go).
-func setupCompletionTest(t *testing.T, n int) []*bean.Bean {
+func setupCompletionTest(t *testing.T, n int) []*item.Item {
 	t.Helper()
 	tmpDir := t.TempDir()
-	beansDir := filepath.Join(tmpDir, ".beans")
-	if err := os.MkdirAll(beansDir, 0755); err != nil {
+	itemsDir := filepath.Join(tmpDir, ".beans")
+	if err := os.MkdirAll(itemsDir, 0755); err != nil {
 		t.Fatalf("failed to create test .beans dir: %v", err)
 	}
 
 	testCfg := config.Default()
-	testCore := beancore.New(beansDir, testCfg)
+	testCore := itemcore.New(itemsDir, testCfg)
 	if err := testCore.Load(); err != nil {
 		t.Fatalf("failed to load core: %v", err)
 	}
@@ -260,32 +260,32 @@ func setupCompletionTest(t *testing.T, n int) []*bean.Bean {
 	core, cfg = testCore, testCfg
 	t.Cleanup(func() { core, cfg = oldCore, oldCfg })
 
-	beans := make([]*bean.Bean, 0, n)
+	items := make([]*item.Item, 0, n)
 	for i := range n {
-		b := &bean.Bean{
-			ID:     bean.Slugify("fixture") + "-" + string(rune('a'+i)),
+		b := &item.Item{
+			ID:     item.Slugify("fixture") + "-" + string(rune('a'+i)),
 			Title:  "Fixture bean",
 			Status: "todo",
 			Type:   "task",
 			// A poison Body: SC-03 requires the candidate source never
-			// reads it. If beanIDCandidates ever grows a Body reference,
-			// this string would leak into a candidate and TestBeanIDCandidatesNeverExposeBody
+			// reads it. If itemIDCandidates ever grows a Body reference,
+			// this string would leak into a candidate and TestItemIDCandidatesNeverExposeBody
 			// below would catch it.
 			Body: "POISON-BODY-MUST-NEVER-APPEAR-IN-COMPLETION-OUTPUT",
 		}
 		if err := core.Create(b); err != nil {
 			t.Fatalf("core.Create() error = %v", err)
 		}
-		beans = append(beans, b)
+		items = append(items, b)
 	}
-	return beans
+	return items
 }
 
 // AC-02/SC-01: candidates come from the store, not an empty list.
-func TestBeanIDCandidatesReturnsEveryBean(t *testing.T) {
-	beans := setupCompletionTest(t, 5)
+func TestItemIDCandidatesReturnsEveryItem(t *testing.T) {
+	items := setupCompletionTest(t, 5)
 
-	got := beanIDCandidates()
+	got := itemIDCandidates()
 	if len(got) != 5 {
 		t.Fatalf("beanIDCandidates() returned %d candidates, want 5", len(got))
 	}
@@ -295,7 +295,7 @@ func TestBeanIDCandidatesReturnsEveryBean(t *testing.T) {
 		id := strings.SplitN(c, "\t", 2)[0]
 		seen[id] = true
 	}
-	for _, b := range beans {
+	for _, b := range items {
 		if !seen[b.ID] {
 			t.Errorf("candidate list missing bean id %q", b.ID)
 		}
@@ -303,11 +303,11 @@ func TestBeanIDCandidatesReturnsEveryBean(t *testing.T) {
 }
 
 // AC-03/SC-03 (substring class): the formatted candidate text never contains
-// a bean's body content.
-func TestBeanIDCandidatesNeverExposeBody(t *testing.T) {
+// an item's body content.
+func TestItemIDCandidatesNeverExposeBody(t *testing.T) {
 	setupCompletionTest(t, 3)
 
-	for _, c := range beanIDCandidates() {
+	for _, c := range itemIDCandidates() {
 		if strings.Contains(c, "POISON-BODY-MUST-NEVER-APPEAR-IN-COMPLETION-OUTPUT") {
 			t.Fatalf("candidate %q leaks bean Body content", c)
 		}
@@ -316,24 +316,24 @@ func TestBeanIDCandidatesNeverExposeBody(t *testing.T) {
 
 // AC-03/SC-03 (structural class): a substring grep is undergoverned for an
 // absence criterion, so this parses completion.go's AST and asserts that
-// beanIDCandidates neither calls a body-loading/parsing operation (Get,
-// GetFromArchive, Render, ReadFile, loadFromDisk) nor references a bean's
+// itemIDCandidates neither calls a body-loading/parsing operation (Get,
+// GetFromArchive, Render, ReadFile, loadFromDisk) nor references an item's
 // Body field directly -- it may only walk the already-resident
 // core.All() slice and read ID/Type/Title/Status. The Body-selector check
 // exists because the call-name check alone does not cover a mutation that
 // appends b.Body directly (a field read, not a call): confirmed by running
 // that exact mutation, which left the call-name check green and only the
-// substring test (TestBeanIDCandidatesNeverExposeBody) red -- SC-03 was
+// substring test (TestItemIDCandidatesNeverExposeBody) red -- SC-03 was
 // covered only by the two tests together, not by this one alone, until
 // this selector check closed the gap.
-func TestBeanIDCandidatesSourceNeverCallsBodyLoader(t *testing.T) {
+func TestItemIDCandidatesSourceNeverCallsBodyLoader(t *testing.T) {
 	disallowedCalls := map[string]bool{
 		"Get":              true,
 		"GetFromArchive":   true,
 		"Render":           true,
 		"ReadFile":         true,
 		"loadFromDisk":     true,
-		"loadBean":         true,
+		"loadItem":         true,
 		"Load":             true,
 		"parseFrontMatter": true,
 	}
@@ -347,13 +347,13 @@ func TestBeanIDCandidatesSourceNeverCallsBodyLoader(t *testing.T) {
 	var found *ast.FuncDecl
 	for _, decl := range file.Decls {
 		fn, ok := decl.(*ast.FuncDecl)
-		if ok && fn.Name.Name == "beanIDCandidates" {
+		if ok && fn.Name.Name == "itemIDCandidates" {
 			found = fn
 			break
 		}
 	}
 	if found == nil {
-		t.Fatal("completion.go declares no beanIDCandidates function")
+		t.Fatal("completion.go declares no itemIDCandidates function")
 	}
 
 	ast.Inspect(found.Body, func(n ast.Node) bool {
@@ -391,7 +391,7 @@ func TestCompletionUnboundedNeverStops(t *testing.T) {
 			t.Errorf("argc=%d: got %d candidates, want 2", argc, len(got))
 		}
 		// beans-sfle AC-01: the directive must also request KeepOrder so
-		// the shell preserves beanIDCandidates' actionable-first ordering.
+		// the shell preserves itemIDCandidates' actionable-first ordering.
 		if directive != (cobra.ShellCompDirectiveNoFileComp|cobra.ShellCompDirectiveKeepOrder) {
 			t.Errorf("argc=%d: directive = %v, want %v", argc, directive, cobra.ShellCompDirectiveNoFileComp|cobra.ShellCompDirectiveKeepOrder)
 		}
@@ -438,9 +438,9 @@ func TestCompletionUpToStopsAtBoundary(t *testing.T) {
 }
 
 // AC-01: each of the twelve verbs registers a ValidArgsFunction. promote is
-// deliberately excluded -- neither of its positions names an existing bean
+// deliberately excluded -- neither of its positions names an existing item
 // (see the coordinator question posted 2026-09-08: promote.go:44,51 takes
-// an artifact path and finding-ids, not bean IDs).
+// an artifact path and finding-ids, not item IDs).
 //
 // Register funcs bind package-level singleton command/flag vars, so a
 // second ad hoc Register call in this test binary panics in pflag with
@@ -505,8 +505,8 @@ func TestEachIDVerbRegistersValidArgsFunction(t *testing.T) {
 }
 
 // rename's second position is a new, not-yet-existing identifier (rename.go
-// Long: "beans rename <id> <new-id> full new ID"), so it must not offer
-// existing bean IDs even though cobra.MaximumNArgs(2) allows a second
+// Long: "lif rename <id> <new-id> full new ID"), so it must not offer
+// existing item IDs even though cobra.MaximumNArgs(2) allows a second
 // position at all.
 func TestRenameSecondPositionOffersNoCandidates(t *testing.T) {
 	setupCompletionTest(t, 3)
@@ -523,21 +523,21 @@ func TestRenameSecondPositionOffersNoCandidates(t *testing.T) {
 	}
 }
 
-// setupCompletionTestWithStatuses installs a throwaway core with one bean
+// setupCompletionTestWithStatuses installs a throwaway core with one item
 // per entry in statuses, mirroring setupCompletionTest but letting the
-// caller control each bean's status instead of hardcoding "todo" -- needed
+// caller control each item's status instead of hardcoding "todo" -- needed
 // to fixture the actionable/non-actionable status boundary beans-sfle
 // AC-01 sorts across.
-func setupCompletionTestWithStatuses(t *testing.T, ids, statuses []string) []*bean.Bean {
+func setupCompletionTestWithStatuses(t *testing.T, ids, statuses []string) []*item.Item {
 	t.Helper()
 	tmpDir := t.TempDir()
-	beansDir := filepath.Join(tmpDir, ".beans")
-	if err := os.MkdirAll(beansDir, 0755); err != nil {
+	itemsDir := filepath.Join(tmpDir, ".beans")
+	if err := os.MkdirAll(itemsDir, 0755); err != nil {
 		t.Fatalf("failed to create test .beans dir: %v", err)
 	}
 
 	testCfg := config.Default()
-	testCore := beancore.New(beansDir, testCfg)
+	testCore := itemcore.New(itemsDir, testCfg)
 	if err := testCore.Load(); err != nil {
 		t.Fatalf("failed to load core: %v", err)
 	}
@@ -546,9 +546,9 @@ func setupCompletionTestWithStatuses(t *testing.T, ids, statuses []string) []*be
 	core, cfg = testCore, testCfg
 	t.Cleanup(func() { core, cfg = oldCore, oldCfg })
 
-	beans := make([]*bean.Bean, 0, len(statuses))
+	items := make([]*item.Item, 0, len(statuses))
 	for i, status := range statuses {
-		b := &bean.Bean{
+		b := &item.Item{
 			ID:     ids[i],
 			Title:  ids[i],
 			Status: status,
@@ -557,12 +557,12 @@ func setupCompletionTestWithStatuses(t *testing.T, ids, statuses []string) []*be
 		if err := testCore.Create(b); err != nil {
 			t.Fatalf("core.Create(%s) error = %v", ids[i], err)
 		}
-		beans = append(beans, b)
+		items = append(items, b)
 	}
-	return beans
+	return items
 }
 
-// TestBeanIDCandidatesActionableFirstOrder pins beans-sfle AC-01:
+// TestItemIDCandidatesActionableFirstOrder pins beans-sfle AC-01:
 // todo/in-progress candidates must precede draft, and draft must precede
 // completed/scrapped.
 //
@@ -578,12 +578,12 @@ func setupCompletionTestWithStatuses(t *testing.T, ids, statuses []string) []*be
 // completed/scrapped first, actionable last -- so core.All()'s natural
 // insertion order is the worst case for an accidental pass: a passing
 // assertion below can only be explained by the sort actually running.
-func TestBeanIDCandidatesActionableFirstOrder(t *testing.T) {
+func TestItemIDCandidatesActionableFirstOrder(t *testing.T) {
 	ids := []string{"beans-zzscr1", "beans-zzcmp1", "beans-zzdrf1", "beans-zzip01", "beans-zztd01"}
 	statuses := []string{"scrapped", "completed", "draft", "in-progress", "todo"}
 	setupCompletionTestWithStatuses(t, ids, statuses)
 
-	candidates := beanIDCandidates()
+	candidates := itemIDCandidates()
 
 	rankOf := func(id string) int {
 		for i, cand := range candidates {
@@ -627,7 +627,7 @@ func TestBeanIDCandidatesActionableFirstOrder(t *testing.T) {
 
 // TestCompletionUnboundedKeepsOrderDirective proves the ValidArgsFunctions
 // request ShellCompDirectiveKeepOrder, without which a shell would discard
-// beanIDCandidates' actionable-first ordering by re-sorting alphabetically.
+// itemIDCandidates' actionable-first ordering by re-sorting alphabetically.
 func TestCompletionUnboundedKeepsOrderDirective(t *testing.T) {
 	setupCompletionTest(t, 1)
 
@@ -684,7 +684,7 @@ func lastDirectiveLine(out string) (int, bool) {
 // -- a second such list would itself violate the guard beans-t7sv SC-03
 // exists to enforce. For every verb whose own Args validator accepts at
 // least one positional argument (acceptsPositionalArg above), it runs the
-// real compiled binary's `beans __complete <verb> ""` and reads the
+// real compiled binary's `lif __complete <verb> ""` and reads the
 // trailing ":<directive>" line cobra always prints. Numeric 0 is
 // ShellCompDirectiveDefault, the value that makes a shell fall back to
 // file-name completion in the cwd -- the beans-12cb bug. The set of verbs
@@ -707,7 +707,7 @@ func TestOnlyPromoteFallsToDefaultDirective(t *testing.T) {
 			continue
 		}
 		name := cmd.Name()
-		out, err := runBeansCompletion(t, storeDir, nil, []string{"__complete", name, ""})
+		out, err := runItemsCompletion(t, storeDir, nil, []string{"__complete", name, ""})
 		if err != nil {
 			t.Fatalf("__complete %s \"\": %v\nstdout: %s", name, err, out)
 		}
@@ -738,7 +738,7 @@ func TestFlagCompletionOffersRealCandidates(t *testing.T) {
 	t.Run("update --status", func(t *testing.T) {
 		storeDir := t.TempDir()
 		writeFixtureStore(t, filepath.Join(storeDir, ".beans"), "statusflag")
-		out, err := runBeansCompletion(t, storeDir, nil, []string{"__complete", "update", "statusflag-only", "--status", ""})
+		out, err := runItemsCompletion(t, storeDir, nil, []string{"__complete", "update", "statusflag-only", "--status", ""})
 		if err != nil {
 			t.Fatalf("__complete update --status \"\": %v\nstdout: %s", err, out)
 		}
@@ -752,7 +752,7 @@ func TestFlagCompletionOffersRealCandidates(t *testing.T) {
 	t.Run("update --type", func(t *testing.T) {
 		storeDir := t.TempDir()
 		writeFixtureStore(t, filepath.Join(storeDir, ".beans"), "typeflag")
-		out, err := runBeansCompletion(t, storeDir, nil, []string{"__complete", "update", "typeflag-only", "--type", ""})
+		out, err := runItemsCompletion(t, storeDir, nil, []string{"__complete", "update", "typeflag-only", "--type", ""})
 		if err != nil {
 			t.Fatalf("__complete update --type \"\": %v\nstdout: %s", err, out)
 		}
@@ -766,7 +766,7 @@ func TestFlagCompletionOffersRealCandidates(t *testing.T) {
 	t.Run("update --priority", func(t *testing.T) {
 		storeDir := t.TempDir()
 		writeFixtureStore(t, filepath.Join(storeDir, ".beans"), "priorityflag")
-		out, err := runBeansCompletion(t, storeDir, nil, []string{"__complete", "update", "priorityflag-only", "--priority", ""})
+		out, err := runItemsCompletion(t, storeDir, nil, []string{"__complete", "update", "priorityflag-only", "--priority", ""})
 		if err != nil {
 			t.Fatalf("__complete update --priority \"\": %v\nstdout: %s", err, out)
 		}
@@ -780,7 +780,7 @@ func TestFlagCompletionOffersRealCandidates(t *testing.T) {
 	t.Run("roadmap --status", func(t *testing.T) {
 		storeDir := t.TempDir()
 		writeFixtureStore(t, filepath.Join(storeDir, ".beans"), "roadmapstatusflag")
-		out, err := runBeansCompletion(t, storeDir, nil, []string{"__complete", "roadmap", "--status", ""})
+		out, err := runItemsCompletion(t, storeDir, nil, []string{"__complete", "roadmap", "--status", ""})
 		if err != nil {
 			t.Fatalf("__complete roadmap --status \"\": %v\nstdout: %s", err, out)
 		}
@@ -792,7 +792,7 @@ func TestFlagCompletionOffersRealCandidates(t *testing.T) {
 	t.Run("roadmap --no-status", func(t *testing.T) {
 		storeDir := t.TempDir()
 		writeFixtureStore(t, filepath.Join(storeDir, ".beans"), "roadmapnostatusflag")
-		out, err := runBeansCompletion(t, storeDir, nil, []string{"__complete", "roadmap", "--no-status", ""})
+		out, err := runItemsCompletion(t, storeDir, nil, []string{"__complete", "roadmap", "--no-status", ""})
 		if err != nil {
 			t.Fatalf("__complete roadmap --no-status \"\": %v\nstdout: %s", err, out)
 		}
@@ -804,7 +804,7 @@ func TestFlagCompletionOffersRealCandidates(t *testing.T) {
 	t.Run("update --tag", func(t *testing.T) {
 		storeDir := t.TempDir()
 		writeTaggedFixtureStore(t, filepath.Join(storeDir, ".beans"))
-		out, err := runBeansCompletion(t, storeDir, nil, []string{"__complete", "update", "tagged-one", "--tag", ""})
+		out, err := runItemsCompletion(t, storeDir, nil, []string{"__complete", "update", "tagged-one", "--tag", ""})
 		if err != nil {
 			t.Fatalf("__complete update --tag \"\": %v\nstdout: %s", err, out)
 		}
@@ -816,7 +816,7 @@ func TestFlagCompletionOffersRealCandidates(t *testing.T) {
 	t.Run("tag --tag", func(t *testing.T) {
 		storeDir := t.TempDir()
 		writeTaggedFixtureStore(t, filepath.Join(storeDir, ".beans"))
-		out, err := runBeansCompletion(t, storeDir, nil, []string{"__complete", "tag", "tagged-one", "--tag", ""})
+		out, err := runItemsCompletion(t, storeDir, nil, []string{"__complete", "tag", "tagged-one", "--tag", ""})
 		if err != nil {
 			t.Fatalf("__complete tag --tag \"\": %v\nstdout: %s", err, out)
 		}
@@ -828,19 +828,19 @@ func TestFlagCompletionOffersRealCandidates(t *testing.T) {
 	t.Run("update --parent", func(t *testing.T) {
 		storeDir := t.TempDir()
 		writeParentFixtureStore(t, filepath.Join(storeDir, ".beans"))
-		out, err := runBeansCompletion(t, storeDir, nil, []string{"__complete", "update", "parentflag-child", "--parent", ""})
+		out, err := runItemsCompletion(t, storeDir, nil, []string{"__complete", "update", "parentflag-child", "--parent", ""})
 		if err != nil {
 			t.Fatalf("__complete update --parent \"\": %v\nstdout: %s", err, out)
 		}
 		if !strings.Contains(out, "parentflag-epic") {
 			t.Errorf("completion output = %q, want it to contain the eligible parent %q", out, "parentflag-epic")
 		}
-		// candidates.ParentCandidates excludes the bean being updated from
-		// its own --parent candidates (a bean cannot be its own parent),
-		// unlike beanIDCandidates which lists every bean in the store with
+		// candidates.ParentCandidates excludes the item being updated from
+		// its own --parent candidates (an item cannot be its own parent),
+		// unlike itemIDCandidates which lists every item in the store with
 		// no such exclusion. A regression that swapped
 		// updateParentFlagCompletion's ParentCandidates call for
-		// beanIDCandidates would still pass the positive assertion above
+		// itemIDCandidates would still pass the positive assertion above
 		// (parentflag-epic is in both sets) but would let
 		// parentflag-child leak back in here.
 		if strings.Contains(out, "parentflag-child") {
@@ -851,12 +851,12 @@ func TestFlagCompletionOffersRealCandidates(t *testing.T) {
 	t.Run("list --parent", func(t *testing.T) {
 		storeDir := t.TempDir()
 		writeParentFixtureStore(t, filepath.Join(storeDir, ".beans"))
-		out, err := runBeansCompletion(t, storeDir, nil, []string{"__complete", "list", "--parent", ""})
+		out, err := runItemsCompletion(t, storeDir, nil, []string{"__complete", "list", "--parent", ""})
 		if err != nil {
 			t.Fatalf("__complete list --parent \"\": %v\nstdout: %s", err, out)
 		}
-		// list --parent is a single-value filter over ANY existing bean ID
-		// (beanIDCandidates), not ParentCandidates' type-eligible set -- the
+		// list --parent is a single-value filter over ANY existing item ID
+		// (itemIDCandidates), not ParentCandidates' type-eligible set -- the
 		// child itself must also appear, which candidates.ParentCandidates
 		// for parentflag-child would have excluded as a cycle risk.
 		if !strings.Contains(out, "parentflag-child") {
@@ -867,7 +867,7 @@ func TestFlagCompletionOffersRealCandidates(t *testing.T) {
 	t.Run("update --blocked-by", func(t *testing.T) {
 		storeDir := t.TempDir()
 		writeBlockingFixtureStore(t, filepath.Join(storeDir, ".beans"))
-		out, err := runBeansCompletion(t, storeDir, nil, []string{"__complete", "update", "blockflag-a", "--blocked-by", ""})
+		out, err := runItemsCompletion(t, storeDir, nil, []string{"__complete", "update", "blockflag-a", "--blocked-by", ""})
 		if err != nil {
 			t.Fatalf("__complete update --blocked-by \"\": %v\nstdout: %s", err, out)
 		}
@@ -879,7 +879,7 @@ func TestFlagCompletionOffersRealCandidates(t *testing.T) {
 	t.Run("update --blocking", func(t *testing.T) {
 		storeDir := t.TempDir()
 		writeBlockingFixtureStore(t, filepath.Join(storeDir, ".beans"))
-		out, err := runBeansCompletion(t, storeDir, nil, []string{"__complete", "update", "blockflag-a", "--blocking", ""})
+		out, err := runItemsCompletion(t, storeDir, nil, []string{"__complete", "update", "blockflag-a", "--blocking", ""})
 		if err != nil {
 			t.Fatalf("__complete update --blocking \"\": %v\nstdout: %s", err, out)
 		}
@@ -891,7 +891,7 @@ func TestFlagCompletionOffersRealCandidates(t *testing.T) {
 	t.Run("next --type", func(t *testing.T) {
 		storeDir := t.TempDir()
 		writeFixtureStore(t, filepath.Join(storeDir, ".beans"), "nexttypeflag")
-		out, err := runBeansCompletion(t, storeDir, nil, []string{"__complete", "next", "--type", ""})
+		out, err := runItemsCompletion(t, storeDir, nil, []string{"__complete", "next", "--type", ""})
 		if err != nil {
 			t.Fatalf("__complete next --type \"\": %v\nstdout: %s", err, out)
 		}
@@ -905,7 +905,7 @@ func TestFlagCompletionOffersRealCandidates(t *testing.T) {
 	t.Run("next --tag", func(t *testing.T) {
 		storeDir := t.TempDir()
 		writeTaggedFixtureStore(t, filepath.Join(storeDir, ".beans"))
-		out, err := runBeansCompletion(t, storeDir, nil, []string{"__complete", "next", "--tag", ""})
+		out, err := runItemsCompletion(t, storeDir, nil, []string{"__complete", "next", "--tag", ""})
 		if err != nil {
 			t.Fatalf("__complete next --tag \"\": %v\nstdout: %s", err, out)
 		}
@@ -917,7 +917,7 @@ func TestFlagCompletionOffersRealCandidates(t *testing.T) {
 	t.Run("next --parent", func(t *testing.T) {
 		storeDir := t.TempDir()
 		writeParentFixtureStore(t, filepath.Join(storeDir, ".beans"))
-		out, err := runBeansCompletion(t, storeDir, nil, []string{"__complete", "next", "--parent", ""})
+		out, err := runItemsCompletion(t, storeDir, nil, []string{"__complete", "next", "--parent", ""})
 		if err != nil {
 			t.Fatalf("__complete next --parent \"\": %v\nstdout: %s", err, out)
 		}
@@ -932,22 +932,22 @@ func TestFlagCompletionOffersRealCandidates(t *testing.T) {
 	})
 }
 
-// writeStatusFilterFixtureStore creates one bean per status name in
+// writeStatusFilterFixtureStore creates one item per status name in
 // statuses, IDs following the "filterstatus-<status>" pattern, for
 // beans-j5so's per-verb positional narrowing: complete/start/scrap must
 // each exclude some subset of these by status while show (and every other
 // completionUnbounded verb) must still offer all of them.
-func writeStatusFilterFixtureStore(t *testing.T, beansDir string, statuses []string) {
+func writeStatusFilterFixtureStore(t *testing.T, itemsDir string, statuses []string) {
 	t.Helper()
-	if err := os.MkdirAll(beansDir, 0755); err != nil {
+	if err := os.MkdirAll(itemsDir, 0755); err != nil {
 		t.Fatalf("creating fixture store dir: %v", err)
 	}
-	c := beancore.New(beansDir, config.Default())
+	c := itemcore.New(itemsDir, config.Default())
 	if err := c.Load(); err != nil {
 		t.Fatalf("loading fixture core: %v", err)
 	}
 	for _, status := range statuses {
-		b := &bean.Bean{
+		b := &item.Item{
 			ID:     "filterstatus-" + status,
 			Slug:   "fixture",
 			Title:  "Filter fixture " + status,
@@ -962,9 +962,9 @@ func writeStatusFilterFixtureStore(t *testing.T, beansDir string, statuses []str
 
 // TestPositionalCompletionNarrowsPerVerb pins beans-j5so's per-verb
 // positional narrowing: complete/start/scrap must each exclude their own
-// invalid-target statuses from bean-ID completion, while show (and every
+// invalid-target statuses from item-ID completion, while show (and every
 // other completionUnbounded/completionUpTo verb, beans-sfle AC-02) keeps
-// offering every bean regardless of status -- a future over-eager
+// offering every item regardless of status -- a future over-eager
 // narrowing that leaked onto an unfiltered verb must turn this red.
 func TestPositionalCompletionNarrowsPerVerb(t *testing.T) {
 	statuses := []string{"todo", "in-progress", "draft", "completed", "scrapped"}
@@ -972,7 +972,7 @@ func TestPositionalCompletionNarrowsPerVerb(t *testing.T) {
 	t.Run("complete excludes archived (completed/scrapped)", func(t *testing.T) {
 		storeDir := t.TempDir()
 		writeStatusFilterFixtureStore(t, filepath.Join(storeDir, ".beans"), statuses)
-		out, err := runBeansCompletion(t, storeDir, nil, []string{"__complete", "complete", ""})
+		out, err := runItemsCompletion(t, storeDir, nil, []string{"__complete", "complete", ""})
 		if err != nil {
 			t.Fatalf("__complete complete \"\": %v\nstdout: %s", err, out)
 		}
@@ -991,7 +991,7 @@ func TestPositionalCompletionNarrowsPerVerb(t *testing.T) {
 	t.Run("start excludes archived and already in-progress", func(t *testing.T) {
 		storeDir := t.TempDir()
 		writeStatusFilterFixtureStore(t, filepath.Join(storeDir, ".beans"), statuses)
-		out, err := runBeansCompletion(t, storeDir, nil, []string{"__complete", "start", ""})
+		out, err := runItemsCompletion(t, storeDir, nil, []string{"__complete", "start", ""})
 		if err != nil {
 			t.Fatalf("__complete start \"\": %v\nstdout: %s", err, out)
 		}
@@ -1010,7 +1010,7 @@ func TestPositionalCompletionNarrowsPerVerb(t *testing.T) {
 	t.Run("scrap excludes already scrapped", func(t *testing.T) {
 		storeDir := t.TempDir()
 		writeStatusFilterFixtureStore(t, filepath.Join(storeDir, ".beans"), statuses)
-		out, err := runBeansCompletion(t, storeDir, nil, []string{"__complete", "scrap", ""})
+		out, err := runItemsCompletion(t, storeDir, nil, []string{"__complete", "scrap", ""})
 		if err != nil {
 			t.Fatalf("__complete scrap \"\": %v\nstdout: %s", err, out)
 		}
@@ -1027,7 +1027,7 @@ func TestPositionalCompletionNarrowsPerVerb(t *testing.T) {
 	t.Run("show stays unfiltered", func(t *testing.T) {
 		storeDir := t.TempDir()
 		writeStatusFilterFixtureStore(t, filepath.Join(storeDir, ".beans"), statuses)
-		out, err := runBeansCompletion(t, storeDir, nil, []string{"__complete", "show", ""})
+		out, err := runItemsCompletion(t, storeDir, nil, []string{"__complete", "show", ""})
 		if err != nil {
 			t.Fatalf("__complete show \"\": %v\nstdout: %s", err, out)
 		}
@@ -1040,18 +1040,18 @@ func TestPositionalCompletionNarrowsPerVerb(t *testing.T) {
 	})
 }
 
-// writeTaggedFixtureStore creates a store with one bean carrying the tag
+// writeTaggedFixtureStore creates a store with one item carrying the tag
 // "urgent", for --tag completion (candidates.TagCandidates, beans-v725).
-func writeTaggedFixtureStore(t *testing.T, beansDir string) {
+func writeTaggedFixtureStore(t *testing.T, itemsDir string) {
 	t.Helper()
-	if err := os.MkdirAll(beansDir, 0755); err != nil {
+	if err := os.MkdirAll(itemsDir, 0755); err != nil {
 		t.Fatalf("creating fixture store dir: %v", err)
 	}
-	c := beancore.New(beansDir, config.Default())
+	c := itemcore.New(itemsDir, config.Default())
 	if err := c.Load(); err != nil {
 		t.Fatalf("loading fixture core: %v", err)
 	}
-	b := &bean.Bean{ID: "tagged-one", Slug: "fixture", Title: "Tagged fixture", Status: "todo", Type: "task", Tags: []string{"urgent"}}
+	b := &item.Item{ID: "tagged-one", Slug: "fixture", Title: "Tagged fixture", Status: "todo", Type: "task", Tags: []string{"urgent"}}
 	if err := c.Create(b); err != nil {
 		t.Fatalf("creating fixture bean: %v", err)
 	}
@@ -1059,41 +1059,41 @@ func writeTaggedFixtureStore(t *testing.T, beansDir string) {
 
 // writeParentFixtureStore creates an epic (valid parent type for task) and
 // a task, for --parent completion (candidates.ParentCandidates, beans-v725).
-func writeParentFixtureStore(t *testing.T, beansDir string) {
+func writeParentFixtureStore(t *testing.T, itemsDir string) {
 	t.Helper()
-	if err := os.MkdirAll(beansDir, 0755); err != nil {
+	if err := os.MkdirAll(itemsDir, 0755); err != nil {
 		t.Fatalf("creating fixture store dir: %v", err)
 	}
-	c := beancore.New(beansDir, config.Default())
+	c := itemcore.New(itemsDir, config.Default())
 	if err := c.Load(); err != nil {
 		t.Fatalf("loading fixture core: %v", err)
 	}
-	epic := &bean.Bean{ID: "parentflag-epic", Slug: "fixture", Title: "Parent fixture epic", Status: "todo", Type: "epic"}
+	epic := &item.Item{ID: "parentflag-epic", Slug: "fixture", Title: "Parent fixture epic", Status: "todo", Type: "epic"}
 	if err := c.Create(epic); err != nil {
 		t.Fatalf("creating fixture epic: %v", err)
 	}
-	child := &bean.Bean{ID: "parentflag-child", Slug: "fixture", Title: "Parent fixture child", Status: "todo", Type: "task"}
+	child := &item.Item{ID: "parentflag-child", Slug: "fixture", Title: "Parent fixture child", Status: "todo", Type: "task"}
 	if err := c.Create(child); err != nil {
 		t.Fatalf("creating fixture child: %v", err)
 	}
 }
 
-// writeBlockingFixtureStore creates two unrelated beans, for --blocked-by
+// writeBlockingFixtureStore creates two unrelated items, for --blocked-by
 // and --blocking completion (candidates.BlockingCandidates, beans-v725).
-func writeBlockingFixtureStore(t *testing.T, beansDir string) {
+func writeBlockingFixtureStore(t *testing.T, itemsDir string) {
 	t.Helper()
-	if err := os.MkdirAll(beansDir, 0755); err != nil {
+	if err := os.MkdirAll(itemsDir, 0755); err != nil {
 		t.Fatalf("creating fixture store dir: %v", err)
 	}
-	c := beancore.New(beansDir, config.Default())
+	c := itemcore.New(itemsDir, config.Default())
 	if err := c.Load(); err != nil {
 		t.Fatalf("loading fixture core: %v", err)
 	}
-	a := &bean.Bean{ID: "blockflag-a", Slug: "fixture", Title: "Blocking fixture A", Status: "todo", Type: "task"}
+	a := &item.Item{ID: "blockflag-a", Slug: "fixture", Title: "Blocking fixture A", Status: "todo", Type: "task"}
 	if err := c.Create(a); err != nil {
 		t.Fatalf("creating fixture bean a: %v", err)
 	}
-	b := &bean.Bean{ID: "blockflag-b", Slug: "fixture", Title: "Blocking fixture B", Status: "todo", Type: "task"}
+	b := &item.Item{ID: "blockflag-b", Slug: "fixture", Title: "Blocking fixture B", Status: "todo", Type: "task"}
 	if err := c.Create(b); err != nil {
 		t.Fatalf("creating fixture bean b: %v", err)
 	}

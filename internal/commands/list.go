@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/xRiErOS/beans/internal/output"
-	"github.com/xRiErOS/beans/internal/ui"
-	"github.com/xRiErOS/beans/pkg/bean"
-	"github.com/xRiErOS/beans/pkg/beangraph"
-	"github.com/xRiErOS/beans/pkg/beangraph/model"
-	"github.com/xRiErOS/beans/pkg/config"
 	"github.com/spf13/cobra"
+	"github.com/xRiErOS/lif/internal/output"
+	"github.com/xRiErOS/lif/internal/ui"
+	"github.com/xRiErOS/lif/pkg/config"
+	"github.com/xRiErOS/lif/pkg/item"
+	"github.com/xRiErOS/lif/pkg/itemgraph"
+	"github.com/xRiErOS/lif/pkg/itemgraph/model"
 )
 
 var (
@@ -47,8 +47,8 @@ var listCmd = &cobra.Command{
 	Use:     "list",
 	Args:    cobra.NoArgs,
 	Aliases: []string{"ls"},
-	Short:   "List all beans",
-	Long: `Lists all beans in the .beans directory.
+	Short:   "List all items",
+	Long: `Lists all items in the .lif directory (or in the legacy .beans directory of a project that still uses it).
 
 Search Syntax (--search/-S):
   The search flag supports Bleve query string syntax:
@@ -79,7 +79,7 @@ Search Syntax (--search/-S):
 		}
 
 		// Build GraphQL filter from CLI flags
-		filter := &model.BeanFilter{
+		filter := &model.ItemFilter{
 			Status:          listStatus,
 			ExcludeStatus:   listNoStatus,
 			Type:            listType,
@@ -125,9 +125,9 @@ Search Syntax (--search/-S):
 			filter.IsBlocked = &listIsBlocked
 		}
 
-		// --unblocked keeps only beans with no unresolved blocker, direct or
+		// --unblocked keeps only items with no unresolved blocker, direct or
 		// inherited from an ancestor. Unlike --ready it says nothing about
-		// status, so drafts and in-progress beans survive it. It is applied
+		// status, so drafts and in-progress items survive it. It is applied
 		// after --is-blocked, which the check above has already ruled out,
 		// and before --ready, which asks for the same value.
 		if listUnblocked {
@@ -135,91 +135,91 @@ Search Syntax (--search/-S):
 			filter.IsBlocked = &unblocked
 		}
 
-		// --ready: beans available to start (not blocked, excludes in-progress/completed/scrapped/draft,
-		// and excludes beans with implicit terminal status from a scrapped/completed ancestor)
+		// --ready: items available to start (not blocked, excludes in-progress/completed/scrapped/draft,
+		// and excludes items with implicit terminal status from a scrapped/completed ancestor)
 		if listReady {
 			applyReadyFilter(filter, cfg)
 		}
 
 		// Execute query via core resolver
-		resolver := &beangraph.CoreResolver{Core: core}
-		beans, err := resolver.Beans(context.Background(), filter)
+		resolver := &itemgraph.CoreResolver{Core: core}
+		items, err := resolver.Items(context.Background(), filter)
 		if err != nil {
-			return fmt.Errorf("querying beans: %w", err)
+			return fmt.Errorf("querying items: %w", err)
 		}
 
 		// --where filters on extra front matter keys after the graph query,
-		// since BeanFilter (a generated GraphQL type) does not carry them (AC1/AC2).
-		beans = filterByWhere(beans, listWhere)
+		// since ItemFilter (a generated GraphQL type) does not carry them (AC1/AC2).
+		items = filterByWhere(items, listWhere)
 
-		// Sort beans
-		sortBeans(beans, listSort, listDesc, cfg)
+		// Sort items
+		sortItems(items, listSort, listDesc, cfg)
 
 		// JSON output (flat list)
 		if listJSON {
 			if !listFull {
-				for _, b := range beans {
+				for _, b := range items {
 					b.Body = ""
 				}
 			}
-			return output.SuccessMultiple(beans)
+			return output.SuccessMultiple(items)
 		}
 
 		// Quiet mode: just IDs (flat)
 		if listQuiet {
-			for _, b := range beans {
+			for _, b := range items {
 				fmt.Println(b.ID)
 			}
 			return nil
 		}
 
-		// Both forms need every bean: the tree form to resolve ancestors for
+		// Both forms need every item: the tree form to resolve ancestors for
 		// context, the table form to compute implicit statuses.
-		allBeans, err := resolver.Beans(context.Background(), nil)
+		allItems, err := resolver.Items(context.Background(), nil)
 		if err != nil {
-			return fmt.Errorf("querying all beans for tree: %w", err)
+			return fmt.Errorf("querying all items for tree: %w", err)
 		}
 
-		// Pre-compute implicit statuses for all beans
-		implicitStatuses := make(map[string]string, len(allBeans))
-		for _, b := range allBeans {
+		// Pre-compute implicit statuses for all items
+		implicitStatuses := make(map[string]string, len(allItems))
+		for _, b := range allItems {
 			if status, _ := core.ImplicitStatus(b.ID); status != "" {
 				implicitStatuses[b.ID] = status
 			}
 		}
 
 		// Create sort function for tree building
-		sortFn := func(b []*bean.Bean) {
-			sortBeans(b, listSort, listDesc, cfg)
+		sortFn := func(b []*item.Item) {
+			sortItems(b, listSort, listDesc, cfg)
 		}
 
 		// Build tree
-		tree := ui.BuildTree(beans, allBeans, sortFn, implicitStatuses)
+		tree := ui.BuildTree(items, allItems, sortFn, implicitStatuses)
 
 		if len(tree) == 0 {
-			fmt.Println(ui.Muted.Render("No beans found. Create one with: beans new <title>"))
+			fmt.Println(ui.Muted.Render("No items found. Create one with: lif create <title>"))
 			return nil
 		}
 
 		width := resolveWidth(listMaxWidth, cmd.Flags().Changed("max-width"), cfg)
 
 		// The row source differs by form, not just by what Render does with
-		// it afterwards: BuildTree deliberately widens `tree` beyond `beans`
+		// it afterwards: BuildTree deliberately widens `tree` beyond `lif`
 		// with unmatched ancestors for context (ui.TreeNode.Matched), which
 		// is correct for --view tree but wrong for --view table — a filtered
 		// table promising comparable peers must not grow rows the filter
 		// rejected. RowsFromFlatItems(FlattenTree(tree)) would carry that
 		// leak through even though Render's table path re-flattens depth to
-		// 0, because flattening depth does not drop the extra beans. FlatRows
-		// on the already-filtered `beans` avoids both the leak and computing
+		// 0, because flattening depth does not drop the extran items. FlatRows
+		// on the already-filtered `lif` avoids both the leak and computing
 		// tree depth Render would then discard.
 		var rows []ui.Row
 		if form == ui.FormTree {
 			rows = ui.RowsFromFlatItems(ui.FlattenTree(tree))
 		} else {
-			rows = ui.FlatRows(beans)
+			rows = ui.FlatRows(items)
 		}
-		fmt.Print(ui.Render(rows, form, "Beans", width, listTags, cfg))
+		fmt.Print(ui.Render(rows, form, "Items", width, listTags, cfg))
 		return nil
 	},
 }
@@ -229,12 +229,12 @@ Search Syntax (--search/-S):
 // (default: completed/scrapped, but any custom status marked `archive:
 // true` is picked up too -- a hardcoded literal list would silently treat
 // a future archive-flagged status, e.g. a project-defined "po-review", as
-// still ready), and excludes beans with implicit terminal status from a
+// still ready), and excludes items with implicit terminal status from a
 // scrapped/completed ancestor. It mutates an already partially-built
-// *model.BeanFilter (e.g. one that already carries --type/--status flags)
+// *model.ItemFilter (e.g. one that already carries --type/--status flags)
 // rather than constructing a fresh one, so callers keep whatever filters
 // they set beforehand.
-func applyReadyFilter(filter *model.BeanFilter, cfg *config.Config) {
+func applyReadyFilter(filter *model.ItemFilter, cfg *config.Config) {
 	isBlocked := false
 	excludeImplicitTerminal := true
 	filter.IsBlocked = &isBlocked
@@ -247,41 +247,41 @@ func applyReadyFilter(filter *model.BeanFilter, cfg *config.Config) {
 	filter.ExcludeImplicitTerminal = &excludeImplicitTerminal
 }
 
-// sortBeans orders beans in place. desc reverses the finished ordering, so
+// sortItems orders items in place. desc reverses the finished ordering, so
 // every sort field gains a direction without each branch having to know
 // about one. With sortBy == "order" the reversal also flips the parent
-// groups the order branch builds, not just the beans inside them.
-func sortBeans(beans []*bean.Bean, sortBy string, desc bool, cfg *config.Config) {
+// groups the order branch builds, not just the items inside them.
+func sortItems(items []*item.Item, sortBy string, desc bool, cfg *config.Config) {
 	statusNames := cfg.StatusNames()
 	priorityNames := cfg.PriorityNames()
 	typeNames := cfg.TypeNames()
 
 	switch sortBy {
 	case "created":
-		sort.Slice(beans, func(i, j int) bool {
-			if beans[i].CreatedAt == nil && beans[j].CreatedAt == nil {
-				return beans[i].ID < beans[j].ID
+		sort.Slice(items, func(i, j int) bool {
+			if items[i].CreatedAt == nil && items[j].CreatedAt == nil {
+				return items[i].ID < items[j].ID
 			}
-			if beans[i].CreatedAt == nil {
+			if items[i].CreatedAt == nil {
 				return false
 			}
-			if beans[j].CreatedAt == nil {
+			if items[j].CreatedAt == nil {
 				return true
 			}
-			return beans[i].CreatedAt.After(*beans[j].CreatedAt)
+			return items[i].CreatedAt.After(*items[j].CreatedAt)
 		})
 	case "updated":
-		sort.Slice(beans, func(i, j int) bool {
-			if beans[i].UpdatedAt == nil && beans[j].UpdatedAt == nil {
-				return beans[i].ID < beans[j].ID
+		sort.Slice(items, func(i, j int) bool {
+			if items[i].UpdatedAt == nil && items[j].UpdatedAt == nil {
+				return items[i].ID < items[j].ID
 			}
-			if beans[i].UpdatedAt == nil {
+			if items[i].UpdatedAt == nil {
 				return false
 			}
-			if beans[j].UpdatedAt == nil {
+			if items[j].UpdatedAt == nil {
 				return true
 			}
-			return beans[i].UpdatedAt.After(*beans[j].UpdatedAt)
+			return items[i].UpdatedAt.After(*items[j].UpdatedAt)
 		})
 	case "status":
 		// Build status order from configured statuses
@@ -289,12 +289,12 @@ func sortBeans(beans []*bean.Bean, sortBy string, desc bool, cfg *config.Config)
 		for i, s := range statusNames {
 			statusOrder[s] = i
 		}
-		sort.Slice(beans, func(i, j int) bool {
-			oi, oj := statusOrder[beans[i].Status], statusOrder[beans[j].Status]
+		sort.Slice(items, func(i, j int) bool {
+			oi, oj := statusOrder[items[i].Status], statusOrder[items[j].Status]
 			if oi != oj {
 				return oi < oj
 			}
-			return beans[i].ID < beans[j].ID
+			return items[i].ID < items[j].ID
 		})
 	case "priority":
 		// Build priority order from configured priorities
@@ -302,7 +302,7 @@ func sortBeans(beans []*bean.Bean, sortBy string, desc bool, cfg *config.Config)
 		for i, p := range priorityNames {
 			priorityOrder[p] = i
 		}
-		// Find normal priority index for beans without priority
+		// Find normal priority index for items without priority
 		normalIdx := len(priorityNames)
 		for i, p := range priorityNames {
 			if p == "normal" {
@@ -310,60 +310,60 @@ func sortBeans(beans []*bean.Bean, sortBy string, desc bool, cfg *config.Config)
 				break
 			}
 		}
-		sort.Slice(beans, func(i, j int) bool {
+		sort.Slice(items, func(i, j int) bool {
 			pi := normalIdx
-			if beans[i].Priority != "" {
-				if order, ok := priorityOrder[beans[i].Priority]; ok {
+			if items[i].Priority != "" {
+				if order, ok := priorityOrder[items[i].Priority]; ok {
 					pi = order
 				}
 			}
 			pj := normalIdx
-			if beans[j].Priority != "" {
-				if order, ok := priorityOrder[beans[j].Priority]; ok {
+			if items[j].Priority != "" {
+				if order, ok := priorityOrder[items[j].Priority]; ok {
 					pj = order
 				}
 			}
 			if pi != pj {
 				return pi < pj
 			}
-			return beans[i].ID < beans[j].ID
+			return items[i].ID < items[j].ID
 		})
 	case "id":
-		sort.Slice(beans, func(i, j int) bool {
-			return beans[i].ID < beans[j].ID
+		sort.Slice(items, func(i, j int) bool {
+			return items[i].ID < items[j].ID
 		})
 	case "order":
 		// Order is a fractional index scoped per parent (R-12): two
 		// siblings under different parents can carry the same Order value,
 		// so sorting the flat list by Order alone would interleave
-		// unrelated groups. Group beans by Parent first — groups keep the
+		// unrelated groups. Group items by Parent first — groups keep the
 		// order in which their first member appears in the input, for
-		// determinism — then sort each group with bean.SortByOrder, which
-		// places beans without an Order value after every sibling that has
+		// determinism — then sort each group with item.SortByOrder, which
+		// places items without an Order value after every sibling that has
 		// one (AC1/AC2).
 		groupOrder := make([]string, 0)
-		groups := make(map[string][]*bean.Bean)
-		for _, b := range beans {
+		groups := make(map[string][]*item.Item)
+		for _, b := range items {
 			if _, ok := groups[b.Parent]; !ok {
 				groupOrder = append(groupOrder, b.Parent)
 			}
 			groups[b.Parent] = append(groups[b.Parent], b)
 		}
-		result := make([]*bean.Bean, 0, len(beans))
+		result := make([]*item.Item, 0, len(items))
 		for _, p := range groupOrder {
 			group := groups[p]
-			bean.SortByOrder(group)
+			item.SortByOrder(group)
 			result = append(result, group...)
 		}
-		copy(beans, result)
+		copy(items, result)
 	default:
 		// Default: sort by status order, then priority, then type order, then title (same as TUI)
-		bean.SortByStatusPriorityAndType(beans, statusNames, priorityNames, typeNames)
+		item.SortByStatusPriorityAndType(items, statusNames, priorityNames, typeNames)
 	}
 
 	if desc {
-		for i, j := 0, len(beans)-1; i < j; i, j = i+1, j-1 {
-			beans[i], beans[j] = beans[j], beans[i]
+		for i, j := 0, len(items)-1; i < j; i, j = i+1, j-1 {
+			items[i], items[j] = items[j], items[i]
 		}
 	}
 }
@@ -384,14 +384,14 @@ func validateWhereKeys(wheres []string) error {
 	return nil
 }
 
-// filterByWhere returns the subset of beans whose Extra map satisfies every
-// key=value pair in wheres (AND semantics, AC1/AC2). A key carried by no bean
+// filterByWhere returns the subset of items whose Extra map satisfies every
+// key=value pair in wheres (AND semantics, AC1/AC2). A key carried by no item
 // simply yields an empty result (AC4). Callers must run validateWhereKeys
 // first; a malformed pair here is skipped rather than erroring, since
 // filtering runs after the query and has no error path back to the caller.
-func filterByWhere(beans []*bean.Bean, wheres []string) []*bean.Bean {
+func filterByWhere(items []*item.Item, wheres []string) []*item.Item {
 	if len(wheres) == 0 {
-		return beans
+		return items
 	}
 
 	type pair struct{ key, value string }
@@ -404,8 +404,8 @@ func filterByWhere(beans []*bean.Bean, wheres []string) []*bean.Bean {
 		pairs = append(pairs, pair{key, value})
 	}
 
-	result := make([]*bean.Bean, 0, len(beans))
-	for _, b := range beans {
+	result := make([]*item.Item, 0, len(items))
+	for _, b := range items {
 		matches := true
 		for _, p := range pairs {
 			v, ok := b.Extra[p.key]
@@ -445,30 +445,30 @@ func RegisterListCmd(root *cobra.Command) {
 		listCmd.Flags().StringSliceVarP(&listPriority, "priority", "p", nil, "Filter by priority (comma-separated or repeated)")
 		listCmd.Flags().StringSliceVar(&listNoPriority, "no-priority", nil, "Exclude by priority (comma-separated or repeated)")
 		listCmd.Flags().StringSliceVar(&listTag, "tag", nil, "Filter by tag (comma-separated or repeated, OR logic)")
-		listCmd.Flags().StringSliceVar(&listNoTag, "no-tag", nil, "Exclude beans with tag (comma-separated or repeated)")
-		listCmd.Flags().BoolVar(&listHasParent, "has-parent", false, "Filter beans with a parent")
-		listCmd.Flags().BoolVar(&listNoParent, "no-parent", false, "Filter beans without a parent")
+		listCmd.Flags().StringSliceVar(&listNoTag, "no-tag", nil, "Exclude items with tag (comma-separated or repeated)")
+		listCmd.Flags().BoolVar(&listHasParent, "has-parent", false, "Filter items with a parent")
+		listCmd.Flags().BoolVar(&listNoParent, "no-parent", false, "Filter items without a parent")
 		listCmd.Flags().StringVar(&listParentID, "parent", "", "Filter by parent ID")
-		listCmd.Flags().BoolVar(&listHasBlocking, "has-blocking", false, "Filter beans that are blocking others")
-		listCmd.Flags().BoolVar(&listNoBlocking, "no-blocking", false, "Filter beans that aren't blocking others")
-		listCmd.Flags().BoolVar(&listIsBlocked, "is-blocked", false, "Filter beans that are blocked by others")
-		listCmd.Flags().BoolVar(&listUnblocked, "unblocked", false, "Filter beans with no unresolved blocker")
-		listCmd.Flags().BoolVar(&listReady, "ready", false, "Filter beans available to start (not blocked, excludes in-progress/completed/scrapped/draft)")
+		listCmd.Flags().BoolVar(&listHasBlocking, "has-blocking", false, "Filter items that are blocking others")
+		listCmd.Flags().BoolVar(&listNoBlocking, "no-blocking", false, "Filter items that aren't blocking others")
+		listCmd.Flags().BoolVar(&listIsBlocked, "is-blocked", false, "Filter items that are blocked by others")
+		listCmd.Flags().BoolVar(&listUnblocked, "unblocked", false, "Filter items with no unresolved blocker")
+		listCmd.Flags().BoolVar(&listReady, "ready", false, "Filter items available to start (not blocked, excludes in-progress/completed/scrapped/draft)")
 		listCmd.Flags().BoolVarP(&listQuiet, "quiet", "q", false, "Only output IDs (one per line)")
 		listCmd.Flags().StringVar(&listSort, "sort", "", "Sort by: created, updated, status, priority, id, order (order is scoped per parent) (default: status, priority, type, title)")
 		listCmd.Flags().BoolVar(&listDesc, "desc", false, "Reverse the sort order")
-		listCmd.Flags().BoolVar(&listFull, "full", false, "Include bean body in JSON output")
+		listCmd.Flags().BoolVar(&listFull, "full", false, "Include item body in JSON output")
 		listCmd.Flags().StringArrayVar(&listWhere, "where", nil, "Filter by extra front matter key=value (can be repeated, AND logic)")
 		listCmd.Flags().StringVar(&listView, "view", "table",
 			"Arrangement: table (flat, sortable) or tree (nested)")
 		listCmd.Flags().IntVar(&listMaxWidth, "max-width", 0,
 			"Cap the rendered width; 0 disables the cap (default: display.max_width, else 110)")
-		listCmd.Flags().BoolVar(&listTags, "tags", false, "Render each bean's tags")
+		listCmd.Flags().BoolVar(&listTags, "tags", false, "Render each item's tags")
 		// AC-01/AC-02/AC-03/AC-04: only the affirmative enum-valued filter
 		// flags gain completion (beans-pkq3 Non-Goals) -- the boolean and
 		// --no-* exclusion flags take no enum value. --parent uses
-		// beanIDCandidates (completion.go), not candidates.ParentCandidates:
-		// list --parent matches any existing bean ID, not a type-eligible
+		// itemIDCandidates (completion.go), not candidates.ParentCandidates:
+		// list --parent matches any existing item ID, not a type-eligible
 		// new-parent set (beans-pkq3 Risks).
 		_ = listCmd.RegisterFlagCompletionFunc("status", statusFlagCompletion)
 		_ = listCmd.RegisterFlagCompletionFunc("type", typeFlagCompletion)
@@ -479,11 +479,11 @@ func RegisterListCmd(root *cobra.Command) {
 	root.AddCommand(listCmd)
 }
 
-// listParentFlagCompletion offers list --parent candidates: every bean ID
-// in the store (completion.go's beanIDCandidates), because list --parent
-// filters by matching an existing bean's ID, unlike create/update --parent
+// listParentFlagCompletion offers list --parent candidates: every item ID
+// in the store (completion.go's itemIDCandidates), because list --parent
+// filters by matching an existing item's ID, unlike create/update --parent
 // which choose among type-eligible new-parent candidates (beans-pkq3
 // Risks).
 func listParentFlagCompletion(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-	return beanIDCandidates(), completionDirective
+	return itemIDCandidates(), completionDirective
 }

@@ -4,11 +4,11 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/xRiErOS/beans/internal/ui"
+	"github.com/xRiErOS/lif/internal/ui"
 )
 
-// beanCreatedMsg is sent when a new bean is created
-type beanCreatedMsg struct {
+// itemCreatedMsg is sent when a new item is created
+type itemCreatedMsg struct {
 	title string
 }
 
@@ -18,7 +18,7 @@ type closeCreateModalMsg struct{}
 // openCreateModalMsg requests opening the create modal
 type openCreateModalMsg struct{}
 
-// createModalModel is the model for the create bean modal
+// createModalModel is the model for the create item modal
 type createModalModel struct {
 	textInput textinput.Model
 	width     int
@@ -27,7 +27,7 @@ type createModalModel struct {
 
 func newCreateModalModel(width, height int) createModalModel {
 	ti := textinput.New()
-	ti.Placeholder = "Enter bean title..."
+	ti.Placeholder = "Enter item title..."
 	ti.CharLimit = 200
 	ti.Width = 50
 	ti.Focus()
@@ -61,7 +61,7 @@ func (m createModalModel) Update(msg tea.Msg) (createModalModel, tea.Cmd) {
 			title := m.textInput.Value()
 			if title != "" {
 				return m, func() tea.Msg {
-					return beanCreatedMsg{title: title}
+					return itemCreatedMsg{title: title}
 				}
 			}
 			// Empty title - just close
@@ -88,7 +88,7 @@ func (m createModalModel) View() string {
 	modalWidth := max(40, min(60, m.width*50/100))
 
 	// Header
-	header := lipgloss.NewStyle().Bold(true).Render("Create New Bean")
+	header := lipgloss.NewStyle().Bold(true).Render("Create New Item")
 
 	// Input field
 	inputBox := lipgloss.NewStyle().

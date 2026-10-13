@@ -7,11 +7,13 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/xRiErOS/lif/pkg/config"
 )
 
 // initTestRepo creates a temporary git repo with an initial commit,
-// a .beans directory inside it, and a separate worktree root directory.
-func initTestRepo(t *testing.T) (repoDir, beansDir, worktreeRoot string) {
+// a default store directory inside it, and a separate worktree root directory.
+func initTestRepo(t *testing.T) (repoDir, itemsDir, worktreeRoot string) {
 	t.Helper()
 	dir := t.TempDir()
 
@@ -19,6 +21,8 @@ func initTestRepo(t *testing.T) (repoDir, beansDir, worktreeRoot string) {
 		{"git", "init", "-b", "main"},
 		{"git", "config", "user.email", "test@test.com"},
 		{"git", "config", "user.name", "Test"},
+		// Repo-local override: a global core.hooksPath must not veto test commits.
+		{"git", "config", "core.hooksPath", "/dev/null"},
 		{"git", "commit", "--allow-empty", "-m", "initial"},
 	}
 
@@ -30,7 +34,7 @@ func initTestRepo(t *testing.T) (repoDir, beansDir, worktreeRoot string) {
 		}
 	}
 
-	bd := filepath.Join(dir, ".beans")
+	bd := filepath.Join(dir, config.DefaultStoreDir)
 	if err := os.MkdirAll(bd, 0755); err != nil {
 		t.Fatalf("MkdirAll .beans: %v", err)
 	}
@@ -158,7 +162,7 @@ branch refs/heads/beans/beans-good
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := parsePorcelain(tt.input, tt.worktreesDir)
+			got := parsePorcelain(tt.input, tt.worktreesDir, nil)
 			if len(got) != tt.want {
 				t.Fatalf("got %d worktrees, want %d", len(got), tt.want)
 			}
@@ -194,8 +198,8 @@ func TestCreateAndList(t *testing.T) {
 	if wt.Name != "test-worktree" {
 		t.Errorf("Name = %q, want %q", wt.Name, "test-worktree")
 	}
-	if wt.Branch != "beans/test-worktree" {
-		t.Errorf("Branch = %q, want %q", wt.Branch, "beans/test-worktree")
+	if wt.Branch != "lif/test-worktree" {
+		t.Errorf("Branch = %q, want %q", wt.Branch, "lif/test-worktree")
 	}
 
 	expectedPath := filepath.Join(wtRoot, wt.ID)
@@ -464,14 +468,14 @@ func TestSubscription(t *testing.T) {
 	}
 }
 
-func TestDetectBeanIDs(t *testing.T) {
-	repoDir, beansDir, wtRoot := initTestRepo(t)
+func TestDetectItemIDs(t *testing.T) {
+	repoDir, itemsDir, wtRoot := initTestRepo(t)
 
 	// Commit a file in .beans so the directory exists on main
-	if err := os.WriteFile(filepath.Join(beansDir, ".gitkeep"), []byte(""), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(itemsDir, ".gitkeep"), []byte(""), 0644); err != nil {
 		t.Fatalf("WriteFile: %v", err)
 	}
-	gitRun(t, repoDir, "add", ".beans/.gitkeep")
+	gitRun(t, repoDir, "add", config.DefaultStoreDir+"/.gitkeep")
 	gitRun(t, repoDir, "commit", "-m", "add .beans dir")
 
 	mgr := NewManager(repoDir, wtRoot, "main", "")
@@ -482,24 +486,24 @@ func TestDetectBeanIDs(t *testing.T) {
 		t.Fatalf("Create: %v", err)
 	}
 
-	// Create bean files in the worktree's .beans/ directory
-	wtBeansDir := filepath.Join(wt.Path, ".beans")
-	if err := os.MkdirAll(wtBeansDir, 0755); err != nil {
+	// Create item files in the worktree's .beans/ directory
+	wtItemsDir := filepath.Join(wt.Path, config.DefaultStoreDir)
+	if err := os.MkdirAll(wtItemsDir, 0755); err != nil {
 		t.Fatalf("MkdirAll: %v", err)
 	}
 
-	// Add a bean file
-	if err := os.WriteFile(filepath.Join(wtBeansDir, "beans-abc1--my-task.md"), []byte("---\ntitle: My Task\n---\n"), 0644); err != nil {
+	// Add an item file
+	if err := os.WriteFile(filepath.Join(wtItemsDir, "beans-abc1--my-task.md"), []byte("---\ntitle: My Task\n---\n"), 0644); err != nil {
 		t.Fatalf("WriteFile: %v", err)
 	}
 
-	// Add another bean file
-	if err := os.WriteFile(filepath.Join(wtBeansDir, "beans-def2--another-task.md"), []byte("---\ntitle: Another Task\n---\n"), 0644); err != nil {
+	// Add another item file
+	if err := os.WriteFile(filepath.Join(wtItemsDir, "beans-def2--another-task.md"), []byte("---\ntitle: Another Task\n---\n"), 0644); err != nil {
 		t.Fatalf("WriteFile: %v", err)
 	}
 
 	// Add a file in .beans/.worktrees/ (should be excluded)
-	wtSubDir := filepath.Join(wtBeansDir, ".worktrees")
+	wtSubDir := filepath.Join(wtItemsDir, ".worktrees")
 	if err := os.MkdirAll(wtSubDir, 0755); err != nil {
 		t.Fatalf("MkdirAll: %v", err)
 	}
@@ -508,7 +512,7 @@ func TestDetectBeanIDs(t *testing.T) {
 	}
 
 	// Add a file in .beans/archive/ (should be excluded)
-	archiveDir := filepath.Join(wtBeansDir, "archive")
+	archiveDir := filepath.Join(wtItemsDir, "archive")
 	if err := os.MkdirAll(archiveDir, 0755); err != nil {
 		t.Fatalf("MkdirAll: %v", err)
 	}
@@ -517,17 +521,17 @@ func TestDetectBeanIDs(t *testing.T) {
 	}
 
 	// Add a non-.md file (should be excluded)
-	if err := os.WriteFile(filepath.Join(wtBeansDir, "config.yaml"), []byte("key: val"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(wtItemsDir, "config.yaml"), []byte("key: val"), 0644); err != nil {
 		t.Fatalf("WriteFile: %v", err)
 	}
 
-	// Stage and commit the bean files
+	// Stage and commit the item files
 	gitRun(t, wt.Path, "add", "-A")
 	gitRun(t, wt.Path, "commit", "-m", "add beans")
 
-	ids := mgr.DetectBeanIDs(wt.Path)
+	ids := mgr.DetectItemIDs(wt.Path)
 
-	// Should find exactly the two bean files, sorted
+	// Should find exactly the two item files, sorted
 	if len(ids) != 2 {
 		t.Fatalf("got %d IDs, want 2: %v", len(ids), ids)
 	}
@@ -539,30 +543,30 @@ func TestDetectBeanIDs(t *testing.T) {
 	}
 }
 
-func TestDetectBeanIDs_NoChanges(t *testing.T) {
+func TestDetectItemIDs_NoChanges(t *testing.T) {
 	repoDir, _, wtRoot := initTestRepo(t)
 	mgr := NewManager(repoDir, wtRoot, "main", "")
 
-	// Create a worktree with no bean changes
+	// Create a worktree with no item changes
 	wt, err := mgr.Create("no-changes")
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
 
-	ids := mgr.DetectBeanIDs(wt.Path)
+	ids := mgr.DetectItemIDs(wt.Path)
 	if len(ids) != 0 {
 		t.Errorf("expected 0 IDs for worktree with no changes, got %d: %v", len(ids), ids)
 	}
 }
 
-func TestDetectBeanIDs_UncommittedChanges(t *testing.T) {
-	repoDir, beansDir, wtRoot := initTestRepo(t)
+func TestDetectItemIDs_UncommittedChanges(t *testing.T) {
+	repoDir, itemsDir, wtRoot := initTestRepo(t)
 
 	// Commit a file in .beans so the directory exists on main
-	if err := os.WriteFile(filepath.Join(beansDir, ".gitkeep"), []byte(""), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(itemsDir, ".gitkeep"), []byte(""), 0644); err != nil {
 		t.Fatalf("WriteFile: %v", err)
 	}
-	gitRun(t, repoDir, "add", ".beans/.gitkeep")
+	gitRun(t, repoDir, "add", config.DefaultStoreDir+"/.gitkeep")
 	gitRun(t, repoDir, "commit", "-m", "add .beans dir")
 
 	mgr := NewManager(repoDir, wtRoot, "main", "")
@@ -572,18 +576,18 @@ func TestDetectBeanIDs_UncommittedChanges(t *testing.T) {
 		t.Fatalf("Create: %v", err)
 	}
 
-	// Add an untracked bean file (not committed)
-	wtBeansDir := filepath.Join(wt.Path, ".beans")
-	if err := os.MkdirAll(wtBeansDir, 0755); err != nil {
+	// Add an untracked item file (not committed)
+	wtItemsDir := filepath.Join(wt.Path, config.DefaultStoreDir)
+	if err := os.MkdirAll(wtItemsDir, 0755); err != nil {
 		t.Fatalf("MkdirAll: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(wtBeansDir, "beans-xyz9--untracked.md"), []byte("---\ntitle: Untracked\n---\n"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(wtItemsDir, "beans-xyz9--untracked.md"), []byte("---\ntitle: Untracked\n---\n"), 0644); err != nil {
 		t.Fatalf("WriteFile: %v", err)
 	}
 
-	ids := mgr.DetectBeanIDs(wt.Path)
+	ids := mgr.DetectItemIDs(wt.Path)
 
-	// Should detect untracked bean files too
+	// Should detect untracked item files too
 	if len(ids) != 1 {
 		t.Fatalf("got %d IDs, want 1: %v", len(ids), ids)
 	}
@@ -592,11 +596,11 @@ func TestDetectBeanIDs_UncommittedChanges(t *testing.T) {
 	}
 }
 
-func TestDetectBeanIDs_DeletedFile(t *testing.T) {
-	repoDir, beansDir, wtRoot := initTestRepo(t)
+func TestDetectItemIDs_DeletedFile(t *testing.T) {
+	repoDir, itemsDir, wtRoot := initTestRepo(t)
 
-	// Create a bean on main
-	if err := os.WriteFile(filepath.Join(beansDir, "beans-del1--to-delete.md"), []byte("---\ntitle: To Delete\nstatus: todo\ntype: task\n---\n"), 0644); err != nil {
+	// Create an item on main
+	if err := os.WriteFile(filepath.Join(itemsDir, "beans-del1--to-delete.md"), []byte("---\ntitle: To Delete\nstatus: todo\ntype: task\n---\n"), 0644); err != nil {
 		t.Fatalf("WriteFile: %v", err)
 	}
 	gitRun(t, repoDir, "add", "-A")
@@ -609,17 +613,17 @@ func TestDetectBeanIDs_DeletedFile(t *testing.T) {
 		t.Fatalf("Create: %v", err)
 	}
 
-	// Delete the bean file in the worktree
-	wtBeanFile := filepath.Join(wt.Path, ".beans", "beans-del1--to-delete.md")
-	if err := os.Remove(wtBeanFile); err != nil {
+	// Delete the item file in the worktree
+	wtItemFile := filepath.Join(wt.Path, config.DefaultStoreDir, "beans-del1--to-delete.md")
+	if err := os.Remove(wtItemFile); err != nil {
 		t.Fatalf("Remove: %v", err)
 	}
 	gitRun(t, wt.Path, "add", "-A")
 	gitRun(t, wt.Path, "commit", "-m", "delete bean")
 
-	ids := mgr.DetectBeanIDs(wt.Path)
+	ids := mgr.DetectItemIDs(wt.Path)
 
-	// Should NOT include the deleted bean
+	// Should NOT include the deleted item
 	if len(ids) != 0 {
 		t.Errorf("expected 0 IDs for deleted bean, got %d: %v", len(ids), ids)
 	}
@@ -857,5 +861,334 @@ func gitRun(t *testing.T, dir string, args ...string) {
 	cmd.Dir = dir
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("git %v failed: %s: %v", args, out, err)
+	}
+}
+
+// DetectItemIDs reads item changes under the main project's store directory
+// name inside the worktree: .beans for a legacy store, .lif for a new one
+// (AC-9). Files under the sibling name are not items of this store.
+func TestDetectItemIDs_StoreDirName(t *testing.T) {
+	cases := []struct {
+		name, own, other string
+		opts             []ManagerOption
+	}{
+		{"legacy store", config.LegacyDefaultStoreDir, config.DefaultStoreDir, []ManagerOption{WithStoreDir(config.LegacyDefaultStoreDir)}},
+		{"new store", config.DefaultStoreDir, config.LegacyDefaultStoreDir, nil},
+		{"new store named explicitly", config.DefaultStoreDir, config.LegacyDefaultStoreDir, []ManagerOption{WithStoreDir(config.DefaultStoreDir)}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			repoDir, _, wtRoot := initTestRepo(t)
+			mgr := NewManager(repoDir, wtRoot, "main", "", tc.opts...)
+			wt, err := mgr.Create("store-dir-" + strings.ReplaceAll(tc.name, " ", "-"))
+			if err != nil {
+				t.Fatalf("Create: %v", err)
+			}
+			for dir, file := range map[string]string{tc.own: "beans-own1--mine.md", tc.other: "beans-oth1--sibling.md"} {
+				if err := os.MkdirAll(filepath.Join(wt.Path, dir), 0755); err != nil {
+					t.Fatalf("MkdirAll: %v", err)
+				}
+				if err := os.WriteFile(filepath.Join(wt.Path, dir, file), []byte("---\ntitle: T\n---\n"), 0644); err != nil {
+					t.Fatalf("WriteFile: %v", err)
+				}
+			}
+			gitRun(t, wt.Path, "add", "-A")
+			gitRun(t, wt.Path, "commit", "-m", "add items")
+
+			ids := mgr.DetectItemIDs(wt.Path)
+			if len(ids) != 1 || ids[0] != "beans-own1" {
+				t.Errorf("DetectItemIDs() = %v, want only [beans-own1] from %s", ids, tc.own)
+			}
+		})
+	}
+}
+
+// gitIn runs git in dir and fails the test on error.
+func gitIn(t *testing.T, dir string, args ...string) string {
+	t.Helper()
+	cmd := exec.Command("git", args...)
+	cmd.Dir = dir
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("git %v in %s failed: %s: %v", args, dir, out, err)
+	}
+	return strings.TrimSpace(string(out))
+}
+
+// addWorktree makes a worktree on a new branch <branch> at <wtRoot>/<id> with
+// plain git, the way the former tool did.
+func addWorktree(t *testing.T, repoDir, wtRoot, id, branch string) string {
+	t.Helper()
+	path := filepath.Join(wtRoot, id)
+	gitIn(t, repoDir, "worktree", "add", path, "-b", branch)
+	return path
+}
+
+func branchNames(wts []Worktree) map[string]string {
+	got := map[string]string{}
+	for _, wt := range wts {
+		got[wt.ID] = wt.Branch
+	}
+	return got
+}
+
+func requireBranches(t *testing.T, wts []Worktree, want map[string]string) {
+	t.Helper()
+	got := branchNames(wts)
+	if len(got) != len(want) {
+		t.Fatalf("worktrees = %v, want %v", got, want)
+	}
+	for id, branch := range want {
+		if got[id] != branch {
+			t.Errorf("worktree %s: Branch = %q, want %q (all: %v)", id, got[id], branch, got)
+		}
+	}
+}
+
+func TestParsePorcelain_acceptsBothBranchPrefixes(t *testing.T) {
+	input := `worktree /home/user/project
+HEAD abc123
+branch refs/heads/main
+
+worktree /home/user/.lif/worktrees/project/new-one
+HEAD def456
+branch refs/heads/lif/new-one
+
+worktree /home/user/.beans/worktrees/project/old-one
+HEAD ghi789
+branch refs/heads/beans/old-one
+
+worktree /home/user/project-feature
+HEAD jkl012
+branch refs/heads/feature/login
+
+`
+	got := parsePorcelain(input, "", nil)
+	requireBranches(t, got, map[string]string{
+		"new-one": "lif/new-one",
+		"old-one": "beans/old-one",
+	})
+}
+
+// A detached worktree identified by its path reports the branch that exists,
+// never a synthesized one.
+func TestParsePorcelain_detachedReportsExistingBranch(t *testing.T) {
+	const dir = "/home/user/.beans/worktrees/project"
+	input := `worktree /home/user/project
+HEAD abc123
+branch refs/heads/main
+
+worktree ` + dir + `/legacy
+HEAD def456
+detached
+
+worktree ` + dir + `/current
+HEAD ghi789
+detached
+
+worktree ` + dir + `/both
+HEAD jkl012
+detached
+
+worktree ` + dir + `/nobranch
+HEAD mno345
+detached
+
+`
+	exists := map[string]bool{
+		"beans/legacy": true,
+		"lif/current":  true,
+		"lif/both":     true,
+		"beans/both":   true,
+	}
+	got := parsePorcelain(input, dir, func(branch string) bool { return exists[branch] })
+	requireBranches(t, got, map[string]string{
+		"legacy":   "beans/legacy",
+		"current":  "lif/current",
+		"both":     "lif/both",
+		"nobranch": "",
+	})
+}
+
+func TestListAndRemove_legacyWorktree(t *testing.T) {
+	repoDir, _, wtRoot := initTestRepo(t)
+	mgr := NewManager(repoDir, wtRoot, "", "")
+	legacyPath := addWorktree(t, repoDir, wtRoot, "old-one", "beans/old-one")
+
+	wts, err := mgr.List()
+	if err != nil {
+		t.Fatalf("List: %v", err)
+	}
+	requireBranches(t, wts, map[string]string{"old-one": "beans/old-one"})
+	// git reports the resolved path (macOS /var -> /private/var).
+	wantPath, err := filepath.EvalSymlinks(legacyPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if wts[0].Path != wantPath {
+		t.Errorf("Path = %q, want %q", wts[0].Path, wantPath)
+	}
+
+	// A worktree created afterwards lands in the same root on a lif/ branch,
+	// beside the untouched legacy one.
+	fresh, err := mgr.Create("new-one")
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	if fresh.Branch != "lif/new-one" || fresh.Path != filepath.Join(wtRoot, "new-one") {
+		t.Errorf("Create() = branch %q path %q; want lif/new-one under %s", fresh.Branch, fresh.Path, wtRoot)
+	}
+	wts, err = mgr.List()
+	if err != nil {
+		t.Fatalf("List: %v", err)
+	}
+	requireBranches(t, wts, map[string]string{"old-one": "beans/old-one", "new-one": "lif/new-one"})
+
+	// The saved port of a legacy worktree is found by its ID (port restore).
+	if err := mgr.SavePort("old-one", 44123); err != nil {
+		t.Fatalf("SavePort: %v", err)
+	}
+	if got := mgr.GetPort("old-one"); got != 44123 {
+		t.Errorf("GetPort(old-one) = %d, want 44123", got)
+	}
+
+	// Removal finds the legacy worktree by ID; the branch is left alone.
+	if err := mgr.Remove("old-one"); err != nil {
+		t.Fatalf("Remove(legacy): %v", err)
+	}
+	if _, err := os.Stat(legacyPath); !os.IsNotExist(err) {
+		t.Errorf("legacy worktree directory still exists after Remove (stat err = %v)", err)
+	}
+	if got := gitIn(t, repoDir, "branch", "--list", "beans/old-one"); got == "" {
+		t.Error("Remove deleted the legacy branch; it must only remove the worktree")
+	}
+	wts, err = mgr.List()
+	if err != nil {
+		t.Fatalf("List: %v", err)
+	}
+	requireBranches(t, wts, map[string]string{"new-one": "lif/new-one"})
+}
+
+// A rebase leaves a worktree detached; listing it reports the branch that
+// exists for it, on either prefix.
+func TestList_detachedWorktreeReportsExistingBranch(t *testing.T) {
+	repoDir, _, wtRoot := initTestRepo(t)
+	mgr := NewManager(repoDir, wtRoot, "", "")
+	for id, branch := range map[string]string{"legacy": "beans/legacy", "current": "lif/current"} {
+		path := addWorktree(t, repoDir, wtRoot, id, branch)
+		gitIn(t, path, "checkout", "--detach")
+	}
+	// Detached, and neither branch exists.
+	orphan := addWorktree(t, repoDir, wtRoot, "nobranch", "beans/nobranch")
+	gitIn(t, orphan, "checkout", "--detach")
+	gitIn(t, repoDir, "branch", "-D", "beans/nobranch")
+
+	wts, err := mgr.List()
+	if err != nil {
+		t.Fatalf("List: %v", err)
+	}
+	requireBranches(t, wts, map[string]string{
+		"legacy":   "beans/legacy",
+		"current":  "lif/current",
+		"nobranch": "",
+	})
+}
+
+// git reports worktree paths resolved; a worktree root that is a symlink
+// (macOS /var -> /private/var) must still match for a detached worktree.
+func TestList_detachedWorktreeUnderSymlinkedRoot(t *testing.T) {
+	repoDir, _, _ := initTestRepo(t)
+	realRoot := t.TempDir()
+	linkRoot := filepath.Join(t.TempDir(), "link")
+	if err := os.Symlink(realRoot, linkRoot); err != nil {
+		t.Fatal(err)
+	}
+	mgr := NewManager(repoDir, linkRoot, "", "")
+	path := addWorktree(t, repoDir, linkRoot, "rebasing", "lif/rebasing")
+	gitIn(t, path, "checkout", "--detach")
+
+	wts, err := mgr.List()
+	if err != nil {
+		t.Fatalf("List: %v", err)
+	}
+	requireBranches(t, wts, map[string]string{"rebasing": "lif/rebasing"})
+}
+
+func TestLegacyBranchWorktrees(t *testing.T) {
+	repoDir, _, wtRoot := initTestRepo(t)
+	legacyPath := addWorktree(t, repoDir, wtRoot, "old-one", "beans/old-one")
+	addWorktree(t, repoDir, wtRoot, "new-one", "lif/new-one")
+	addWorktree(t, repoDir, wtRoot, "other", "feature/other")
+	detached := addWorktree(t, repoDir, wtRoot, "detached", "beans/detached")
+	gitIn(t, detached, "checkout", "--detach")
+
+	got, err := LegacyBranchWorktrees(repoDir)
+	if err != nil {
+		t.Fatalf("LegacyBranchWorktrees: %v", err)
+	}
+	requireBranches(t, got, map[string]string{"old-one": "beans/old-one"})
+	wt := got[0]
+	// git reports the resolved path (macOS /var -> /private/var).
+	wantPath, err := filepath.EvalSymlinks(legacyPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if wt.Path != wantPath {
+		t.Errorf("Path = %q, want %q", wt.Path, wantPath)
+	}
+	// Lightweight: no metadata, no diff scan.
+	if wt.Name != "" || wt.ItemIDs != nil || wt.Setup != SetupNone {
+		t.Errorf("listing carries metadata: Name=%q ItemIDs=%v Setup=%q", wt.Name, wt.ItemIDs, wt.Setup)
+	}
+}
+
+func TestLegacyBranchWorktrees_noLegacy(t *testing.T) {
+	repoDir, _, wtRoot := initTestRepo(t)
+	addWorktree(t, repoDir, wtRoot, "new-one", "lif/new-one")
+	got, err := LegacyBranchWorktrees(repoDir)
+	if err != nil || len(got) != 0 {
+		t.Errorf("LegacyBranchWorktrees() = %v, %v; want empty, nil", got, err)
+	}
+}
+
+func TestLegacyBranchWorktrees_outsideRepoErrors(t *testing.T) {
+	if _, err := LegacyBranchWorktrees(t.TempDir()); err == nil {
+		t.Fatal("LegacyBranchWorktrees outside a git repository returned no error")
+	}
+}
+
+// The legacy listing is one `git worktree list --porcelain` call and nothing
+// else (no per-worktree git call for metadata, diff or branch lookup). A git
+// wrapper on PATH records every invocation.
+func TestLegacyBranchWorktrees_oneGitCall(t *testing.T) {
+	repoDir, _, wtRoot := initTestRepo(t)
+	addWorktree(t, repoDir, wtRoot, "old-one", "beans/old-one")
+	addWorktree(t, repoDir, wtRoot, "old-two", "beans/old-two")
+
+	realGit, err := exec.LookPath("git")
+	if err != nil {
+		t.Fatal(err)
+	}
+	binDir := t.TempDir()
+	logPath := filepath.Join(binDir, "calls.log")
+	script := "#!/bin/sh\necho \"$@\" >> " + logPath + "\nexec " + realGit + " \"$@\"\n"
+	if err := os.WriteFile(filepath.Join(binDir, "git"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	got, err := LegacyBranchWorktrees(repoDir)
+	if err != nil {
+		t.Fatalf("LegacyBranchWorktrees: %v", err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("got %d worktrees, want 2", len(got))
+	}
+	calls, err := os.ReadFile(logPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if lines := strings.Split(strings.TrimSpace(string(calls)), "\n"); len(lines) != 1 || lines[0] != "worktree list --porcelain" {
+		t.Errorf("git calls = %q, want exactly [worktree list --porcelain]", lines)
 	}
 }

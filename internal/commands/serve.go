@@ -19,17 +19,18 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cobra"
 
-	"github.com/xRiErOS/beans/internal/agent"
-	"github.com/xRiErOS/beans/internal/cors"
-	"github.com/xRiErOS/beans/internal/gitutil"
-	"github.com/xRiErOS/beans/internal/graph"
-	"github.com/xRiErOS/beans/internal/portalloc"
-	"github.com/xRiErOS/beans/internal/terminal"
-	"github.com/xRiErOS/beans/internal/web"
-	"github.com/xRiErOS/beans/internal/worktree"
-	"github.com/xRiErOS/beans/pkg/beangraph"
-	"github.com/xRiErOS/beans/pkg/config"
-	"github.com/xRiErOS/beans/pkg/forge"
+	"github.com/xRiErOS/lif/internal/agent"
+	"github.com/xRiErOS/lif/internal/cors"
+	"github.com/xRiErOS/lif/internal/gitutil"
+	"github.com/xRiErOS/lif/internal/graph"
+	"github.com/xRiErOS/lif/internal/portalloc"
+	"github.com/xRiErOS/lif/internal/terminal"
+	"github.com/xRiErOS/lif/internal/web"
+	"github.com/xRiErOS/lif/internal/worktree"
+	"github.com/xRiErOS/lif/pkg/config"
+	"github.com/xRiErOS/lif/pkg/forge"
+	"github.com/xRiErOS/lif/pkg/item"
+	"github.com/xRiErOS/lif/pkg/itemgraph"
 )
 
 var (
@@ -37,21 +38,21 @@ var (
 	corsOrigins []string
 )
 
-const centralAgentPrompt = `You are the planning agent for this project. Your primary role is to help manage and organize work through beans (issues).
+const centralAgentPrompt = `You are the planning agent for this project. Your primary role is to help manage and organize work through items.
 
-IMPORTANT: Do NOT use Claude Code's built-in worktree system (EnterWorktree tool). This project has its own worktree management. To start work on a bean, use the GraphQL startWork mutation instead: mutation { startWork(beanId: "<id>") { path } }
+IMPORTANT: Do NOT use Claude Code's built-in worktree system (EnterWorktree tool). This project has its own worktree management. To start work on an item, use the GraphQL startWork mutation instead: mutation { startWork(itemId: "<id>") { path } }
 
 CRITICAL — ASKING QUESTIONS:
 You are running inside a web UI, NOT an interactive terminal. The user CANNOT see or respond to plain-text questions in your output. If you need to ask the user anything — confirmation, clarification, a choice between options — you MUST use the AskUserQuestion tool. Every single time. No exceptions. Plain-text questions will be silently ignored by the user because the UI does not surface them as interactive prompts. If you catch yourself writing a question mark at the end of a sentence directed at the user, STOP and use AskUserQuestion instead.
 
 Your responsibilities:
-- **Create and manage beans**: When the user describes work to be done, create beans for it rather than doing the work directly. Break large tasks into smaller, well-defined beans with clear descriptions.
-- **Organize work**: Help prioritize, categorize, and structure beans. Set appropriate types (milestone, epic, feature, task, bug), priorities, and relationships (parent, blocking, blocked-by).
-- **Start work on beans**: When the user wants to begin working on a specific bean, use the startWork GraphQL mutation (see above) to create a worktree for it. NEVER use the EnterWorktree tool.
-- **Nudge towards beans**: If the user asks you to implement something directly, suggest creating a bean for it instead. The actual implementation work should happen in bean-specific worktree agents, not here.
-- **Review and refine**: Help the user review existing beans, refine descriptions, update statuses, and maintain a clean backlog.
+- **Create and manage items**: When the user describes work to be done, create items for it rather than doing the work directly. Break large tasks into smaller, well-defined items with clear descriptions.
+- **Organize work**: Help prioritize, categorize, and structure items. Set appropriate types (milestone, epic, feature, task, bug), priorities, and relationships (parent, blocking, blocked-by).
+- **Start work on items**: When the user wants to begin working on a specific item, use the startWork GraphQL mutation (see above) to create a worktree for it. NEVER use the EnterWorktree tool.
+- **Nudge towards items**: If the user asks you to implement something directly, suggest creating an item for it instead. The actual implementation work should happen in item-specific worktree agents, not here.
+- **Review and refine**: Help the user review existing items, refine descriptions, update statuses, and maintain a clean backlog.
 
-You have access to the beans CLI and can use GraphQL queries to inspect and modify beans. Focus on planning and coordination — leave implementation to the worktree agents.`
+You have access to the lif CLI and can use GraphQL queries to inspect and modify items. Focus on planning and coordination — leave implementation to the worktree agents.`
 
 var serveCmd = &cobra.Command{
 	Use:     "serve",
@@ -136,35 +137,34 @@ func runServer(port int, origins []string) error {
 		}
 		c.Next()
 	})
-	// Resolve worktree root directory (default: ~/.beans/worktrees/<project>/)
+	// Resolve worktree root directory (default: ~/.lif/worktrees/<project>/, or
+	// ~/.beans/worktrees/<project>/ when that legacy root exists)
 	projectName := cfg.GetProjectName()
 	if projectName == "" {
 		projectName = filepath.Base(cfg.ConfigDir())
 	}
-	worktreeRoot, err := cfg.ResolveWorktreePath(projectName)
+	worktreeRoot, _, err := cfg.ResolveWorktreePath(projectName)
 	if err != nil {
 		return fmt.Errorf("failed to resolve worktree path: %w", err)
 	}
 	if err := os.MkdirAll(worktreeRoot, 0755); err != nil {
 		return fmt.Errorf("failed to create worktree directory %s: %w", worktreeRoot, err)
 	}
-	log.Printf("[beans] worktrees directory: %s", worktreeRoot)
+	log.Printf("[lif] worktrees directory: %s", worktreeRoot)
 
 	// Warn if old in-repo worktrees directory exists
 	oldWorktreeDir := filepath.Join(core.Root(), ".worktrees")
 	if entries, err := os.ReadDir(oldWorktreeDir); err == nil && len(entries) > 0 {
-		log.Printf("[beans] WARNING: found old worktrees in %s — worktrees are now created in %s. You may want to recreate existing worktrees and remove the old directory.", oldWorktreeDir, worktreeRoot)
+		log.Printf("[lif] WARNING: found old worktrees in %s — worktrees are now created in %s. You may want to recreate existing worktrees and remove the old directory.", oldWorktreeDir, worktreeRoot)
 	}
 
-	wtManager := worktree.NewManager(cfg.ConfigDir(), worktreeRoot, cfg.GetWorktreeBaseRef(), cfg.GetWorktreeSetup(),
-		worktree.WithFetchTimeout(cfg.GetWorktreeFetchTimeout()),
-	)
+	wtManager := newWorktreeManager(cfg, core.Root(), worktreeRoot)
 
-	// Watch existing worktrees for bean changes
+	// Watch existing worktrees for item changes
 	if existingWTs, err := wtManager.List(); err == nil {
 		for _, wt := range existingWTs {
-			if err := core.WatchWorktreeBeans(wt.Path); err != nil {
-				fmt.Printf("[beans] warning: failed to watch worktree %s: %v\n", wt.ID, err)
+			if err := core.WatchWorktreeItems(wt.Path); err != nil {
+				fmt.Printf("[lif] warning: failed to watch worktree %s: %v\n", wt.ID, err)
 			}
 		}
 	}
@@ -185,50 +185,28 @@ func runServer(port int, origins []string) error {
 			// Persist the port (writes back the actual port, which may differ
 			// from the saved one if there was a conflict).
 			if err := wtManager.SavePort(wt.ID, port); err != nil {
-				log.Printf("[beans] warning: failed to save port for %s: %v", wt.ID, err)
+				log.Printf("[lif] warning: failed to save port for %s: %v", wt.ID, err)
 			}
 		}
 	}
 
 	// Create terminal session manager with workspace port injection.
-	// Run sessions use "${workspaceId}__run" as session ID — strip the
-	// suffix so they share the same port as the workspace's shell session.
-	termMgr := terminal.NewManager(func(sessionID string) []string {
-		workspaceID := strings.TrimSuffix(sessionID, "__run")
-		port, err := portAlloc.Get(workspaceID)
-		if err != nil {
-			return nil
-		}
-		return []string{fmt.Sprintf("BEANS_WORKSPACE_PORT=%d", port)}
-	})
+	termMgr := terminal.NewManager(workspaceEnvFunc(portAlloc))
 	defer termMgr.Shutdown()
 
 	// Create agent session manager (with conversation persistence)
-	agentMgr := agent.NewManager(core.Root(), func(beanID string) string {
+	agentMgr := agent.NewManager(core.Root(), func(itemID string) string {
 		// Central/planning agent gets a planning-focused prompt
-		if beanID == graph.CentralSessionID {
+		if itemID == graph.CentralSessionID {
 			return centralAgentPrompt
 		}
 
-		// Bean-specific agents get context about the bean they're working on
-		b, err := core.Get(beanID)
+		// Item-specific agents get context about the item they're working on
+		b, err := core.Get(itemID)
 		if err != nil {
 			return ""
 		}
-		var sb strings.Builder
-		sb.WriteString("IMPORTANT: Do NOT use Claude Code's built-in worktree system (EnterWorktree tool). You are already working inside a beans-managed worktree.\n\n")
-		sb.WriteString("CRITICAL — ASKING QUESTIONS:\nYou are running inside a web UI, NOT an interactive terminal. The user CANNOT see or respond to plain-text questions in your output. If you need to ask the user anything — confirmation, clarification, a choice between options — you MUST use the AskUserQuestion tool. Every single time. No exceptions. Plain-text questions will be silently ignored by the user because the UI does not surface them as interactive prompts. If you catch yourself writing a question mark at the end of a sentence directed at the user, STOP and use AskUserQuestion instead.\n\n")
-		sb.WriteString("IMPORTANT: You MUST only create or modify files within this worktree directory. NEVER make changes to files in the main repository or any other worktree. All your file operations (reads are fine anywhere, but writes, edits, and deletions) must be scoped to your current working directory.\n\n")
-		fmt.Fprintf(&sb, "You are working on bean %s: %q\n", b.ID, b.Title)
-		fmt.Fprintf(&sb, "Type: %s | Status: %s", b.Type, b.Status)
-		if b.Priority != "" {
-			fmt.Fprintf(&sb, " | Priority: %s", b.Priority)
-		}
-		sb.WriteString("\n")
-		if b.Body != "" {
-			fmt.Fprintf(&sb, "\nDescription:\n%s", b.Body)
-		}
-		return sb.String()
+		return itemAgentContext(b)
 	}, agent.DefaultMode(cfg.GetDefaultMode()))
 	if effort := cfg.GetDefaultEffort(); config.IsValidEffortLevel(effort) {
 		agentMgr.SetDefaultEffort(agent.EffortLevel(effort))
@@ -239,15 +217,15 @@ func runServer(port int, origins []string) error {
 	// This is separate from context (which goes in the first user message) because
 	// the system prompt persists across --resume, ensuring the agent always knows
 	// its workspace identity.
-	agentMgr.SetSystemPromptProvider(func(beanID string) string {
-		if beanID == graph.CentralSessionID {
-			return fmt.Sprintf("You are the central planning agent for the beans project. Your working directory is the main repository at: %s\nNEVER merge pull requests. After creating a PR, stop and report the URL. Do not run `gh pr merge` or any equivalent.\nNEVER assume CI checks are absent. Checks take time to register after a push. If `gh pr checks` returns empty, it means checks haven't started yet, not that none are configured.", filepath.Dir(core.Root()))
+	agentMgr.SetSystemPromptProvider(func(itemID string) string {
+		if itemID == graph.CentralSessionID {
+			return centralPlanningPrompt(filepath.Dir(core.Root()))
 		}
-		wtPath := wtManager.WorktreePath(beanID)
+		wtPath := wtManager.WorktreePath(itemID)
 		if wtPath == "" {
 			return ""
 		}
-		return fmt.Sprintf("You are a workspace agent working in a git worktree. Your worktree ID is %q and your working directory is: %s\nAll file modifications MUST be within this directory. NEVER modify files in the main repository or other worktrees.\nNEVER force-push to main. NEVER push to origin/main. The Integrate action is local-only.\nNEVER merge pull requests. After creating a PR, stop and report the URL. Do not run `gh pr merge` or any equivalent.\nNEVER assume CI checks are absent. Checks take time to register after a push. If `gh pr checks` returns empty, it means checks haven't started yet, not that none are configured.", beanID, wtPath)
+		return fmt.Sprintf("You are a workspace agent working in a git worktree. Your worktree ID is %q and your working directory is: %s\nAll file modifications MUST be within this directory. NEVER modify files in the main repository or other worktrees.\nNEVER force-push to main. NEVER push to origin/main. The Integrate action is local-only.\nNEVER merge pull requests. After creating a PR, stop and report the URL. Do not run `gh pr merge` or any equivalent.\nNEVER assume CI checks are absent. Checks take time to register after a push. If `gh pr checks` returns empty, it means checks haven't started yet, not that none are configured.", itemID, wtPath)
 	})
 
 	// Post an info message to the workspace's agent chat when setup finishes.
@@ -262,21 +240,21 @@ func runServer(port int, origins []string) error {
 	// Auto-generate workspace descriptions when the first user message is sent.
 	// Runs a cheap Claude call (Haiku) in the background to summarize what
 	// the workspace is doing, then stores it as worktree metadata.
-	agentMgr.SetOnFirstUserMessage(func(beanID string, message string) {
+	agentMgr.SetOnFirstUserMessage(func(itemID string, message string) {
 		// Only generate for worktree agents, not central
-		if beanID == graph.CentralSessionID {
+		if itemID == graph.CentralSessionID {
 			return
 		}
 		// Only if this worktree exists and doesn't already have a description
 		if wts, err := wtManager.List(); err == nil {
 			for _, wt := range wts {
-				if wt.ID == beanID && wt.Description == "" {
+				if wt.ID == itemID && wt.Description == "" {
 					desc := agent.GenerateDescription(message)
 					if desc != "" {
-						if err := wtManager.UpdateDescription(beanID, desc); err != nil {
-							log.Printf("[beans] failed to save workspace description for %s: %v", beanID, err)
+						if err := wtManager.UpdateDescription(itemID, desc); err != nil {
+							log.Printf("[lif] failed to save workspace description for %s: %v", itemID, err)
 						} else {
-							log.Printf("[beans] generated workspace description for %s: %q", beanID, desc)
+							log.Printf("[lif] generated workspace description for %s: %q", itemID, desc)
 						}
 					}
 					break
@@ -287,37 +265,37 @@ func runServer(port int, origins []string) error {
 
 	// Update workspace activity timestamp when an agent completes a turn,
 	// so the sidebar sorts workspaces by most recently active.
-	agentMgr.SetOnTurnComplete(func(beanID string) {
-		if beanID == graph.CentralSessionID || wtManager == nil {
+	agentMgr.SetOnTurnComplete(func(itemID string) {
+		if itemID == graph.CentralSessionID || wtManager == nil {
 			return
 		}
-		if err := wtManager.TouchLastActive(beanID); err != nil {
-			log.Printf("[beans] failed to update last_active_at for %s: %v", beanID, err)
+		if err := wtManager.TouchLastActive(itemID); err != nil {
+			log.Printf("[lif] failed to update last_active_at for %s: %v", itemID, err)
 		}
 	})
 
-	// When bean files change in a worktree, also notify the worktree manager
-	// so the worktree subscription re-emits with updated detected bean IDs.
+	// When item files change in a worktree, also notify the worktree manager
+	// so the worktree subscription re-emits with updated detected item IDs.
 	if wtManager != nil {
-		core.SetOnWorktreeBeansChanged(wtManager.Notify)
+		core.SetOnWorktreeItemsChanged(wtManager.Notify)
 	}
 
 	// Detect git forge (GitHub, GitLab, etc.) for PR integration
 	projectRoot := filepath.Dir(core.Root())
 	forgeProvider := forge.Detect(projectRoot)
 	if forgeProvider != nil {
-		fmt.Printf("[beans] detected forge: %s (using %s CLI)\n", forgeProvider.Name(), forgeProvider.CLIName())
+		fmt.Printf("[lif] detected forge: %s (using %s CLI)\n", forgeProvider.Name(), forgeProvider.CLIName())
 	}
 
 	// Provide workspace context (PR status, git state) for quick reply generation.
-	agentMgr.SetQuickReplyContext(func(beanID string) string {
-		if beanID == graph.CentralSessionID || wtManager == nil {
+	agentMgr.SetQuickReplyContext(func(itemID string) string {
+		if itemID == graph.CentralSessionID || wtManager == nil {
 			return ""
 		}
 		var branch, wtPath string
 		if wts, err := wtManager.List(); err == nil {
 			for _, wt := range wts {
-				if wt.ID == beanID {
+				if wt.ID == itemID {
 					branch = wt.Branch
 					wtPath = wt.Path
 					break
@@ -367,7 +345,7 @@ func runServer(port int, origins []string) error {
 	// Create GraphQL server with explicit transports
 	es := graph.NewExecutableSchema(graph.Config{
 		Resolvers: &graph.Resolver{
-			CoreResolver: &beangraph.CoreResolver{Core: core},
+			CoreResolver: &itemgraph.CoreResolver{Core: core},
 			WorktreeMgr:  wtManager,
 			AgentMgr:     agentMgr,
 			TerminalMgr:  termMgr,
@@ -391,13 +369,13 @@ func runServer(port int, origins []string) error {
 	router.Any("/api/graphql", gin.WrapH(gqlHandler))
 
 	// GraphQL Playground
-	router.GET("/playground", gin.WrapH(playground.Handler("Beans GraphQL", "/api/graphql")))
+	router.GET("/playground", gin.WrapH(playground.Handler("Lif GraphQL", "/api/graphql")))
 
 	// Serve agent chat image attachments
 	router.GET("/api/attachments/:beanId/:filename", func(c *gin.Context) {
-		beanID := c.Param("beanId")
+		itemID := c.Param("beanId")
 		filename := c.Param("filename")
-		path, err := agentMgr.AttachmentPath(beanID, filename)
+		path, err := agentMgr.AttachmentPath(itemID, filename)
 		if err != nil {
 			c.Status(http.StatusBadRequest)
 			return
@@ -430,9 +408,9 @@ func runServer(port int, origins []string) error {
 
 	// Start server in goroutine
 	go func() {
-		fmt.Printf("[beans] Starting server at http://localhost:%d/\n", port)
-		fmt.Printf("[beans] GraphQL Playground: http://localhost:%d/playground\n", port)
-		fmt.Printf("[beans] Allowed origins: %s\n", strings.Join(origins, ", "))
+		fmt.Printf("[lif] Starting server at http://localhost:%d/\n", port)
+		fmt.Printf("[lif] GraphQL Playground: http://localhost:%d/playground\n", port)
+		fmt.Printf("[lif] Allowed origins: %s\n", strings.Join(origins, ", "))
 		serverErr <- server.ListenAndServe()
 	}()
 
@@ -469,8 +447,64 @@ func runServer(port int, origins []string) error {
 	return nil
 }
 
+// newWorktreeManager builds the worktree manager for the store at storeRoot.
+// Item changes inside a worktree are looked up under the directory that
+// carries the same name as the main store's directory.
+func newWorktreeManager(c *config.Config, storeRoot, worktreeRoot string) *worktree.Manager {
+	return worktree.NewManager(c.ConfigDir(), worktreeRoot, c.GetWorktreeBaseRef(), c.GetWorktreeSetup(),
+		worktree.WithStoreDir(filepath.Base(storeRoot)),
+		worktree.WithFetchTimeout(c.GetWorktreeFetchTimeout()),
+	)
+}
+
 func RegisterServeCmd(root *cobra.Command) {
 	serveCmd.Flags().IntVarP(&servePort, "port", "p", config.DefaultServerPort, "Port to listen on")
 	serveCmd.Flags().StringSliceVar(&corsOrigins, "cors-origin", cors.DefaultOrigins, "Allowed CORS origins (use * to allow all)")
 	root.AddCommand(serveCmd)
+}
+
+// workspaceEnvFunc returns the terminal environment function of a serve
+// process: every workspace shell session and run session gets the workspace's
+// port as LIF_WORKSPACE_PORT and, for user scripts of the former tool, as
+// BEANS_WORKSPACE_PORT with the same value. Run sessions use
+// "${workspaceId}__run" as session ID — the suffix is stripped so they share
+// the same port as the workspace's shell session. A session of a workspace
+// without an allocated port gets none.
+func workspaceEnvFunc(portAlloc *portalloc.Allocator) terminal.EnvFunc {
+	return func(sessionID string) []string {
+		workspaceID := strings.TrimSuffix(sessionID, "__run")
+		port, err := portAlloc.Get(workspaceID)
+		if err != nil {
+			return nil
+		}
+		return []string{
+			fmt.Sprintf("%s=%d", config.WorkspacePortEnvVar, port),
+			fmt.Sprintf("%s=%d", config.LegacyWorkspacePortEnvVar, port),
+		}
+	}
+}
+
+// itemAgentContext is the first-message context an item's agent session
+// starts with: the worktree rules plus the item it works on.
+func itemAgentContext(b *item.Item) string {
+	var sb strings.Builder
+	sb.WriteString("IMPORTANT: Do NOT use Claude Code's built-in worktree system (EnterWorktree tool). You are already working inside a lif-managed worktree.\n\n")
+	sb.WriteString("CRITICAL — ASKING QUESTIONS:\nYou are running inside a web UI, NOT an interactive terminal. The user CANNOT see or respond to plain-text questions in your output. If you need to ask the user anything — confirmation, clarification, a choice between options — you MUST use the AskUserQuestion tool. Every single time. No exceptions. Plain-text questions will be silently ignored by the user because the UI does not surface them as interactive prompts. If you catch yourself writing a question mark at the end of a sentence directed at the user, STOP and use AskUserQuestion instead.\n\n")
+	sb.WriteString("IMPORTANT: You MUST only create or modify files within this worktree directory. NEVER make changes to files in the main repository or any other worktree. All your file operations (reads are fine anywhere, but writes, edits, and deletions) must be scoped to your current working directory.\n\n")
+	fmt.Fprintf(&sb, "You are working on item %s: %q\n", b.ID, b.Title)
+	fmt.Fprintf(&sb, "Type: %s | Status: %s", b.Type, b.Status)
+	if b.Priority != "" {
+		fmt.Fprintf(&sb, " | Priority: %s", b.Priority)
+	}
+	sb.WriteString("\n")
+	if b.Body != "" {
+		fmt.Fprintf(&sb, "\nDescription:\n%s", b.Body)
+	}
+	return sb.String()
+}
+
+// centralPlanningPrompt is the system prompt of the central planning agent,
+// which works in the main repository at root.
+func centralPlanningPrompt(root string) string {
+	return fmt.Sprintf("You are the central planning agent for the Lif project. Your working directory is the main repository at: %s\nNEVER merge pull requests. After creating a PR, stop and report the URL. Do not run `gh pr merge` or any equivalent.\nNEVER assume CI checks are absent. Checks take time to register after a push. If `gh pr checks` returns empty, it means checks haven't started yet, not that none are configured.", root)
 }

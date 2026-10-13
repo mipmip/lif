@@ -3,7 +3,7 @@ import { playwright } from '@vitest/browser-playwright';
 import tailwindcss from '@tailwindcss/vite';
 import { sveltekit } from '@sveltejs/kit/vite';
 
-const backendPort = process.env.BEANS_PORT || '22880';
+const backendPort = process.env.LIF_PORT || '22880';
 
 export default defineConfig({
   plugins: [tailwindcss(), sveltekit()],

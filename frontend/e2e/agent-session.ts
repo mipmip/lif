@@ -16,7 +16,7 @@ interface PendingInteractionConfig {
   planContent?: string;
 }
 
-/** Send a GraphQL query/mutation to the beans server. */
+/** Send a GraphQL query/mutation to the lif server. */
 async function gql(baseURL: string, query: string) {
   const res = await fetch(`${baseURL}/api/graphql`, {
     method: 'POST',
@@ -33,7 +33,7 @@ async function gql(baseURL: string, query: string) {
  * mutations (for session state), in the correct order.
  *
  * Usage:
- *   await agentSession('__central__', beans)
+ *   await agentSession('__central__', lif)
  *     .withMessages([
  *       { role: 'user', content: 'Plan a refactor' },
  *       { role: 'assistant', content: 'Here is my plan.' }
@@ -42,8 +42,8 @@ async function gql(baseURL: string, query: string) {
  *     .withPendingInteraction({ type: 'EXIT_PLAN', planContent: '# Plan\n...' })
  *     .open(page);
  */
-export function agentSession(beanId: string, beans: { beansPath: string; baseURL: string }) {
-  return new AgentSessionBuilder(beanId, beans.beansPath, beans.baseURL);
+export function agentSession(itemId: string, lif: { lifPath: string; baseURL: string }) {
+  return new AgentSessionBuilder(itemId, lif.lifPath, lif.baseURL);
 }
 
 class AgentSessionBuilder {
@@ -53,8 +53,8 @@ class AgentSessionBuilder {
   private pendingInteraction: PendingInteractionConfig | null = null;
 
   constructor(
-    private beanId: string,
-    private beansPath: string,
+    private itemId: string,
+    private lifPath: string,
     private baseURL: string
   ) {}
 
@@ -95,7 +95,7 @@ class AgentSessionBuilder {
   async open(page: Page): Promise<void> {
     // 1. Seed messages to JSONL
     if (this.messages.length > 0) {
-      const convDir = join(this.beansPath, '.conversations');
+      const convDir = join(this.lifPath, '.conversations');
       mkdirSync(convDir, { recursive: true });
       const lines = this.messages.map((m) => {
         const entry: Record<string, unknown> = { type: 'message', role: m.role, content: m.content };
@@ -103,11 +103,11 @@ class AgentSessionBuilder {
         if (m.diff) entry.diff = m.diff;
         return JSON.stringify(entry);
       });
-      writeFileSync(join(convDir, `${this.beanId}.jsonl`), lines.join('\n') + '\n');
+      writeFileSync(join(convDir, `${this.itemId}.jsonl`), lines.join('\n') + '\n');
     }
 
     // 2. Navigate to the main workspace (agent chat is always visible there)
-    await page.goto(this.baseURL + `/workspace/${this.beanId}`);
+    await page.goto(this.baseURL + `/workspace/${this.itemId}`);
 
     // Wait for messages to load if we seeded any
     if (this.messages.length > 0) {
@@ -120,13 +120,13 @@ class AgentSessionBuilder {
     if (this.planMode) {
       await gql(
         this.baseURL,
-        `mutation { setAgentPlanMode(beanId: "${this.beanId}", planMode: true) }`
+        `mutation { setAgentPlanMode(itemId: "${this.itemId}", planMode: true) }`
       );
     }
     if (this.actMode) {
       await gql(
         this.baseURL,
-        `mutation { setAgentActMode(beanId: "${this.beanId}", actMode: true) }`
+        `mutation { setAgentActMode(itemId: "${this.itemId}", actMode: true) }`
       );
     }
     if (this.pendingInteraction) {
@@ -135,7 +135,7 @@ class AgentSessionBuilder {
         : '';
       await gql(
         this.baseURL,
-        `mutation { setAgentPendingInteraction(beanId: "${this.beanId}", type: ${this.pendingInteraction.type}${planArg}) }`
+        `mutation { setAgentPendingInteraction(itemId: "${this.itemId}", type: ${this.pendingInteraction.type}${planArg}) }`
       );
     }
   }
