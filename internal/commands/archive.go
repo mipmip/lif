@@ -2,10 +2,11 @@ package commands
 
 import (
 	"fmt"
+	"path/filepath"
 
-	"github.com/xRiErOS/lif/pkg/item"
-	"github.com/xRiErOS/lif/internal/output"
 	"github.com/spf13/cobra"
+	"github.com/xRiErOS/lif/internal/output"
+	"github.com/xRiErOS/lif/pkg/item"
 )
 
 var archiveJSON bool
@@ -14,9 +15,10 @@ var archiveCmd = &cobra.Command{
 	Use:   "archive",
 	Args:  cobra.NoArgs,
 	Short: "Move completed/scrapped beans to the archive",
-	Long: `Moves all beans with status "completed" or "scrapped" to the archive directory (.beans/archive/).
+	Long: `Moves all beans with status "completed" or "scrapped" to the archive directory (.lif/archive/).
 Archived beans are preserved for project memory and remain visible in all queries.
-The archive keeps the main .beans directory tidy while preserving project history.
+The archive keeps the main .lif directory tidy while preserving project history.
+A project that still uses the legacy name .beans has its archive in .beans/archive/.
 
 Relationships (parent, blocking) are preserved in archived beans.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -55,11 +57,12 @@ Relationships (parent, blocking) are preserved in archived beans.`,
 			archived = append(archived, b.ID)
 		}
 
+		archiveDir := filepath.Base(core.Root()) + "/archive/"
 		if archiveJSON {
-			return output.SuccessMessage(fmt.Sprintf("Archived %d bean(s) to .beans/archive/", len(archived)))
+			return output.SuccessMessage(fmt.Sprintf("Archived %d bean(s) to %s", len(archived), archiveDir))
 		}
 
-		fmt.Printf("Archived %d bean(s) to .beans/archive/\n", len(archived))
+		fmt.Printf("Archived %d bean(s) to %s\n", len(archived), archiveDir)
 		return nil
 	},
 }

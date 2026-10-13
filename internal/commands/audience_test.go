@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/spf13/cobra"
+	"github.com/xRiErOS/lif/pkg/config"
 )
 
 // TestIsUserFacingDefaultsClosed pins the direction IsUserFacing itself
@@ -205,7 +206,7 @@ func TestPersistentPreRunEOnlySkipsStoreForBootstrapSkipVerbs(t *testing.T) {
 	if err == nil {
 		t.Fatal("list: got nil error over a storeless directory, want the store-load error")
 	}
-	if !strings.Contains(err.Error(), "no .beans directory found") {
+	if !strings.Contains(err.Error(), "no "+config.DefaultStoreDir+" directory found") {
 		t.Errorf("list: error %q does not report the missing store", err.Error())
 	}
 }

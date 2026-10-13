@@ -754,7 +754,7 @@ func Load(configPath string) (*Config, error) {
 
 	// A misspelt anchor must not degrade into the default: that would silently
 	// resolve a different store than the file asks for.
-	if err := ValidateAnchor(cfg.Items.Anchor); err != nil {
+	if err := ValidateAnchor(cfg.Items.Anchor, cfg.SectionKey()); err != nil {
 		return nil, fmt.Errorf("%s: %w", configPath, err)
 	}
 
@@ -765,17 +765,18 @@ func Load(configPath string) (*Config, error) {
 	return &cfg, nil
 }
 
-// ValidateAnchor rejects any beans.anchor value the resolver cannot honour.
-func ValidateAnchor(anchor string) error {
+// ValidateAnchor rejects any anchor value the resolver cannot honour. key is the
+// section key of the file the value came from, so the error names its key path.
+func ValidateAnchor(anchor, key string) error {
 	switch anchor {
 	case "", AnchorRepoRoot:
 		return nil
 	default:
-		return fmt.Errorf("unknown beans.anchor %q (expected %q or an empty value)", anchor, AnchorRepoRoot)
+		return fmt.Errorf("unknown %s.anchor %q (expected %q or an empty value)", key, anchor, AnchorRepoRoot)
 	}
 }
 
-// validateRequireFieldsOn rejects a beans.require_fields_on configuration that
+// validateRequireFieldsOn rejects a require_fields_on configuration that
 // names an unknown status, an empty field name, or a field items already
 // manages as a schema field. Misconfiguration must not silently degrade into
 // no policy at all.
@@ -788,14 +789,14 @@ func (c *Config) validateRequireFieldsOn() error {
 	for _, status := range statuses {
 		fields := c.Items.RequireFieldsOn[status]
 		if !c.IsValidStatus(status) {
-			return fmt.Errorf("unknown status %q in beans.require_fields_on (valid: %s)", status, strings.Join(c.StatusNames(), ", "))
+			return fmt.Errorf("unknown status %q in %s.require_fields_on (valid: %s)", status, c.SectionKey(), strings.Join(c.StatusNames(), ", "))
 		}
 		for _, field := range fields {
 			if strings.TrimSpace(field) == "" {
-				return fmt.Errorf("beans.require_fields_on[%q] contains an empty field name", status)
+				return fmt.Errorf("%s.require_fields_on[%q] contains an empty field name", c.SectionKey(), status)
 			}
 			if _, known := item.ReservedKeyFlag(field); known {
-				return fmt.Errorf("beans.require_fields_on[%q] names reserved front matter field %q (managed by beans, not an extra key)", status, field)
+				return fmt.Errorf("%s.require_fields_on[%q] names reserved front matter field %q (managed by beans, not an extra key)", c.SectionKey(), status, field)
 			}
 		}
 	}
@@ -888,6 +889,18 @@ func (c *Config) SaveTarget(dir string) (path, key string, err error) {
 		}
 	}
 	return path, key, nil
+}
+
+// TargetFileName is the base name of the config file Save(dir) writes: the
+// file this config was read from, the config file already in the directory,
+// or the new file name when there is none. It falls back to the new name when
+// the target cannot be decided, so a message can always name a file.
+func (c *Config) TargetFileName(dir string) string {
+	path, _, err := c.SaveTarget(dir)
+	if err != nil {
+		return ConfigFileName
+	}
+	return filepath.Base(path)
 }
 
 // ConfigDir returns the directory containing the config file.
@@ -1081,7 +1094,7 @@ func (c *Config) toYAMLNode() *yaml.Node {
 	}
 	if c.Worktree.Path != "" {
 		key := strNode("path")
-		key.HeadComment = "Directory for worktrees (default: ~/.beans/worktrees/<project>/)"
+		key.HeadComment = "Directory for worktrees (default: ~/.lif/worktrees/<project>/)"
 		worktreeMapping.Content = append(worktreeMapping.Content, key, strNode(c.Worktree.Path))
 	}
 	setupKey := strNode("setup")

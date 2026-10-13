@@ -464,7 +464,7 @@ func (c *Core) applyRenameCascade(plan *RenamePlan) error {
 	return c.loadFromDisk()
 }
 
-// writeRebrandConfig persists newPrefix to .beans.yml after a successful
+// writeRebrandConfig persists newPrefix to the config file after a successful
 // prefix-rebrand cascade swap. Runs after (not inside) stageAndSwap's
 // atomic swap: the item-file cascade is the primary invariant (an
 // interrupted config write leaves items self-consistent — Item IDs are read
@@ -478,7 +478,7 @@ func (c *Core) writeRebrandConfig(newPrefix string) error {
 	}
 	c.config.Items.Prefix = newPrefix
 	if err := c.config.Save(c.config.ConfigDir()); err != nil {
-		return fmt.Errorf("writing .beans.yml: %w", err)
+		return fmt.Errorf("writing %s: %w", c.config.TargetFileName(c.config.ConfigDir()), err)
 	}
 	return nil
 }
@@ -593,7 +593,7 @@ func (c *Core) stageAndSwap(writes map[string][]byte, removes []string, moves ..
 	// atomic swap
 	backup := filepath.Join(repo, fmt.Sprintf("%s%d", config.BackupDirPrefix, time.Now().UnixNano()))
 	if err := os.Rename(c.root, backup); err != nil {
-		return fmt.Errorf("backing up .beans: %w", err)
+		return fmt.Errorf("backing up %s: %w", filepath.Base(c.root), err)
 	}
 	if err := swapRename(staging, c.root); err != nil {
 		os.Rename(backup, c.root) // best-effort rollback

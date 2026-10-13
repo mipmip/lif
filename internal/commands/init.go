@@ -21,14 +21,15 @@ var initCmd = &cobra.Command{
 	Use:   "init",
 	Args:  cobra.NoArgs,
 	Short: "Initialize a beans project",
-	Long:  `Creates a .beans directory and .beans.yml config file in the current directory.`,
+	Long: `Creates a .lif directory and .lif.yml config file in the current directory.
+A project that already uses the legacy names .beans or .beans.yml keeps them.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		var projectDir string
 		var itemsDir string
 		var dirName string
 
 		if storePath != "" && initProfile != "" {
-			msg := "--profile writes a .beans.yml, which --lif-path skips; use one or the other"
+			msg := "--profile writes a .lif.yml, which --lif-path skips; use one or the other"
 			if initJSON {
 				return output.Error(output.ErrValidation, msg)
 			}

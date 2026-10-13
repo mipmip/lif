@@ -48,7 +48,7 @@ var listCmd = &cobra.Command{
 	Args:    cobra.NoArgs,
 	Aliases: []string{"ls"},
 	Short:   "List all beans",
-	Long: `Lists all beans in the .beans directory.
+	Long: `Lists all beans in the .lif directory (or in the legacy .beans directory of a project that still uses it).
 
 Search Syntax (--search/-S):
   The search flag supports Bleve query string syntax:

@@ -5,6 +5,7 @@
 /.worktrees/
 /.superpowers/
 /.beans/
+/.lif/
 # Added by goreleaser init:
 /dist/
 /.docs.local
