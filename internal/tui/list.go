@@ -8,19 +8,19 @@ import (
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/xRiErOS/lif/pkg/item"
+	"github.com/xRiErOS/lif/internal/ui"
 	"github.com/xRiErOS/lif/pkg/config"
+	"github.com/xRiErOS/lif/pkg/item"
 	"github.com/xRiErOS/lif/pkg/itemgraph"
 	"github.com/xRiErOS/lif/pkg/itemgraph/model"
-	"github.com/xRiErOS/lif/internal/ui"
 )
 
 // itemItem wraps a Item to implement list.Item, with tree context
 type itemRow struct {
-	item            *item.Item
-	cfg             *config.Config
-	treePrefix      string // tree prefix for rendering (e.g., "├─" or "  └─")
-	matched         bool   // true if item matched filter (vs. ancestor shown for context)
+	item           *item.Item
+	cfg            *config.Config
+	treePrefix     string // tree prefix for rendering (e.g., "├─" or "  └─")
+	matched        bool   // true if item matched filter (vs. ancestor shown for context)
 	implicitStatus string // implicit terminal status from an ancestor, if any
 }
 
@@ -78,23 +78,23 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 		item.item.Type,
 		item.item.Title,
 		ui.ItemRowConfig{
-			StatusColor:     colors.StatusColor,
-			TypeColor:       colors.TypeColor,
-			PriorityColor:   colors.PriorityColor,
-			Priority:        item.item.Priority,
-			IsArchive:       colors.IsArchive,
-			MaxTitleWidth:   maxTitleWidth,
-			ShowCursor:      true,
-			IsSelected:      index == m.Index(),
-			IsMarked:        isMarked,
-			Tags:            item.item.Tags,
-			ShowTags:        d.cols.ShowTags,
-			TagsColWidth:    d.cols.Tags,
-			MaxTags:         d.cols.MaxTags,
-			TreePrefix:      item.treePrefix,
-			Dimmed:          !item.matched,
-			IDColWidth:      d.idColWidth,
-			UseFullNames:    d.cols.UseFullTypeStatus,
+			StatusColor:    colors.StatusColor,
+			TypeColor:      colors.TypeColor,
+			PriorityColor:  colors.PriorityColor,
+			Priority:       item.item.Priority,
+			IsArchive:      colors.IsArchive,
+			MaxTitleWidth:  maxTitleWidth,
+			ShowCursor:     true,
+			IsSelected:     index == m.Index(),
+			IsMarked:       isMarked,
+			Tags:           item.item.Tags,
+			ShowTags:       d.cols.ShowTags,
+			TagsColWidth:   d.cols.Tags,
+			MaxTags:        d.cols.MaxTags,
+			TreePrefix:     item.treePrefix,
+			Dimmed:         !item.matched,
+			IDColWidth:     d.idColWidth,
+			UseFullNames:   d.cols.UseFullTypeStatus,
 			ImplicitStatus: item.implicitStatus,
 		},
 	)
@@ -131,7 +131,7 @@ func newListModel(resolver *itemgraph.CoreResolver, cfg *config.Config) listMode
 	delegate := itemDelegate{cfg: cfg, selectedItems: &selectedItems}
 
 	l := list.New([]list.Item{}, delegate, 0, 0)
-	l.Title = "Beans"
+	l.Title = "Items"
 	l.SetShowStatusBar(false)
 	l.SetFilteringEnabled(true)
 	l.SetShowHelp(false)
@@ -259,10 +259,10 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 		m.hasTags = false
 		for i, flatItem := range msg.items {
 			items[i] = itemRow{
-				item:            flatItem.Item,
-				cfg:             m.config,
-				treePrefix:      flatItem.TreePrefix,
-				matched:         flatItem.Matched,
+				item:           flatItem.Item,
+				cfg:            m.config,
+				treePrefix:     flatItem.TreePrefix,
+				matched:        flatItem.Matched,
 				implicitStatus: flatItem.ImplicitStatus,
 			}
 			if len(flatItem.Item.Tags) > 0 {
@@ -319,7 +319,7 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 					return m, func() tea.Msg {
 						return openParentPickerMsg{
 							itemIDs:   ids,
-							itemTitle: fmt.Sprintf("%d selected beans", len(ids)),
+							itemTitle: fmt.Sprintf("%d selected items", len(ids)),
 							itemTypes: types,
 						}
 					}
@@ -344,7 +344,7 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 					return m, func() tea.Msg {
 						return openStatusPickerMsg{
 							itemIDs:   ids,
-							itemTitle: fmt.Sprintf("%d selected beans", len(ids)),
+							itemTitle: fmt.Sprintf("%d selected items", len(ids)),
 						}
 					}
 				} else if item, ok := m.list.SelectedItem().(itemRow); ok {
@@ -367,7 +367,7 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 					return m, func() tea.Msg {
 						return openTypePickerMsg{
 							itemIDs:   ids,
-							itemTitle: fmt.Sprintf("%d selected beans", len(ids)),
+							itemTitle: fmt.Sprintf("%d selected items", len(ids)),
 						}
 					}
 				} else if item, ok := m.list.SelectedItem().(itemRow); ok {
@@ -390,7 +390,7 @@ func (m listModel) Update(msg tea.Msg) (listModel, tea.Cmd) {
 					return m, func() tea.Msg {
 						return openPriorityPickerMsg{
 							itemIDs:   ids,
-							itemTitle: fmt.Sprintf("%d selected beans", len(ids)),
+							itemTitle: fmt.Sprintf("%d selected items", len(ids)),
 						}
 					}
 				} else if item, ok := m.list.SelectedItem().(itemRow); ok {
@@ -503,9 +503,9 @@ func (m listModel) View() string {
 
 	// Update title based on active filter
 	if m.tagFilter != "" {
-		m.list.Title = fmt.Sprintf("Beans [tag: %s]", m.tagFilter)
+		m.list.Title = fmt.Sprintf("Items [tag: %s]", m.tagFilter)
 	} else {
-		m.list.Title = "Beans"
+		m.list.Title = "Items"
 	}
 
 	// Inner height: total height minus border (2) minus footer (1) minus padding (1)
@@ -605,11 +605,10 @@ func (m listModel) ViewConstrained(width, height int) string {
 
 	// Update title based on active filter
 	if m.tagFilter != "" {
-		m.list.Title = fmt.Sprintf("Beans [tag: %s]", m.tagFilter)
+		m.list.Title = fmt.Sprintf("Items [tag: %s]", m.tagFilter)
 	} else {
-		m.list.Title = "Beans"
+		m.list.Title = "Items"
 	}
 
 	return m.viewContent(innerHeight)
 }
-

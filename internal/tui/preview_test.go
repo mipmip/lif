@@ -51,8 +51,8 @@ func TestPreviewViewEmpty(t *testing.T) {
 	preview := newPreviewModel(nil, 60, 20)
 	view := preview.View()
 
-	if !strings.Contains(view, "No bean selected") {
-		t.Error("empty preview should show 'No bean selected'")
+	if !strings.Contains(view, "No item selected") {
+		t.Error("empty preview should show 'No item selected'")
 	}
 }
 

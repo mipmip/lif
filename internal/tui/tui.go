@@ -11,12 +11,12 @@ import (
 	"github.com/atotto/clipboard"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/xRiErOS/lif/pkg/itemcore"
 	"github.com/xRiErOS/lif/pkg/candidates"
 	"github.com/xRiErOS/lif/pkg/config"
-	"github.com/xRiErOS/lif/pkg/safepath"
+	"github.com/xRiErOS/lif/pkg/itemcore"
 	"github.com/xRiErOS/lif/pkg/itemgraph"
 	"github.com/xRiErOS/lif/pkg/itemgraph/model"
+	"github.com/xRiErOS/lif/pkg/safepath"
 )
 
 // viewState represents which view is currently active
@@ -479,7 +479,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		editor := getEditor()
 		fullPath, err := safepath.SafeJoin(a.core.Root(), msg.itemPath)
 		if err != nil {
-			a.list.statusMessage = fmt.Sprintf("unsafe bean path: %v", err)
+			a.list.statusMessage = fmt.Sprintf("unsafe item path: %v", err)
 			return a, nil
 		}
 
@@ -557,7 +557,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else if len(msg.ids) == 1 {
 			statusMsg = fmt.Sprintf("Copied %s to clipboard", msg.ids[0])
 		} else {
-			statusMsg = fmt.Sprintf("Copied %d bean IDs to clipboard", len(msg.ids))
+			statusMsg = fmt.Sprintf("Copied %d item IDs to clipboard", len(msg.ids))
 		}
 
 		// Set status on current view

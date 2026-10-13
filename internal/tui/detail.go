@@ -13,10 +13,10 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/glamour"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/xRiErOS/lif/pkg/item"
-	"github.com/xRiErOS/lif/pkg/config"
-	"github.com/xRiErOS/lif/pkg/itemgraph"
 	"github.com/xRiErOS/lif/internal/ui"
+	"github.com/xRiErOS/lif/pkg/config"
+	"github.com/xRiErOS/lif/pkg/item"
+	"github.com/xRiErOS/lif/pkg/itemgraph"
 )
 
 // Cached glamour renderer - initialized once per width
@@ -50,16 +50,18 @@ type resolvedLink struct {
 
 // linkItem wraps a resolvedLink to implement list.Item
 type linkItem struct {
-	link   resolvedLink
-	cfg    *config.Config
-	width  int
-	cols   ui.ResponsiveColumns
-	label  string // pre-computed label like "Blocks:" or "Blocked by:"
+	link  resolvedLink
+	cfg   *config.Config
+	width int
+	cols  ui.ResponsiveColumns
+	label string // pre-computed label like "Blocks:" or "Blocked by:"
 }
 
 func (i linkItem) Title() string       { return i.link.item.Title }
 func (i linkItem) Description() string { return i.link.item.ID }
-func (i linkItem) FilterValue() string { return i.link.item.Title + " " + i.link.item.ID + " " + i.label }
+func (i linkItem) FilterValue() string {
+	return i.link.item.Title + " " + i.link.item.ID + " " + i.label
+}
 
 // linkDelegate handles rendering of link list items
 type linkDelegate struct {
@@ -215,7 +217,7 @@ func (m detailModel) createLinkList() list.Model {
 	listHeight := min(len(m.links), maxHeight) + 2
 
 	l := list.New(items, delegate, m.width-8, listHeight)
-	l.Title = "Linked Beans"
+	l.Title = "Linked Items"
 	l.SetShowStatusBar(false)
 	l.SetShowHelp(false)
 	l.SetShowPagination(false)
@@ -661,7 +663,6 @@ func compareItemsByStatusPriorityAndType(a, b *item.Item, statusNames, priorityN
 	// Quaternary: title (case-insensitive)
 	return strings.ToLower(a.Title) < strings.ToLower(b.Title)
 }
-
 
 func (m detailModel) renderBody(_ int) string {
 	if m.item.Body == "" {

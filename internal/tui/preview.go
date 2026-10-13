@@ -4,8 +4,8 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/xRiErOS/lif/pkg/item"
 	"github.com/xRiErOS/lif/internal/ui"
+	"github.com/xRiErOS/lif/pkg/item"
 )
 
 // previewModel is a read-only detail preview for the two-column layout.
@@ -38,7 +38,7 @@ func (m previewModel) renderEmpty() string {
 		Align(lipgloss.Center, lipgloss.Center).
 		Foreground(ui.ColorMuted)
 
-	return style.Render("No bean selected")
+	return style.Render("No item selected")
 }
 
 func (m previewModel) renderItem() string {
