@@ -136,12 +136,13 @@ func runServer(port int, origins []string) error {
 		}
 		c.Next()
 	})
-	// Resolve worktree root directory (default: ~/.beans/worktrees/<project>/)
+	// Resolve worktree root directory (default: ~/.lif/worktrees/<project>/, or
+	// ~/.beans/worktrees/<project>/ when that legacy root exists)
 	projectName := cfg.GetProjectName()
 	if projectName == "" {
 		projectName = filepath.Base(cfg.ConfigDir())
 	}
-	worktreeRoot, err := cfg.ResolveWorktreePath(projectName)
+	worktreeRoot, _, err := cfg.ResolveWorktreePath(projectName)
 	if err != nil {
 		return fmt.Errorf("failed to resolve worktree path: %w", err)
 	}
@@ -189,16 +190,7 @@ func runServer(port int, origins []string) error {
 	}
 
 	// Create terminal session manager with workspace port injection.
-	// Run sessions use "${workspaceId}__run" as session ID — strip the
-	// suffix so they share the same port as the workspace's shell session.
-	termMgr := terminal.NewManager(func(sessionID string) []string {
-		workspaceID := strings.TrimSuffix(sessionID, "__run")
-		port, err := portAlloc.Get(workspaceID)
-		if err != nil {
-			return nil
-		}
-		return []string{fmt.Sprintf("BEANS_WORKSPACE_PORT=%d", port)}
-	})
+	termMgr := terminal.NewManager(workspaceEnvFunc(portAlloc))
 	defer termMgr.Shutdown()
 
 	// Create agent session manager (with conversation persistence)
@@ -481,4 +473,25 @@ func RegisterServeCmd(root *cobra.Command) {
 	serveCmd.Flags().IntVarP(&servePort, "port", "p", config.DefaultServerPort, "Port to listen on")
 	serveCmd.Flags().StringSliceVar(&corsOrigins, "cors-origin", cors.DefaultOrigins, "Allowed CORS origins (use * to allow all)")
 	root.AddCommand(serveCmd)
+}
+
+// workspaceEnvFunc returns the terminal environment function of a serve
+// process: every workspace shell session and run session gets the workspace's
+// port as LIF_WORKSPACE_PORT and, for user scripts of the former tool, as
+// BEANS_WORKSPACE_PORT with the same value. Run sessions use
+// "${workspaceId}__run" as session ID — the suffix is stripped so they share
+// the same port as the workspace's shell session. A session of a workspace
+// without an allocated port gets none.
+func workspaceEnvFunc(portAlloc *portalloc.Allocator) terminal.EnvFunc {
+	return func(sessionID string) []string {
+		workspaceID := strings.TrimSuffix(sessionID, "__run")
+		port, err := portAlloc.Get(workspaceID)
+		if err != nil {
+			return nil
+		}
+		return []string{
+			fmt.Sprintf("%s=%d", config.WorkspacePortEnvVar, port),
+			fmt.Sprintf("%s=%d", config.LegacyWorkspacePortEnvVar, port),
+		}
+	}
 }

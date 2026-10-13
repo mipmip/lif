@@ -33,7 +33,7 @@ func (c *Core) storeRootAbs() string {
 // end up committed to the repo or the hull. The directory name is a hash of
 // the store's absolute root path rather than the configured project name,
 // so two different stores never collide even if they share (or lack) a
-// project name -- ~/.beans/worktrees/<project>/ (the config-driven sibling
+// project name -- ~/.lif/worktrees/<project>/ (the config-driven sibling
 // convention for worktrees) already accepts that collision risk, but the
 // index has no such existing contract to match and a hash is exact instead
 // of merely conventional.

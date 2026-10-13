@@ -547,7 +547,7 @@ func TestStageAndSwap_rollsBackOnSwapFailure(t *testing.T) {
 	}
 	for _, e := range entries {
 		name := e.Name()
-		if name != ".beans" && strings.HasPrefix(name, ".beans-staging") {
+		if strings.HasPrefix(name, ".lif-staging") || strings.HasPrefix(name, ".beans-staging") {
 			t.Errorf("leftover staging sibling: %s", name)
 		}
 	}
@@ -670,6 +670,7 @@ func TestRebrand_samePrefixRejected(t *testing.T) {
 // project-name resolution mirrors serve.go:115-117 (GetProjectName() first,
 // basename(ConfigDir()) only as fallback).
 func TestGuard_activeWorktreeRefusesRebrand(t *testing.T) {
+	t.Setenv("HOME", t.TempDir()) // the default worktree root lives under HOME
 	c := newTestCore(t, "tp-", map[string]string{
 		"tp-aaaa--a.md": "---\n# tp-aaaa\ntitle: A\nstatus: todo\ntype: task\n---\n",
 	})
@@ -677,7 +678,7 @@ func TestGuard_activeWorktreeRefusesRebrand(t *testing.T) {
 	if projectName == "" {
 		projectName = filepath.Base(c.config.ConfigDir())
 	}
-	wtPath, err := c.config.ResolveWorktreePath(projectName)
+	wtPath, _, err := c.config.ResolveWorktreePath(projectName)
 	if err != nil {
 		t.Skipf("cannot resolve worktree path: %v", err)
 	}
@@ -698,10 +699,12 @@ func TestGuard_activeWorktreeRefusesRebrand(t *testing.T) {
 	}
 }
 
-// TestGuard_activeWorktreeAllowsRebrand_whenDirEmpty proves the guard does
-// not false-positive: an existing (but empty, or marker-less) worktree
-// directory must not block a rebrand.
-func TestGuard_activeWorktreeAllowsRebrand_whenDirEmpty(t *testing.T) {
+// TestGuard_legacyWorktreeRootRefusesRebrand proves the guard follows the
+// resolver: with a legacy ~/.beans/worktrees/<project> root present, an active
+// worktree marker there refuses the rebrand.
+func TestGuard_legacyWorktreeRootRefusesRebrand(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
 	c := newTestCore(t, "tp-", map[string]string{
 		"tp-aaaa--a.md": "---\n# tp-aaaa\ntitle: A\nstatus: todo\ntype: task\n---\n",
 	})
@@ -709,7 +712,34 @@ func TestGuard_activeWorktreeAllowsRebrand_whenDirEmpty(t *testing.T) {
 	if projectName == "" {
 		projectName = filepath.Base(c.config.ConfigDir())
 	}
-	wtPath, err := c.config.ResolveWorktreePath(projectName)
+	legacyRoot := filepath.Join(home, ".beans", "worktrees", projectName)
+	if err := os.MkdirAll(legacyRoot, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.PlanRebrand("op-"); err != nil {
+		t.Fatalf("unexpected refusal with a marker-less legacy root: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(legacyRoot, "tp-aaaa.meta.json"), []byte("{}"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.PlanRebrand("op-"); err == nil {
+		t.Fatal("expected refusal due to an active worktree under the legacy root")
+	}
+}
+
+// TestGuard_activeWorktreeAllowsRebrand_whenDirEmpty proves the guard does
+// not false-positive: an existing (but empty, or marker-less) worktree
+// directory must not block a rebrand.
+func TestGuard_activeWorktreeAllowsRebrand_whenDirEmpty(t *testing.T) {
+	t.Setenv("HOME", t.TempDir()) // the default worktree root lives under HOME
+	c := newTestCore(t, "tp-", map[string]string{
+		"tp-aaaa--a.md": "---\n# tp-aaaa\ntitle: A\nstatus: todo\ntype: task\n---\n",
+	})
+	projectName := c.config.GetProjectName()
+	if projectName == "" {
+		projectName = filepath.Base(c.config.ConfigDir())
+	}
+	wtPath, _, err := c.config.ResolveWorktreePath(projectName)
 	if err != nil {
 		t.Skipf("cannot resolve worktree path: %v", err)
 	}
@@ -791,7 +821,7 @@ func TestStageAndSwap_rollbackOnSecondRenameFailure(t *testing.T) {
 	// Save the original swapRename function
 	originalSwapRename := swapRename
 	defer func() { swapRename = originalSwapRename }()
-	
+
 	// Track if swapRename was called
 	swapRenameCalls := 0
 	swapRename = func(old, new string) error {
@@ -799,10 +829,10 @@ func TestStageAndSwap_rollbackOnSecondRenameFailure(t *testing.T) {
 		// Fail on any call (will be first/only call in this test)
 		return fmt.Errorf("injected failure")
 	}
-	
+
 	repo := t.TempDir()
 	itemsDir := filepath.Join(repo, ".beans")
-	
+
 	// Create initial .beans with an item
 	if err := os.MkdirAll(itemsDir, 0755); err != nil {
 		t.Fatal(err)
@@ -810,14 +840,14 @@ func TestStageAndSwap_rollbackOnSecondRenameFailure(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(itemsDir, "tp-aaaa--test.md"), []byte("---\n# tp-aaaa\ntitle: Original\nstatus: todo\ntype: task\n---\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	
+
 	cfg := config.DefaultWithPrefix("tp-")
 	cfg.SetConfigDir(repo)
 	c := New(itemsDir, cfg)
 	if err := c.Load(); err != nil {
 		t.Fatal(err)
 	}
-	
+
 	// Verify original item loaded
 	b, err := c.Get("tp-aaaa")
 	if err != nil {
@@ -826,35 +856,37 @@ func TestStageAndSwap_rollbackOnSecondRenameFailure(t *testing.T) {
 	if b.Title != "Original" {
 		t.Errorf("Original bean title mismatch: got %q, want %q", b.Title, "Original")
 	}
-	
+
 	// Try to stage and swap - this should fail and rollback
 	err = c.stageAndSwap(map[string][]byte{
 		"tp-bbbb--test.md": []byte("---\n# tp-bbbb\ntitle: New\nstatus: todo\ntype: task\n---\n"),
 	}, nil)
-	
+
 	if err == nil {
 		t.Fatalf("Expected stageAndSwap to fail (injected failure), but it succeeded. swapRename was called %d times", swapRenameCalls)
 	}
 	if !strings.Contains(err.Error(), "injected failure") {
 		t.Fatalf("Expected injected failure, got: %v", err)
 	}
-	
+
 	// Verify swapRename was actually called (at least once)
 	if swapRenameCalls < 1 {
 		t.Fatalf("swapRename was never called: %d calls", swapRenameCalls)
 	}
-	
+
 	// After rollback, original .beans should be restored
 	if _, err := os.Stat(itemsDir); os.IsNotExist(err) {
 		t.Fatal("Original .beans dir was not restored after rollback")
 	}
-	
+
 	// Verify no backup orphan left (they should be cleaned up after successful rollback)
-	orphanDirs, _ := filepath.Glob(filepath.Join(repo, ".beans.bak-*"))
+	orphanDirs, _ := filepath.Glob(filepath.Join(repo, ".lif.bak-*"))
+	legacyOrphanDirs, _ := filepath.Glob(filepath.Join(repo, ".beans.bak-*"))
+	orphanDirs = append(orphanDirs, legacyOrphanDirs...)
 	if len(orphanDirs) > 0 {
 		t.Errorf("Found orphan backups after rollback: %v", orphanDirs)
 	}
-	
+
 	// Verify original item is still there and NOT replaced
 	c2 := New(itemsDir, cfg)
 	if err := c2.Load(); err != nil {
@@ -876,7 +908,7 @@ func TestDetectOrphanBackup_repairsExactlyOneBackup(t *testing.T) {
 	repo := t.TempDir()
 	itemsDir := filepath.Join(repo, ".beans")
 	backupDir := filepath.Join(repo, ".beans.bak-1234567890")
-	
+
 	// Create a backup with an item inside
 	if err := os.MkdirAll(backupDir, 0755); err != nil {
 		t.Fatal(err)
@@ -884,27 +916,27 @@ func TestDetectOrphanBackup_repairsExactlyOneBackup(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(backupDir, "tp-xxbb--test.md"), []byte("---\n# tp-xxbb\ntitle: Recovered\nstatus: todo\ntype: task\n---\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	
+
 	// Create Core with missing .beans dir
 	cfg := config.DefaultWithPrefix("tp-")
 	cfg.SetConfigDir(repo)
 	c := New(itemsDir, cfg)
-	
+
 	// Load should detect orphan and repair it
 	if err := c.Load(); err != nil {
 		t.Fatalf("Load failed: %v", err)
 	}
-	
+
 	// After repair, .beans should exist
 	if _, err := os.Stat(itemsDir); os.IsNotExist(err) {
 		t.Fatal(".beans was not restored from backup")
 	}
-	
+
 	// Backup should no longer exist
 	if _, err := os.Stat(backupDir); !os.IsNotExist(err) {
 		t.Fatal("Backup was not removed after repair")
 	}
-	
+
 	// Verify the item is now accessible
 	b, err := c.Get("tp-xxbb")
 	if err != nil {
@@ -921,7 +953,7 @@ func TestDetectOrphanBackup_repairsExactlyOneBackup(t *testing.T) {
 func TestDetectOrphanBackup_warnsOnMultipleBackups(t *testing.T) {
 	repo := t.TempDir()
 	itemsDir := filepath.Join(repo, ".beans")
-	
+
 	// Create multiple backups
 	for _, ts := range []string{"1000", "2000"} {
 		backupDir := filepath.Join(repo, ".beans.bak-"+ts)
@@ -932,21 +964,21 @@ func TestDetectOrphanBackup_warnsOnMultipleBackups(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	
+
 	cfg := config.DefaultWithPrefix("tp-")
 	cfg.SetConfigDir(repo)
 	c := New(itemsDir, cfg)
-	
+
 	// Load should warn but not repair
 	if err := c.Load(); err != nil {
 		t.Fatalf("Load failed: %v", err)
 	}
-	
+
 	// .beans should exist (empty) but not repaired to any specific backup
 	if _, err := os.Stat(itemsDir); os.IsNotExist(err) {
 		t.Fatal(".beans should be created (empty) even when multiple backups present")
 	}
-	
+
 	// Backups should still exist (not touched)
 	for _, ts := range []string{"1000", "2000"} {
 		backupDir := filepath.Join(repo, ".beans.bak-"+ts)
@@ -962,7 +994,7 @@ func TestDetectOrphanBackup_nothingToRepair(t *testing.T) {
 	c := newTestCore(t, "tp-", map[string]string{
 		"tp-aaaa--test.md": "---\n# tp-aaaa\ntitle: Normal\nstatus: todo\ntype: task\n---\n",
 	})
-	
+
 	// newTestCore already calls Load(), so the item should be loaded
 	b, err := c.Get("tp-aaaa")
 	if err != nil {

@@ -212,7 +212,7 @@ func defaultShell() string {
 }
 
 // EnvFunc returns extra environment variables for a given session ID.
-// Used to inject workspace-specific env vars (e.g. BEANS_WORKSPACE_PORT).
+// Used to inject workspace-specific env vars (e.g. LIF_WORKSPACE_PORT).
 type EnvFunc func(sessionID string) []string
 
 // Manager manages PTY sessions keyed by session ID.
