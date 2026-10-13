@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/xRiErOS/beans/pkg/forge"
+	"github.com/xRiErOS/lif/pkg/forge"
 )
 
 func TestPrPrompt_NoPR(t *testing.T) {

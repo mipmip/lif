@@ -13,11 +13,11 @@ import (
 	"text/template"
 
 	"github.com/spf13/cobra"
-	"github.com/xRiErOS/beans/internal/output"
-	"github.com/xRiErOS/beans/internal/ui"
-	"github.com/xRiErOS/beans/pkg/bean"
-	"github.com/xRiErOS/beans/pkg/beangraph"
-	"github.com/xRiErOS/beans/pkg/config"
+	"github.com/xRiErOS/lif/internal/output"
+	"github.com/xRiErOS/lif/internal/ui"
+	"github.com/xRiErOS/lif/pkg/bean"
+	"github.com/xRiErOS/lif/pkg/beangraph"
+	"github.com/xRiErOS/lif/pkg/config"
 	"golang.org/x/term"
 )
 

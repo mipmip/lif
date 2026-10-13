@@ -6,8 +6,8 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/xRiErOS/beans/pkg/bean"
-	"github.com/xRiErOS/beans/pkg/config"
+	"github.com/xRiErOS/lif/pkg/bean"
+	"github.com/xRiErOS/lif/pkg/config"
 )
 
 // Progress is a milestone's descendant completion, shown as a bar plus n/m.

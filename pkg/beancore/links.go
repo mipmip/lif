@@ -5,8 +5,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/xRiErOS/beans/pkg/bean"
-	"github.com/xRiErOS/beans/pkg/config"
+	"github.com/xRiErOS/lif/pkg/bean"
+	"github.com/xRiErOS/lif/pkg/config"
 )
 
 // IncomingLink represents a link from another bean to a target bean.

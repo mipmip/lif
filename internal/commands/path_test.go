@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/xRiErOS/beans/pkg/beancore"
-	"github.com/xRiErOS/beans/pkg/config"
+	"github.com/xRiErOS/lif/pkg/beancore"
+	"github.com/xRiErOS/lif/pkg/config"
 )
 
 // The store path is resolved in exactly one place (resolveBeansPath). Scripts

@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/xRiErOS/beans/pkg/bean"
-	"github.com/xRiErOS/beans/pkg/config"
+	"github.com/xRiErOS/lif/pkg/bean"
+	"github.com/xRiErOS/lif/pkg/config"
 )
 
 // liveBean returns the pointer the core actually stores, which is what the

@@ -8,7 +8,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/xRiErOS/beans/internal/output"
+	"github.com/xRiErOS/lif/internal/output"
 )
 
 // TestSilentErrorWritesNothing pins beans-lk8t: reportExecutionError must

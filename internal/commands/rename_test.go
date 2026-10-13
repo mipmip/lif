@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/xRiErOS/beans/pkg/beancore"
-	"github.com/xRiErOS/beans/pkg/config"
+	"github.com/xRiErOS/lif/pkg/beancore"
+	"github.com/xRiErOS/lif/pkg/config"
 )
 
 func renameTestCore(t *testing.T, prefix string, files map[string]string) *beancore.Core {

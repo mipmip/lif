@@ -19,17 +19,17 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cobra"
 
-	"github.com/xRiErOS/beans/internal/agent"
-	"github.com/xRiErOS/beans/internal/cors"
-	"github.com/xRiErOS/beans/internal/gitutil"
-	"github.com/xRiErOS/beans/internal/graph"
-	"github.com/xRiErOS/beans/internal/portalloc"
-	"github.com/xRiErOS/beans/internal/terminal"
-	"github.com/xRiErOS/beans/internal/web"
-	"github.com/xRiErOS/beans/internal/worktree"
-	"github.com/xRiErOS/beans/pkg/beangraph"
-	"github.com/xRiErOS/beans/pkg/config"
-	"github.com/xRiErOS/beans/pkg/forge"
+	"github.com/xRiErOS/lif/internal/agent"
+	"github.com/xRiErOS/lif/internal/cors"
+	"github.com/xRiErOS/lif/internal/gitutil"
+	"github.com/xRiErOS/lif/internal/graph"
+	"github.com/xRiErOS/lif/internal/portalloc"
+	"github.com/xRiErOS/lif/internal/terminal"
+	"github.com/xRiErOS/lif/internal/web"
+	"github.com/xRiErOS/lif/internal/worktree"
+	"github.com/xRiErOS/lif/pkg/beangraph"
+	"github.com/xRiErOS/lif/pkg/config"
+	"github.com/xRiErOS/lif/pkg/forge"
 )
 
 var (

@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/xRiErOS/beans/pkg/bean"
+	"github.com/xRiErOS/lif/pkg/bean"
 )
 
 // RenameChange describes a single bean's rename (own file move and/or ID

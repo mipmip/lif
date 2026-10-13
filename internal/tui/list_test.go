@@ -3,7 +3,7 @@ package tui
 import (
 	"testing"
 
-	"github.com/xRiErOS/beans/pkg/bean"
+	"github.com/xRiErOS/lif/pkg/bean"
 )
 
 func TestSortBeans(t *testing.T) {

@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
-	"github.com/xRiErOS/beans/pkg/bean"
+	"github.com/xRiErOS/lif/pkg/bean"
 )
 
 const debounceDelay = 100 * time.Millisecond

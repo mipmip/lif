@@ -11,12 +11,12 @@ import (
 	"github.com/atotto/clipboard"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/xRiErOS/beans/pkg/beancore"
-	"github.com/xRiErOS/beans/pkg/candidates"
-	"github.com/xRiErOS/beans/pkg/config"
-	"github.com/xRiErOS/beans/pkg/safepath"
-	"github.com/xRiErOS/beans/pkg/beangraph"
-	"github.com/xRiErOS/beans/pkg/beangraph/model"
+	"github.com/xRiErOS/lif/pkg/beancore"
+	"github.com/xRiErOS/lif/pkg/candidates"
+	"github.com/xRiErOS/lif/pkg/config"
+	"github.com/xRiErOS/lif/pkg/safepath"
+	"github.com/xRiErOS/lif/pkg/beangraph"
+	"github.com/xRiErOS/lif/pkg/beangraph/model"
 )
 
 // viewState represents which view is currently active

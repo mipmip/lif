@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/xRiErOS/beans/pkg/bean"
+	"github.com/xRiErOS/lif/pkg/bean"
 )
 
 func TestPreviewView(t *testing.T) {

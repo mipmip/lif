@@ -4,7 +4,7 @@ package search
 import (
 	"github.com/blevesearch/bleve/v2"
 	"github.com/blevesearch/bleve/v2/mapping"
-	"github.com/xRiErOS/beans/pkg/bean"
+	"github.com/xRiErOS/lif/pkg/bean"
 )
 
 // Index wraps a Bleve index for searching beans. It may be a private

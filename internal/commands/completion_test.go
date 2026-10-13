@@ -16,12 +16,12 @@ import (
 	"testing"
 
 	"github.com/spf13/cobra"
-	"github.com/xRiErOS/beans/pkg/bean"
-	"github.com/xRiErOS/beans/pkg/beancore"
-	"github.com/xRiErOS/beans/pkg/config"
+	"github.com/xRiErOS/lif/pkg/bean"
+	"github.com/xRiErOS/lif/pkg/beancore"
+	"github.com/xRiErOS/lif/pkg/config"
 )
 
-// completionTestBinary is the compiled cmd/beans binary, built once in
+// completionTestBinary is the compiled cmd/lif binary, built once in
 // TestMain. Reaching the beans-9jtq bug requires cobra's real __complete
 // request (completions.go's DisableFlagParsing path) driven through
 // Execute()/ExecuteC(), which sharedTestRoot's in-process root.Find +
@@ -43,11 +43,11 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
-	completionTestBinary = filepath.Join(binDir, "beans")
-	build := exec.Command("go", "build", "-o", completionTestBinary, "./cmd/beans")
+	completionTestBinary = filepath.Join(binDir, "lif")
+	build := exec.Command("go", "build", "-o", completionTestBinary, "./cmd/lif")
 	build.Dir = repoRoot
 	if out, err := build.CombinedOutput(); err != nil {
-		fmt.Fprintf(os.Stderr, "building beans binary: %v\n%s", err, out)
+		fmt.Fprintf(os.Stderr, "building lif binary: %v\n%s", err, out)
 		os.RemoveAll(binDir)
 		os.Exit(1)
 	}

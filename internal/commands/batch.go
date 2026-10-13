@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/xRiErOS/beans/internal/output"
-	"github.com/xRiErOS/beans/pkg/bean"
-	"github.com/xRiErOS/beans/pkg/beancore"
-	"github.com/xRiErOS/beans/pkg/beangraph"
+	"github.com/xRiErOS/lif/internal/output"
+	"github.com/xRiErOS/lif/pkg/bean"
+	"github.com/xRiErOS/lif/pkg/beancore"
+	"github.com/xRiErOS/lif/pkg/beangraph"
 )
 
 // resolveBatchTargets resolves every ID a batch verb was given before any of

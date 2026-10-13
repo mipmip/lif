@@ -6,9 +6,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/xRiErOS/beans/internal/gitutil"
-	"github.com/xRiErOS/beans/pkg/bean"
-	"github.com/xRiErOS/beans/internal/output"
+	"github.com/xRiErOS/lif/internal/gitutil"
+	"github.com/xRiErOS/lif/pkg/bean"
+	"github.com/xRiErOS/lif/internal/output"
 )
 
 // resolveContent returns content from a direct value or file flag.

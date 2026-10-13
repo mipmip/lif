@@ -3,9 +3,9 @@ package graph
 import (
 	"fmt"
 
-	"github.com/xRiErOS/beans/internal/agent"
-	"github.com/xRiErOS/beans/pkg/beangraph/model"
-	"github.com/xRiErOS/beans/pkg/forge"
+	"github.com/xRiErOS/lif/internal/agent"
+	"github.com/xRiErOS/lif/pkg/beangraph/model"
+	"github.com/xRiErOS/lif/pkg/forge"
 )
 
 // agentSessionToModel converts an agent.Session to the GraphQL model type.

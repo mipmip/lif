@@ -1,9 +1,9 @@
 package beangraph
 
 import (
-	"github.com/xRiErOS/beans/pkg/bean"
-	"github.com/xRiErOS/beans/pkg/beangraph/model"
-	"github.com/xRiErOS/beans/pkg/beancore"
+	"github.com/xRiErOS/lif/pkg/bean"
+	"github.com/xRiErOS/lif/pkg/beangraph/model"
+	"github.com/xRiErOS/lif/pkg/beancore"
 )
 
 // ApplyFilter applies BeanFilter to a slice of beans and returns filtered results.

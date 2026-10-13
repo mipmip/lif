@@ -12,9 +12,9 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
 
-	"github.com/xRiErOS/beans/pkg/bean"
-	"github.com/xRiErOS/beans/pkg/beancore"
-	"github.com/xRiErOS/beans/pkg/config"
+	"github.com/xRiErOS/lif/pkg/bean"
+	"github.com/xRiErOS/lif/pkg/beancore"
+	"github.com/xRiErOS/lif/pkg/config"
 )
 
 // setupPickTest points the package-level core at a fresh temp store and
@@ -664,7 +664,7 @@ func TestPickPartialLineToleratesLeadingProgramName(t *testing.T) {
 		t.Fatalf("resolvePickCandidates() with bare verb error = %v", err)
 	}
 
-	prefixedLine := "beans roadmap"
+	prefixedLine := "lif roadmap"
 	if err := pick.Flags().Set("line", prefixedLine); err != nil {
 		t.Fatalf("setting --line: %v", err)
 	}
@@ -673,14 +673,14 @@ func TestPickPartialLineToleratesLeadingProgramName(t *testing.T) {
 	}
 	prefixedGot, err := resolvePickCandidates(pick)
 	if err != nil {
-		t.Fatalf("resolvePickCandidates() with \"beans \"-prefixed verb error = %v", err)
+		t.Fatalf("resolvePickCandidates() with \"lif \"-prefixed verb error = %v", err)
 	}
 
 	if len(bareGot) == 0 {
 		t.Fatal("expected a non-empty candidate set for the bare-verb form")
 	}
 	if len(bareGot) != len(prefixedGot) {
-		t.Fatalf("bare verb gave %d candidates, \"beans \"-prefixed gave %d, want equal", len(bareGot), len(prefixedGot))
+		t.Fatalf("bare verb gave %d candidates, \"lif \"-prefixed gave %d, want equal", len(bareGot), len(prefixedGot))
 	}
 	bareIDs := make(map[string]bool, len(bareGot))
 	for _, b := range bareGot {
@@ -705,7 +705,7 @@ func TestPickWidgetLineWithUnmappedVerbErrors(t *testing.T) {
 	pick := setupPickScopeTest(t)
 	createScopeFixture(t)
 
-	buffer := "beans show beans-uq10"
+	buffer := "lif show beans-uq10"
 	if err := pick.Flags().Set("line", buffer); err != nil {
 		t.Fatalf("setting --line: %v", err)
 	}

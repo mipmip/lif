@@ -9,11 +9,11 @@ import (
 
 	"github.com/santhosh-tekuri/jsonschema/v6"
 	"github.com/spf13/cobra"
-	"github.com/xRiErOS/beans/internal/output"
-	"github.com/xRiErOS/beans/pkg/bean"
-	"github.com/xRiErOS/beans/pkg/beancore"
-	"github.com/xRiErOS/beans/pkg/beangraph"
-	"github.com/xRiErOS/beans/pkg/beangraph/model"
+	"github.com/xRiErOS/lif/internal/output"
+	"github.com/xRiErOS/lif/pkg/bean"
+	"github.com/xRiErOS/lif/pkg/beancore"
+	"github.com/xRiErOS/lif/pkg/beangraph"
+	"github.com/xRiErOS/lif/pkg/beangraph/model"
 )
 
 var promoteJSON bool

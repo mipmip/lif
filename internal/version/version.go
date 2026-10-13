@@ -54,7 +54,7 @@ func String() string {
 	if CustomFrontMatter {
 		status = "preserved"
 	}
-	s := fmt.Sprintf("beans %s (%s) built %s\ncustom front matter: %s", Version, Commit, Date, status)
+	s := fmt.Sprintf("lif %s (%s) built %s\ncustom front matter: %s", Version, Commit, Date, status)
 	if Tree != "" {
 		kind := TreeKind
 		if kind == "" {
